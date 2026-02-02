@@ -386,7 +386,7 @@ const ValidationBadge = ({ isValid, label }: { isValid: boolean; label: string }
   </div>
 );
 
-// --- REPLACEMENT OF MOCK DATA WITH HOOKS ---
+// --- CONEXIÓN CON SUPABASE ---
 
 export default function Logistica() {
   const { toast } = useToast();
@@ -441,16 +441,16 @@ export default function Logistica() {
   const esNacional = clienteSeleccionado?.tipo === "nacional";
 
   // Cálculos
-  const lotesEnLista = inventarioMock.filter(item => lotesSeleccionados.includes(item.id));
+  const lotesEnLista = inventarioDisponible.filter(item => lotesSeleccionados.includes(item.id));
   const totalCajas = lotesEnLista.reduce((acc, curr) => acc + curr.cajas, 0);
   const totalPeso = lotesEnLista.reduce((acc, curr) => acc + curr.peso, 0);
-  const totalVolumen = lotesEnLista.reduce((acc, curr) => acc + curr.volumen, 0);
+  const totalVolumen = lotesEnLista.reduce((acc, curr) => acc + (curr.volumen || 0), 0);
 
-  const lotesCartaPorte = inventarioMock.filter(item => lotesSeleccionadosCartaPorte.includes(item.id));
+  const lotesCartaPorte = inventarioDisponible.filter(item => lotesSeleccionadosCartaPorte.includes(item.id));
   const totalCajasCartaPorte = lotesCartaPorte.reduce((acc, curr) => acc + curr.cajas, 0);
   const totalPesoCartaPorte = lotesCartaPorte.reduce((acc, curr) => acc + curr.peso, 0);
-  const totalVolumenCartaPorte = lotesCartaPorte.reduce((acc, curr) => acc + curr.volumen, 0);
-  const valorMercanciaCartaPorte = lotesCartaPorte.reduce((acc, curr) => acc + (curr.cajas * curr.valorUnitario), 0);
+  const totalVolumenCartaPorte = lotesCartaPorte.reduce((acc, curr) => acc + (curr.volumen || 0), 0);
+  const valorMercanciaCartaPorte = lotesCartaPorte.reduce((acc, curr) => acc + (curr.cajas * (curr.valorUnitario || 0)), 0);
 
   // Validaciones
   const tempNum = parseFloat(temperaturaPrecarga);
@@ -697,7 +697,7 @@ export default function Logistica() {
             lotesSeleccionados={lotesSeleccionados}
             onToggleLote={toggleLote}
             onConfirmar={() => setIsSelectorOpen(false)}
-            inventario={inventarioMock}
+            inventario={inventarioDisponible}
             title="Seleccionar Inventario para Embarque"
           />
 
@@ -940,7 +940,7 @@ export default function Logistica() {
             lotesSeleccionados={lotesSeleccionadosCartaPorte}
             onToggleLote={toggleLoteCartaPorte}
             onConfirmar={() => setIsSelectorOpenCartaPorte(false)}
-            inventario={inventarioMock}
+            inventario={inventarioDisponible}
             title="Seleccionar Mercancía para Carta Porte"
           />
 
@@ -1362,30 +1362,30 @@ export default function Logistica() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cartasPorteMock.map((carta) => {
+                  {guiasRecientes.map((guia: any) => {
                     const estadoBadge = {
                       borrador: { variant: "outline" as const, className: "bg-gray-100 text-gray-800" },
                       generada: { variant: "outline" as const, className: "bg-blue-100 text-blue-800" },
                       validada: { variant: "outline" as const, className: "bg-green-100 text-green-800" },
                       cancelada: { variant: "outline" as const, className: "bg-red-100 text-red-800" }
-                    }[carta.estado];
+                    }[guia.estado as EstadoCartaPorte] || { variant: "outline" as const, className: "bg-gray-100 text-gray-800" };
 
                     return (
-                      <TableRow key={carta.id}>
-                        <TableCell className="font-medium">{carta.folio}</TableCell>
-                        <TableCell>{carta.cliente.nombre}</TableCell>
+                      <TableRow key={guia.id}>
+                        <TableCell className="font-medium">{guia.folio}</TableCell>
+                        <TableCell>{guia.clientes?.nombre || "Cargando..."}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            <span className="text-xs text-gray-500 truncate max-w-[100px]">{carta.lugarOrigen}</span>
+                            <span className="text-xs text-gray-500 truncate max-w-[100px]">{guia.lugar_origen}</span>
                             <ArrowRight className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs truncate max-w-[100px]">{carta.lugarDestino}</span>
+                            <span className="text-xs truncate max-w-[100px]">{guia.lugar_destino}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{format(carta.fechaSalida, 'dd/MM/yyyy')}</TableCell>
-                        <TableCell>{carta.mercancia.pesoTotal} kg</TableCell>
+                        <TableCell>{format(new Date(guia.created_at), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{guia.peso_total} kg</TableCell>
                         <TableCell>
                           <Badge variant={estadoBadge.variant} className={estadoBadge.className}>
-                            {carta.estado.toUpperCase()}
+                            {String(guia.estado).toUpperCase()}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -1397,7 +1397,7 @@ export default function Logistica() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => handleDescargarPDF(carta.folio)}
+                              onClick={() => handleDescargarPDF(guia.folio)}
                             >
                               <Download className="h-4 w-4" />
                             </Button>

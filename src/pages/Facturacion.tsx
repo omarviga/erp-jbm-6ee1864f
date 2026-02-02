@@ -136,7 +136,7 @@ const useInvoiceCalculations = (items: LineItem[]) => {
       const descuento = item.descuento || 0;
       const precioConDescuento = item.precio * (1 - descuento / 100);
       const importe = item.cantidad * precioConDescuento;
-      
+
       subtotalCalc += importe;
       descuentosCalc += item.precio * item.cantidad * (descuento / 100);
 
@@ -191,7 +191,7 @@ const useSATValidation = (
     if (!clienteSeleccionado) {
       errors.push("Debe seleccionar un cliente");
     }
-    
+
     if (items.length === 0) {
       errors.push("Debe agregar al menos un producto");
     } else {
@@ -199,7 +199,7 @@ const useSATValidation = (
       if (itemsInvalidos.length > 0) {
         errors.push("Todos los productos deben tener una cantidad válida");
       }
-      
+
       const sinStock = items.filter(item => item.cantidad > item.cantidadDisponible);
       if (sinStock.length > 0) {
         errors.push("Algunos productos exceden el stock disponible");
@@ -221,13 +221,13 @@ const useSATValidation = (
 };
 
 // --- SUBCOMPONENTS ---
-const CustomCheckbox = ({ 
-  checked, 
+const CustomCheckbox = ({
+  checked,
   onChange,
   label,
-  id 
-}: { 
-  checked: boolean; 
+  id
+}: {
+  checked: boolean;
   onChange: () => void;
   label?: string;
   id?: string;
@@ -297,8 +297,8 @@ const MetodoPagoSelector = ({
   const isDisabled = disabled || (formaPago === "Pago en parcialidades");
 
   return (
-    <Select 
-      value={metodoPago} 
+    <Select
+      value={metodoPago}
       onValueChange={(value) => onMetodoPagoChange(value as PaymentMethod)}
       disabled={isDisabled}
     >
@@ -477,11 +477,11 @@ const ProductSelectorModal = ({
               const prod = productos.find(p => p.id === id);
               return prod?.cantidadDisponible === 0;
             }) && (
-              <span className="text-xs text-red-600 mt-1">
-                <AlertCircle className="h-3 w-3 inline mr-1" />
-                Algunos productos seleccionados están sin stock
-              </span>
-            )}
+                <span className="text-xs text-red-600 mt-1">
+                  <AlertCircle className="h-3 w-3 inline mr-1" />
+                  Algunos productos seleccionados están sin stock
+                </span>
+              )}
           </div>
           <div className="flex gap-2">
             <Button
@@ -546,8 +546,8 @@ const InvoiceItemsTable = ({
             const sinStock = item.cantidadDisponible === 0;
 
             return (
-              <tr 
-                key={item.id} 
+              <tr
+                key={item.id}
                 className={cn(
                   "border-b hover:bg-gray-50",
                   sinStock && "bg-red-50 hover:bg-red-50",
@@ -568,9 +568,9 @@ const InvoiceItemsTable = ({
                         </span>
                         <span className="text-gray-300">•</span>
                         <span className={cn(
-                          sinStock ? "text-red-600 font-semibold" : 
-                          stockBajo ? "text-amber-600" : 
-                          "text-gray-500"
+                          sinStock ? "text-red-600 font-semibold" :
+                            stockBajo ? "text-amber-600" :
+                              "text-gray-500"
                         )}>
                           Disponible: {item.cantidadDisponible}
                         </span>
@@ -703,34 +703,34 @@ const SummaryCard = ({
         <span className="text-sm text-gray-600">Subtotal:</span>
         <span className="font-medium">{formatCurrency(calculos.subtotal)}</span>
       </div>
-      
+
       {calculos.descuentos > 0 && (
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">Descuentos:</span>
           <span className="font-medium text-red-600">-{formatCurrency(calculos.descuentos)}</span>
         </div>
       )}
-      
+
       {calculos.iva > 0 && (
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">IVA (16%):</span>
           <span className="font-medium text-green-600">{formatCurrency(calculos.iva)}</span>
         </div>
       )}
-      
+
       {calculos.ieps > 0 && (
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">IEPS:</span>
           <span className="font-medium text-amber-600">{formatCurrency(calculos.ieps)}</span>
         </div>
       )}
-      
+
       <Separator />
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-gray-900">Total:</span>
         <span className="text-lg font-bold text-gray-900">{formatCurrency(calculos.total)}</span>
       </div>
-      
+
       <div className="pt-2 text-xs text-gray-500 text-center">
         Moneda: {clienteMoneda || 'MXN'}
       </div>
@@ -742,30 +742,30 @@ const SummaryCard = ({
 const InvoiceStatusBadge = ({ status }: { status: InvoiceStatus }) => {
   // Mapeo de estados a configuración
   const statusConfigs = {
-    borrador: { 
-      icon: Clock, 
-      className: "bg-gray-100 text-gray-800", 
-      label: "BORRADOR" 
+    borrador: {
+      icon: Clock,
+      className: "bg-gray-100 text-gray-800",
+      label: "BORRADOR"
     },
-    enviada: { 
-      icon: Send, 
-      className: "bg-blue-100 text-blue-800", 
-      label: "ENVIADA" 
+    enviada: {
+      icon: Send,
+      className: "bg-blue-100 text-blue-800",
+      label: "ENVIADA"
     },
-    pagada: { 
-      icon: CheckCircle2, 
-      className: "bg-green-100 text-green-800", 
-      label: "PAGADA" 
+    pagada: {
+      icon: CheckCircle2,
+      className: "bg-green-100 text-green-800",
+      label: "PAGADA"
     },
-    vencida: { 
-      icon: Clock, 
-      className: "bg-red-100 text-red-800", 
-      label: "VENCIDA" 
+    vencida: {
+      icon: Clock,
+      className: "bg-red-100 text-red-800",
+      label: "VENCIDA"
     },
-    cancelada: { 
-      icon: X, 
-      className: "bg-gray-100 text-gray-800", 
-      label: "CANCELADA" 
+    cancelada: {
+      icon: X,
+      className: "bg-gray-100 text-gray-800",
+      label: "CANCELADA"
     },
   } as const;
 
@@ -783,20 +783,20 @@ const InvoiceStatusBadge = ({ status }: { status: InvoiceStatus }) => {
 // Componente para estado en tabla
 const InvoiceStatusBadgeTable = ({ status }: { status: InvoiceStatus }) => {
   const statusConfigs = {
-    borrador: { 
-      className: "border-gray-200 bg-gray-50 text-gray-700" 
+    borrador: {
+      className: "border-gray-200 bg-gray-50 text-gray-700"
     },
-    enviada: { 
-      className: "border-blue-200 bg-blue-50 text-blue-700" 
+    enviada: {
+      className: "border-blue-200 bg-blue-50 text-blue-700"
     },
-    pagada: { 
-      className: "border-green-200 bg-green-50 text-green-700" 
+    pagada: {
+      className: "border-green-200 bg-green-50 text-green-700"
     },
-    vencida: { 
-      className: "border-red-200 bg-red-50 text-red-700" 
+    vencida: {
+      className: "border-red-200 bg-red-50 text-red-700"
     },
-    cancelada: { 
-      className: "border-gray-200 bg-gray-50 text-gray-700" 
+    cancelada: {
+      className: "border-gray-200 bg-gray-50 text-gray-700"
     },
   } as const;
 
@@ -809,173 +809,37 @@ const InvoiceStatusBadgeTable = ({ status }: { status: InvoiceStatus }) => {
   );
 };
 
-// --- MOCK DATA ---
-const clientes: Cliente[] = [
-  {
-    id: "C001",
-    nombre: "Walmart de México S. de R.L.",
-    rfc: "WME-123456-789",
-    direccion: "Av. Nextengo 78, Azcapotzalco, 02870 CDMX",
-    email: "compras@walmart.com.mx",
-    telefono: "+52 55 1234 5678",
-    condicionesPago: 30,
-    moneda: "MXN"
-  },
-  {
-    id: "C002",
-    nombre: "Frutas Finas del Norte S.A.",
-    rfc: "FFN-987654-321",
-    direccion: "Blvd. Solidaridad 123, Centro, 64000 Monterrey, NL",
-    email: "contacto@frutasfinas.com",
-    telefono: "+52 81 9876 5432",
-    condicionesPago: 15,
-    moneda: "MXN"
-  },
-  {
-    id: "C003",
-    nombre: "Exportadora Citrus USA LLC",
-    rfc: "XEX-010203-000",
-    direccion: "1234 Trade St, McAllen, TX 78501, USA",
-    email: "purchasing@citrususa.com",
-    telefono: "+1 956 123 4567",
-    condicionesPago: 45,
-    moneda: "USD"
-  },
-];
+// --- CATALOGOS DE FACTURACION ---
 
-const cajasProducidas: Producto[] = [
-  {
-    id: "L-2024001",
-    codigo: "LIM175",
-    descripcion: "Limón Persa Cal. 175 (Caja 18kg)",
-    precio: 450.00,
-    unidad: "Caja",
-    categoria: "producto",
-    iva: true,
-    cantidadDisponible: 80,
-    peso: 18,
-    ubicacion: "Pasillo A-01"
-  },
-  {
-    id: "L-2024002",
-    codigo: "LIM200",
-    descripcion: "Limón Persa Cal. 200 (Caja 18kg)",
-    precio: 420.00,
-    unidad: "Caja",
-    categoria: "producto",
-    iva: true,
-    cantidadDisponible: 60,
-    peso: 18,
-    ubicacion: "Pasillo A-02"
-  },
-  {
-    id: "L-2024005",
-    codigo: "AGHASS",
-    descripcion: "Aguacate Hass Primera (Caja 10kg)",
-    precio: 850.00,
-    unidad: "Caja",
-    categoria: "producto",
-    iva: true,
-    ieps: 8,
-    cantidadDisponible: 5,
-    peso: 10,
-    ubicacion: "Pasillo B-01"
-  },
-  {
-    id: "L-2024008",
-    codigo: "LIMORG",
-    descripcion: "Limón Persa Orgánico (Caja 18kg)",
-    precio: 550.00,
-    unidad: "Caja",
-    categoria: "producto",
-    iva: true,
-    cantidadDisponible: 0,
-    peso: 18,
-    ubicacion: "Pasillo C-04"
-  },
-  {
-    id: "L-2024010",
-    codigo: "TORRUBY",
-    descripcion: "Toronja Ruby Red (Caja 15kg)",
-    precio: 380.00,
-    unidad: "Caja",
-    categoria: "producto",
-    iva: true,
-    cantidadDisponible: 35,
-    peso: 15,
-    ubicacion: "Pasillo B-03"
-  },
-];
+const cajasProducidas: Producto[] = [];
 
-const facturasRecientes: Invoice[] = [
-  {
-    folio: "F-2026-001",
-    cliente: clientes[0],
-    fechaEmision: new Date(2026, 0, 28),
-    fechaVencimiento: new Date(2026, 1, 27),
-    items: [],
-    status: "pagada",
-    subtotal: 125000,
-    iva: 20000,
-    retenciones: 0,
-    total: 145000,
-    notas: "Pago recibido via transferencia",
-    terminos: "Neto 30 días",
-    metodoPago: "transferencia",
-    usoCFDI: "G03",
-    formaPago: "Pago en una sola exhibición"
-  },
-  {
-    folio: "F-2026-002",
-    cliente: clientes[1],
-    fechaEmision: new Date(2026, 0, 29),
-    fechaVencimiento: new Date(2026, 1, 13),
-    items: [],
-    status: "enviada",
-    subtotal: 27931.03,
-    iva: 4468.97,
-    retenciones: 0,
-    total: 32400,
-    notas: "Esperando confirmación de pago",
-    terminos: "Neto 15 días",
-    metodoPago: "por_definir",
-    usoCFDI: "G03",
-    formaPago: "Pago en parcialidades"
-  },
-  {
-    folio: "F-2026-003",
-    cliente: clientes[2],
-    fechaEmision: new Date(2026, 0, 29),
-    fechaVencimiento: new Date(2026, 2, 14),
-    items: [],
-    status: "borrador",
-    subtotal: 15948.28,
-    iva: 2551.72,
-    retenciones: 0,
-    total: 18500,
-    notas: "Por enviar al cliente",
-    terminos: "Neto 45 días",
-    metodoPago: "transferencia",
-    usoCFDI: "G03",
-    formaPago: "Pago en una sola exhibición"
-  },
-];
+
 
 export default function Facturacion() {
   const { toast } = useToast();
+  const {
+    facturasRecientes: facturasDB = [],
+    productos: productosDB = [],
+    clientes: clientesDB = [],
+    loadingFacturas,
+    loadingProductos,
+    loadingClientes,
+    crearFactura,
+    isProcessing: isHookProcessing
+  } = useFacturacion();
 
   // --- ESTADOS ---
   const [activeTab, setActiveTab] = useState<string>("crear");
   const [items, setItems] = useState<LineItem[]>([
-    { 
-      id: "1", 
-      productoId: "", 
-      descripcion: "", 
-      cantidad: 1, 
-      precio: 0, 
-      unidad: "", 
-      iva: true, 
-      cantidadDisponible: 0 
+    {
+      id: "1",
+      productoId: "",
+      descripcion: "",
+      cantidad: 1,
+      precio: 0,
+      unidad: "",
+      iva: true,
+      cantidadDisponible: 0
     }
   ]);
   const [clienteId, setClienteId] = useState<string>("");
@@ -994,10 +858,12 @@ export default function Facturacion() {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const realProcessing = isProcessing || isHookProcessing;
+
   // --- MEMOIZED VALUES ---
   const clienteSeleccionado = useMemo(() =>
-    clientes.find(c => c.id === clienteId),
-    [clienteId]
+    clientesDB.find(c => c.id === clienteId),
+    [clienteId, clientesDB]
   );
 
   const calculos = useInvoiceCalculations(items);
@@ -1046,7 +912,7 @@ export default function Facturacion() {
     setItems(items.map(item => {
       if (item.id === id) {
         if (field === "productoId") {
-          const prod = cajasProducidas.find(p => p.id === (value as string));
+          const prod = productosDB.find(p => p.id === (value as string));
           if (prod) {
             if (!selectedProductIds.includes(prod.id)) {
               setSelectedProductIds(prev => [...prev, prod.id]);
@@ -1097,7 +963,7 @@ export default function Facturacion() {
     );
 
     const newItems = newProductIds.map(pid => {
-      const prod = cajasProducidas.find(p => p.id === pid);
+      const prod = productosDB.find(p => p.id === pid);
       if (!prod) return null;
 
       return {
@@ -1204,7 +1070,7 @@ export default function Facturacion() {
     setStatus("borrador");
     setMetodoPago("transferencia");
     setFormaPago("Pago en una sola exhibición");
-    
+
     toast({
       title: "Factura duplicada",
       description: "Se ha creado una nueva factura en blanco",
@@ -1259,7 +1125,7 @@ export default function Facturacion() {
               onClose={() => setIsSelectorOpen(false)}
               onSelectProducts={handleSelectProductsFromModal}
               selectedProductIds={selectedProductIds}
-              productos={cajasProducidas}
+              productos={productosDB}
               formatCurrency={formatCurrency}
             />
 
@@ -1323,10 +1189,10 @@ export default function Facturacion() {
                         </Label>
                         <Select value={clienteId} onValueChange={setClienteId}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar cliente" />
+                            <SelectValue placeholder={loadingClientes ? "Cargando clientes..." : "Seleccionar cliente"} />
                           </SelectTrigger>
                           <SelectContent>
-                            {clientes.map(c => (
+                            {clientesDB.map(c => (
                               <SelectItem key={c.id} value={c.id}>
                                 <div className="flex flex-col">
                                   <span className="font-medium">{c.nombre}</span>
@@ -1558,7 +1424,7 @@ export default function Facturacion() {
                         disabled={isProcessing}
                       />
                       <div className="text-xs text-gray-500 mt-1">
-                        {formaPago === "Pago en parcialidades" 
+                        {formaPago === "Pago en parcialidades"
                           ? "Método automático: Por definir (PPD)"
                           : "Seleccione un método de pago"}
                       </div>
@@ -1609,9 +1475,9 @@ export default function Facturacion() {
                     </Button>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       type="button"
                       onClick={handleDuplicarFactura}
                     >
@@ -1691,7 +1557,7 @@ export default function Facturacion() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {facturasRecientes.map((factura) => (
+                    {facturasDB.map((factura) => (
                       <TableRow key={factura.folio}>
                         <TableCell className="font-medium">{factura.folio}</TableCell>
                         <TableCell>{factura.cliente.nombre}</TableCell>

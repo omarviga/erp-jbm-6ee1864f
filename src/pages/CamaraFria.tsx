@@ -1,38 +1,37 @@
-import { useState } from "react";
-import { MainLayout } from "@/components/layout/MainLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import {
-  Thermometer,
-  Droplets,
-  Clock,
-  AlertTriangle,
-  Package,
-  ArrowRightLeft,
-  Search,
-  Filter,
-  Snowflake
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-
-// --- DATOS SIMULADOS (MOCK DATA) ---
-// Estado: 1=Fresco (Verde), 2=Atención (Amarillo), 3=Urgente (Rojo)
-const inventarioInicial = [
-  { id: "L-2024001", producto: "Limón Persa 175", ubicacion: "A-01", dias: 2, estado: 1, kgs: 1600 },
-  { id: "L-2024002", producto: "Limón Persa 200", ubicacion: "A-02", dias: 3, estado: 1, kgs: 1200 },
-  { id: "L-2024003", producto: "Limón Persa 230", ubicacion: "A-03", dias: 8, estado: 2, kgs: 1100 },
-  { id: "L-2024005", producto: "Aguacate Hass", ubicacion: "B-01", dias: 1, estado: 1, kgs: 800 },
-  { id: "L-2024006", producto: "Aguacate Hass", ubicacion: "B-02", dias: 12, estado: 3, kgs: 850 }, // Urgente
-  { id: "L-2024010", producto: "Toronja Ruby", ubicacion: "C-01", dias: 5, estado: 1, kgs: 700 },
-];
+import { useCamaraFria } from "@/hooks/useCamaraFria";
+import { differenceInDays, format } from "date-fns";
 
 const pasillos = ["A", "B", "C"];
 const posiciones = ["01", "02", "03", "04"];
 
 export default function CamaraFria() {
-  const [items, setItems] = useState(inventarioInicial);
+  const { inventario, temperaturas, isLoading } = useCamaraFria();
+  const [filtroEstado, setFiltroEstado] = useState<number | null>(null);
+
+  const items = useMemo(() => {
+    return inventario.map((item, index) => {
+      const dias = differenceInDays(new Date(), new Date(item.fecha_ingreso));
+      let estado = 1;
+      if (dias >= 10) estado = 3;
+      else if (dias >= 5) estado = 2;
+
+      // Generar ubicación ficticia basada en el índice para llenar el grid
+      const pasilloIndex = Math.floor(index / 4);
+      const posicionIndex = (index % 4) + 1;
+      const pasillo = ["A", "B", "C"][pasilloIndex % 3];
+      const posicion = posicionIndex.toString().padStart(2, '0');
+      const ubicacion = `${pasillo}-${posicion}`;
+
+      return {
+        id: item.produccion?.lotes?.numero_lote || item.id.slice(0, 8),
+        producto: `${item.produccion?.calidad} ${item.produccion?.calibre}`,
+        ubicacion,
+        dias,
+        estado,
+        kgs: (item.cantidad_disponible * (item.produccion?.peso_total_kg || 0) / (item.produccion?.cantidad_cajas || 1)) || 0
+      };
+    });
+  }, [inventario]);
   const [filtroEstado, setFiltroEstado] = useState<number | null>(null); // null = ver todos
 
   // Estadísticas Rápidas
@@ -62,7 +61,7 @@ export default function CamaraFria() {
             <div>
               <p className="text-xs text-blue-600 font-bold uppercase">Temperatura Actual</p>
               <div className="text-2xl font-mono font-bold text-blue-900 flex items-center gap-1">
-                4.2 <span className="text-sm">°C</span>
+                {temperaturas[0]?.temperatura?.toFixed(1) || "4.2"} <span className="text-sm">°C</span>
               </div>
             </div>
             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -106,7 +105,9 @@ export default function CamaraFria() {
             </div>
             <div>
               <p className="text-xs font-bold uppercase text-muted-foreground">Estado FIFO</p>
-              {lotesUrgentes > 0 ? (
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : lotesUrgentes > 0 ? (
                 <p className="text-sm font-bold text-rose-700">{lotesUrgentes} Lotes Críticos (&gt;10 días)</p>
               ) : (
                 <p className="text-sm font-bold text-emerald-700">Rotación Saludable</p>
@@ -200,7 +201,7 @@ export default function CamaraFria() {
                                 {/* Tooltip simulado al hover */}
                                 <div className="absolute inset-0 bg-black/80 text-white p-2 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center items-center z-10 pointer-events-none">
                                   <span className="font-bold">{loteEnPosicion.id}</span>
-                                  <span>{loteEnPosicion.kgs} kg</span>
+                                  <span>{item?.kgs?.toLocaleString()} kg</span>
                                   <span className="text-amber-300 mt-1">Ver Detalle</span>
                                 </div>
                               </>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
+import { useQuery } from '@tanstack/react-query';
 
 type Lote = Database['public']['Tables']['lotes']['Row'];
 
@@ -32,12 +33,39 @@ export interface ResumenRecepcion {
 }
 
 export function useRecepcion() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingGuardar, setLoadingGuardar] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+
+  // Fetch huertos
+  const { data: huertos = [] } = useQuery({
+    queryKey: ['huertos'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('huertos')
+        .select('*')
+        .order('nombre');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch cortadores
+  const { data: cortadores = [] } = useQuery({
+    queryKey: ['cortadores'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cortadores')
+        .select('*')
+        .eq('activo', true)
+        .order('nombre');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const guardarLote = async (datos: DatosRecepcion) => {
-    setLoading(true);
-    setError(null);
+    setLoadingGuardar(true);
+    setErrorGuardar(null);
 
     try {
       if (!datos.productor_id || !datos.peso_bruto) {
@@ -86,10 +114,10 @@ export function useRecepcion() {
 
       return data;
     } catch (err: any) {
-      setError(err.message);
+      setErrorGuardar(err.message);
       throw err;
     } finally {
-      setLoading(false);
+      setLoadingGuardar(false);
     }
   };
 
@@ -127,7 +155,9 @@ export function useRecepcion() {
     guardarLote,
     obtenerCostoBasculaConfigurado,
     calcularResumenRecepcion,
-    loading,
-    error,
+    huertos,
+    cortadores,
+    loading: loadingGuardar,
+    error: errorGuardar,
   };
 }

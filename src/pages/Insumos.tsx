@@ -16,24 +16,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-
-// --- MOCK DATA: INVENTARIO DE MATERIALES ---
-const inventarioInicial = [
-  { id: "INS-001", nombre: "Caja Cartón 40lbs (Genérica)", categoria: "Cajas", stock: 12500, minimo: 5000, costo: 28.50, consumoDiario: 1200 },
-  { id: "INS-002", nombre: "Caja Plástico RPC (Retornable)", categoria: "Cajas", stock: 800, minimo: 2000, costo: 0, consumoDiario: 150 },
-  { id: "INS-003", nombre: "Tarima Chep (Azul)", categoria: "Tarimas", stock: 45, minimo: 100, costo: 180.00, consumoDiario: 20 },
-  { id: "INS-004", nombre: "Esquinero Cartón Rígido", categoria: "Protección", stock: 5000, minimo: 1000, costo: 12.00, consumoDiario: 400 },
-  { id: "INS-005", nombre: "Etiqueta PLU #4048 (Limón)", categoria: "Etiquetas", stock: 85000, minimo: 20000, costo: 0.15, consumoDiario: 8000 },
-  { id: "INS-006", nombre: "Fleje Plástico 1/2", categoria: "Protección", stock: 12, minimo: 5, costo: 450.00, consumoDiario: 0.5 }, // Rollos
-];
+import { useInsumos } from "@/hooks/useInsumos";
 
 export default function Insumos() {
   const { toast } = useToast();
-  const [items] = useState(inventarioInicial);
+  const { insumos: items, isLoading } = useInsumos();
   const [busqueda, setBusqueda] = useState("");
 
   // Lógica de Filtrado
-  const itemsFiltrados = items.filter(item => 
+  const itemsFiltrados = items.filter(item =>
     item.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
     item.categoria.toLowerCase().includes(busqueda.toLowerCase())
   );
@@ -59,10 +50,10 @@ export default function Insumos() {
 
   return (
     <MainLayout title="Inventario de Insumos" subtitle="Control de Cajas, Tarimas y Materiales de Empaque">
-      
+
       {/* --- KPIS SUPERIORES --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        
+
         <Card className="bg-slate-900 text-white border-none shadow-lg">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
@@ -100,17 +91,17 @@ export default function Insumos() {
 
         <Card>
           <CardContent className="p-6">
-             <div className="flex justify-between items-center mb-4">
-                <p className="text-xs font-bold uppercase text-muted-foreground">Acciones Rápidas</p>
-             </div>
-             <div className="space-y-2">
-               <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700" size="sm" onClick={() => handleMovimiento('entrada')}>
-                 <Plus className="mr-2 h-4 w-4" /> Registrar Compra (Entrada)
-               </Button>
-               <Button className="w-full justify-start bg-white text-slate-900 border hover:bg-slate-50" size="sm" onClick={() => handleMovimiento('salida')}>
-                 <TrendingDown className="mr-2 h-4 w-4" /> Registrar Consumo (Salida)
-               </Button>
-             </div>
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-xs font-bold uppercase text-muted-foreground">Acciones Rápidas</p>
+            </div>
+            <div className="space-y-2">
+              <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700" size="sm" onClick={() => handleMovimiento('entrada')}>
+                <Plus className="mr-2 h-4 w-4" /> Registrar Compra (Entrada)
+              </Button>
+              <Button className="w-full justify-start bg-white text-slate-900 border hover:bg-slate-50" size="sm" onClick={() => handleMovimiento('salida')}>
+                <TrendingDown className="mr-2 h-4 w-4" /> Registrar Consumo (Salida)
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -126,8 +117,8 @@ export default function Insumos() {
             </div>
             <div className="relative w-full md:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar material..." 
+              <Input
+                placeholder="Buscar material..."
                 className="pl-9 bg-slate-50"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
@@ -135,7 +126,7 @@ export default function Insumos() {
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent className="p-0 flex-1 overflow-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b sticky top-0 z-10">
@@ -180,7 +171,7 @@ export default function Insumos() {
                         </div>
                         {/* Barra de Progreso Personalizada para evitar errores de tipo */}
                         <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={cn("h-full transition-all duration-500", esCritico ? "bg-red-500" : "bg-green-500")}
                             style={{ width: `${porcentajeStock}%` }}
                           />
@@ -190,8 +181,8 @@ export default function Insumos() {
                     <td className="px-6 py-4 text-center">
                       <div className={cn(
                         "inline-flex items-center px-2 py-1 rounded text-xs font-bold",
-                        diasCobertura < 3 ? "bg-red-100 text-red-700" : 
-                        diasCobertura < 7 ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-700"
+                        diasCobertura < 3 ? "bg-red-100 text-red-700" :
+                          diasCobertura < 7 ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-700"
                       )}>
                         {diasCobertura < 999 ? `${diasCobertura} días` : "+30 días"}
                       </div>
@@ -206,7 +197,7 @@ export default function Insumos() {
               })}
             </tbody>
           </table>
-          
+
           {itemsFiltrados.length === 0 && (
             <div className="p-12 text-center text-muted-foreground">
               <Package className="h-12 w-12 mx-auto text-slate-300 mb-3" />

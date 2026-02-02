@@ -17,19 +17,8 @@ import { toast } from "sonner";
 import { useProductores } from "@/hooks/useProductores";
 import { useRecepcion } from "@/hooks/useRecepcion";
 
-// Mock data
-const huertos = [
-  { id: "1", nombre: "Huerto Norte" },
-  { id: "2", nombre: "Huerto Sur" },
-  { id: "3", nombre: "Parcela Central" },
-];
 
-const cortadores = [
-  { id: "1", nombre: "Pedro Martínez" },
-  { id: "2", nombre: "José Ramírez" },
-  { id: "3", nombre: "Luis García" },
-  { id: "4", nombre: "Carlos Hernández" },
-];
+// Opciones de zonas de destino
 
 const historialPrecios = [
   { fecha: "15/01/2026", precio: 4.50 },
@@ -97,7 +86,13 @@ export default function Recepcion() {
     refetch
   } = useProductores();
 
-  const { guardarLote, calcularResumenRecepcion, loading: guardando } = useRecepcion();
+  const {
+    guardarLote,
+    calcularResumenRecepcion,
+    huertos: huertosDB,
+    cortadores: cortadoresDB,
+    loading: guardando
+  } = useRecepcion();
 
   // Cálculos reales de peso y merma
   const calculos = useMemo(() => {
@@ -240,7 +235,7 @@ export default function Recepcion() {
   };
 
   const addCortador = (cortadorId: string) => {
-    const cortador = cortadores.find(c => c.id === cortadorId);
+    const cortador = cortadoresDB.find(c => c.id === cortadorId);
     if (cortador && !cortadoresLote.find(c => c.id === cortadorId)) {
       setCortadoresLote([...cortadoresLote, { ...cortador, cajas: 0 }]);
     }
@@ -806,7 +801,7 @@ export default function Recepcion() {
                           <SelectValue placeholder="Seleccionar huerto..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {huertos.map((h) => (
+                          {huertosDB.map((h) => (
                             <SelectItem key={h.id} value={h.id} className="text-base py-3">
                               {h.nombre}
                             </SelectItem>
@@ -826,7 +821,7 @@ export default function Recepcion() {
                             <SelectValue placeholder="Agregar cortador..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {cortadores
+                            {cortadoresDB
                               .filter(c => !cortadoresLote.find(cl => cl.id === c.id))
                               .map((c) => (
                                 <SelectItem key={c.id} value={c.id}>

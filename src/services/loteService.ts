@@ -48,13 +48,13 @@ export const loteService = {
   async createCompraTerceros(data: RecepcionCompraTerceros) {
     // Validate input before database operations
     const validated = compraTercerosSchema.parse(data);
-    
+
     // 1. Obtener número de lote desde la función de BD
     const { data: numeroLote, error: rpcError } = await supabase
       .rpc('generate_lote_number');
-    
+
     if (rpcError) throw rpcError;
-    
+
     // 2. Insertar en tabla lotes
     const { data: lote, error } = await supabase
       .from('lotes')
@@ -71,7 +71,7 @@ export const loteService = {
       })
       .select()
       .single();
-    
+
     if (error) throw error;
     return lote;
   },
@@ -80,13 +80,13 @@ export const loteService = {
   async createCosechaPropia(data: RecepcionCosechaPropia) {
     // Validate input before database operations
     const validated = cosechaPropiaSchema.parse(data);
-    
+
     // 1. Obtener número de lote
     const { data: numeroLote, error: rpcError } = await supabase
       .rpc('generate_lote_number');
-    
+
     if (rpcError) throw rpcError;
-    
+
     // 2. Insertar lote principal
     const { data: lote, error: loteError } = await supabase
       .from('lotes')
@@ -102,9 +102,9 @@ export const loteService = {
       })
       .select()
       .single();
-    
+
     if (loteError) throw loteError;
-    
+
     // 3. Insertar cortadores asociados
     if (validated.cortadores.length > 0) {
       const cortadoresData = validated.cortadores
@@ -114,16 +114,16 @@ export const loteService = {
           cortador_id: c.cortador_id,
           cajas_recolectadas: c.cajas_recolectadas
         }));
-      
+
       if (cortadoresData.length > 0) {
         const { error: cortadoresError } = await supabase
           .from('lote_cortadores')
           .insert(cortadoresData);
-        
+
         if (cortadoresError) throw cortadoresError;
       }
     }
-    
+
     return lote;
   },
 
@@ -133,7 +133,7 @@ export const loteService = {
       .from('productores')
       .select('id, nombre, telefono')
       .order('nombre');
-    
+
     if (error) throw error;
     return data || [];
   },
@@ -144,7 +144,7 @@ export const loteService = {
       .from('huertos')
       .select('id, nombre, ubicacion')
       .order('nombre');
-    
+
     if (error) throw error;
     return data || [];
   },
@@ -156,7 +156,7 @@ export const loteService = {
       .select('id, nombre, telefono')
       .eq('activo', true)
       .order('nombre');
-    
+
     if (error) throw error;
     return data || [];
   },
@@ -170,7 +170,7 @@ export const loteService = {
       .not('precio_pactado_kg', 'is', null)
       .order('fecha_recepcion', { ascending: false })
       .limit(limit);
-    
+
     if (error) throw error;
     return data || [];
   },
@@ -191,7 +191,45 @@ export const loteService = {
       `)
       .order('fecha_recepcion', { ascending: false })
       .limit(limit);
-    
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Obtener lotes activos para producción (Pendientes o En Proceso)
+  async getLotesActivos() {
+    const { data, error } = await supabase
+      .from('lotes')
+      .select(`
+        id,
+        numero_lote,
+        estado,
+        es_cosecha_propia,
+        productor:productores(nombre),
+        huerto:huertos(nombre)
+      `)
+      .in('estado', ['pendiente', 'en_proceso'])
+      .order('fecha_recepcion', { ascending: false });
+
+    if (error) throw error;
+
+    // Mapear para facilitar consumo en el componente
+    return (data || []).map(l => ({
+      id: l.id,
+      numero: l.numero_lote,
+      productor: l.es_cosecha_propia ? l.huerto?.nombre : l.productor?.nombre,
+      variedad: l.es_cosecha_propia ? 'Cosecha Propia' : 'Compra Terceros'
+    }));
+  },
+
+  // Obtener presentaciones de empaque
+  async getPresentaciones() {
+    const { data, error } = await supabase
+      .from('presentaciones')
+      .select('*')
+      .eq('activa', true)
+      .order('nombre');
+
     if (error) throw error;
     return data || [];
   }

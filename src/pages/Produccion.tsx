@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { loteService } from "@/services/loteService";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +14,21 @@ import {
   AlertTriangle, Info, CheckCircle, Printer
 } from "lucide-react";
 
-// --- DATOS MOCK (Simulando lo que traerías de Supabase) ---
+// --- TIPOS ---
+interface LoteDisponible {
+  id: string;
+  numero: string;
+  productor: string;
+  variedad: string;
+}
+
+interface Presentacion {
+  id: string;
+  nombre: string;
+  peso_kg: number;
+}
+
+// --- CONSTANTES ---
 const colores = [
   { value: "verde_oscuro", label: "Verde Oscuro", color: "bg-green-700" },
   { value: "verde", label: "Verde", color: "bg-green-500" },
@@ -20,20 +36,7 @@ const colores = [
   { value: "amarillo", label: "Amarillo", color: "bg-yellow-400" },
 ];
 
-const presentaciones = [
-  { id: "1", nombre: "Caja Exhibidora 10 lb", peso: 4.5 },
-  { id: "2", nombre: "Europack 40 lb", peso: 18 },
-  { id: "3", nombre: "Caja Plástica 10 kg", peso: 10 },
-  { id: "4", nombre: "Caja Plástica 15 kg", peso: 15 },
-  { id: "5", nombre: "Caja Plástica 20 kg", peso: 20 },
-];
-
-const lotesDisponibles = [
-  { id: "1", numero: "L-2025-058", productor: "Limones Aguirre", variedad: "Limon Verde" },
-  { id: "2", numero: "L-2025-059", productor: "Huerta El Rosario", variedad: "Limon Alimonado" },
-];
-
-// Simulando la tabla 'cat_clasificaciones' con ESCALA AGUIRRE
+// CATALOGO DE CLASIFICACIONES (ESCALA AGUIRRE)
 const clasificacionesDB = [
   // LIMON VERDE
   { id: 1, nombre_producto: "Limon Verde", calibre: "4", orden: 1 },
@@ -76,14 +79,24 @@ export default function Produccion() {
   const [presentacionId, setPresentacionId] = useState("");
   const [cantidadCajas, setCantidadCajas] = useState("");
 
+  const { data: lotesDisponibles = [], isLoading: loadingLotes } = useQuery({
+    queryKey: ['lotes-activos'],
+    queryFn: () => loteService.getLotesActivos()
+  });
+
+  const { data: presentaciones = [], isLoading: loadingPresentaciones } = useQuery({
+    queryKey: ['presentaciones'],
+    queryFn: () => loteService.getPresentaciones()
+  });
+
   // --- DERIVADOS ---
-  const loteSeleccionado = lotesDisponibles.find(l => l.id === loteId);
+  const loteSeleccionado = lotesDisponibles.find((l: LoteDisponible) => l.id === loteId);
   const productoSeleccionado = loteSeleccionado?.variedad || "Limon Verde";
-  const presentacionSeleccionada = presentaciones.find(p => p.id === presentacionId);
+  const presentacionSeleccionada = presentaciones.find((p: Presentacion) => p.id === presentacionId);
 
   const pesoTotal = useMemo(() => {
     if (presentacionSeleccionada && cantidadCajas) {
-      return (presentacionSeleccionada.peso * parseInt(cantidadCajas)).toFixed(2);
+      return (presentacionSeleccionada.peso_kg * parseInt(cantidadCajas)).toFixed(2);
     }
     return "0.00";
   }, [presentacionSeleccionada, cantidadCajas]);
@@ -102,7 +115,7 @@ export default function Produccion() {
   const destinoInfo = color ? getDestinoAutomatico(color) : null;
   const esIndustria = destinoInfo?.destino === "molino";
 
-  // Mock eficiencia
+  // Eficiencia proyectada
   const eficiencia = 87.5;
   const mermaActual = 3.2;
 
@@ -128,11 +141,17 @@ export default function Produccion() {
                     <SelectValue placeholder="Seleccione Lote..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {lotesDisponibles.map(l => (
-                      <SelectItem key={l.id} value={l.id} className="py-3">
-                        <span className="font-bold">{l.numero}</span> - {l.productor} ({l.variedad})
-                      </SelectItem>
-                    ))}
+                    {lotesDisponibles.length > 0 ? (
+                      lotesDisponibles.map((l: LoteDisponible) => (
+                        <SelectItem key={l.id} value={l.id} className="py-3">
+                          <span className="font-bold">{l.numero}</span> - {l.productor} ({l.variedad})
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-sm text-muted-foreground italic">
+                        No hay lotes pendientes de producción
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -220,9 +239,9 @@ export default function Produccion() {
                         <SelectValue placeholder="Tipo de Envase..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {presentaciones.map((p) => (
+                        {presentaciones.map((p: Presentacion) => (
                           <SelectItem key={p.id} value={p.id} className="py-3 text-base">
-                            {p.nombre} ({p.peso} kg)
+                            {p.nombre} ({p.peso_kg} kg)
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -55,16 +55,30 @@ export const useFacturacion = () => {
         },
     });
 
-    // Fetch clients (extending useVentas or reuse)
+    // Fetch clients with sensitive data
     const { data: clientes, isLoading: loadingClientes } = useQuery({
-        queryKey: ['clientes'],
+        queryKey: ['clientes_facturacion'],
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('clientes')
-                .select('*')
+                .select(`
+                    *,
+                    clientes_sensible (*)
+                `)
                 .order('nombre');
+
             if (error) throw error;
-            return data;
+
+            return data.map(c => ({
+                id: c.id,
+                nombre: c.nombre,
+                rfc: "Buscando...", // RFC is not in clientes or clientes_sensible? Let's check table producers
+                direccion: c.clientes_sensible?.direccion || "N/A",
+                email: c.clientes_sensible?.email || "N/A",
+                telefono: c.clientes_sensible?.telefono || "N/A",
+                condicionesPago: c.dias_credito || 0,
+                moneda: (c.tipo === 'exportacion_usa' ? 'USD' : 'MXN') as 'USD' | 'MXN'
+            }));
         },
     });
 
