@@ -185,6 +185,130 @@ export type Database = {
         }
         Relationships: []
       }
+      factura_detalles: {
+        Row: {
+          cantidad: number
+          created_at: string
+          descripcion: string
+          descuento: number | null
+          factura_id: string
+          id: string
+          ieps_aplicable: number | null
+          iva_aplicable: boolean | null
+          precio_unitario: number
+          producto_id: string | null
+          subtotal: number
+          unidad: string
+        }
+        Insert: {
+          cantidad?: number
+          created_at?: string
+          descripcion: string
+          descuento?: number | null
+          factura_id: string
+          id?: string
+          ieps_aplicable?: number | null
+          iva_aplicable?: boolean | null
+          precio_unitario?: number
+          producto_id?: string | null
+          subtotal?: number
+          unidad?: string
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          descripcion?: string
+          descuento?: number | null
+          factura_id?: string
+          id?: string
+          ieps_aplicable?: number | null
+          iva_aplicable?: boolean | null
+          precio_unitario?: number
+          producto_id?: string | null
+          subtotal?: number
+          unidad?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "factura_detalles_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      facturas: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          fecha_emision: string
+          fecha_vencimiento: string | null
+          folio: string
+          forma_pago: string | null
+          id: string
+          ieps: number
+          iva: number
+          metodo_pago: string | null
+          notas: string | null
+          retenciones: number
+          status: string
+          subtotal: number
+          terminos: string | null
+          total: number
+          updated_at: string
+          uso_cfdi: string | null
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          fecha_emision?: string
+          fecha_vencimiento?: string | null
+          folio: string
+          forma_pago?: string | null
+          id?: string
+          ieps?: number
+          iva?: number
+          metodo_pago?: string | null
+          notas?: string | null
+          retenciones?: number
+          status?: string
+          subtotal?: number
+          terminos?: string | null
+          total?: number
+          updated_at?: string
+          uso_cfdi?: string | null
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          fecha_emision?: string
+          fecha_vencimiento?: string | null
+          folio?: string
+          forma_pago?: string | null
+          id?: string
+          ieps?: number
+          iva?: number
+          metodo_pago?: string | null
+          notas?: string | null
+          retenciones?: number
+          status?: string
+          subtotal?: number
+          terminos?: string | null
+          total?: number
+          updated_at?: string
+          uso_cfdi?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       guia_detalles: {
         Row: {
           camara_fria_id: string | null
@@ -256,6 +380,7 @@ export type Database = {
           numero_guia: string
           temperatura_precarga: number | null
           total_cajas: number | null
+          transportista_id: string | null
           updated_at: string
           valor_total: number | null
         }
@@ -274,6 +399,7 @@ export type Database = {
           numero_guia: string
           temperatura_precarga?: number | null
           total_cajas?: number | null
+          transportista_id?: string | null
           updated_at?: string
           valor_total?: number | null
         }
@@ -292,6 +418,7 @@ export type Database = {
           numero_guia?: string
           temperatura_precarga?: number | null
           total_cajas?: number | null
+          transportista_id?: string | null
           updated_at?: string
           valor_total?: number | null
         }
@@ -301,6 +428,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guias_salida_transportista_id_fkey"
+            columns: ["transportista_id"]
+            isOneToOne: false
+            referencedRelation: "transportistas"
             referencedColumns: ["id"]
           },
         ]
@@ -845,6 +979,48 @@ export type Database = {
           referencedColumns: ["id"]
         },
       ]
+    }
+    transportistas: {
+      Row: {
+        created_at: string
+        id: string
+        nombre: string
+        numero_permiso: string | null
+        placas: string | null
+        poliza_seguro: string | null
+        rfc: string | null
+        seguro_responsabilidad_civil: boolean | null
+        telefono: string | null
+        tipo_permiso: string | null
+        updated_at: string
+      }
+      Insert: {
+        created_at?: string
+        id?: string
+        nombre: string
+        numero_permiso?: string | null
+        placas?: string | null
+        poliza_seguro?: string | null
+        rfc?: string | null
+        seguro_responsabilidad_civil?: boolean | null
+        telefono?: string | null
+        tipo_permiso?: string | null
+        updated_at?: string
+      }
+      Update: {
+        created_at?: string
+        id?: string
+        nombre?: string
+        numero_permiso?: string | null
+        placas?: string | null
+        poliza_seguro?: string | null
+        rfc?: string | null
+        seguro_responsabilidad_civil?: boolean | null
+        telefono?: string | null
+        tipo_permiso?: string | null
+        updated_at?: string
+      }
+      Relationships: []
     }
     user_roles: {
       Row: {

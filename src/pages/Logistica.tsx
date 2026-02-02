@@ -10,11 +10,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Truck, Package, X, Search, ShieldAlert, Lock, Unlock, Thermometer, 
-  Map, Factory, Calendar, User, FileText, Phone, MapPin, Download, 
-  Printer, Check, AlertCircle, Loader2, FileSignature, ClipboardCheck, 
-  Scale, Weight, Route, Building, Mail, ExternalLink, Copy, Eye, 
+import {
+  Truck, Package, X, Search, ShieldAlert, Lock, Unlock, Thermometer,
+  Map, Factory, Calendar, User, FileText, Phone, MapPin, Download,
+  Printer, Check, AlertCircle, Loader2, FileSignature, ClipboardCheck,
+  Scale, Weight, Route, Building, Mail, ExternalLink, Copy, Eye,
   MoreVertical, Tag, Hash, BarChart3, AlertTriangle, TruckIcon,
   Users, CheckCircle, Clock, Filter, ArrowRight
 } from "lucide-react";
@@ -30,6 +30,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { debounce } from "lodash";
+import { useLogistica } from "@/hooks/useLogistica";
+import { useFacturacion } from "@/hooks/useFacturacion";
 
 // --- TYPES ---
 type TipoCliente = "nacional" | "exportacion_usa" | "exportacion_otros";
@@ -138,14 +140,14 @@ interface DocumentoRequerido {
 }
 
 // --- SUBCOMPONENTS ---
-const InventoryItem = ({ 
-  lote, 
-  isSelected, 
+const InventoryItem = ({
+  lote,
+  isSelected,
   onToggle,
   showDetails = false
-}: { 
-  lote: LoteInventario; 
-  isSelected: boolean; 
+}: {
+  lote: LoteInventario;
+  isSelected: boolean;
   onToggle: () => void;
   showDetails?: boolean;
 }) => {
@@ -216,15 +218,15 @@ const ModalSeleccionInventario = ({
 
   const inventarioFiltrado = useMemo(() => {
     if (!searchTerm.trim()) {
-      return inventario.filter(item => 
+      return inventario.filter(item =>
         tabSelector === "todos" ? true : item.origen === tabSelector
       );
     }
-    
+
     const term = searchTerm.toLowerCase();
     return inventario.filter(item => {
       const matchesTab = tabSelector === "todos" || item.origen === tabSelector;
-      const matchesSearch = 
+      const matchesSearch =
         item.producto.toLowerCase().includes(term) ||
         item.id.toLowerCase().includes(term) ||
         item.ubicacion.toLowerCase().includes(term) ||
@@ -251,8 +253,8 @@ const ModalSeleccionInventario = ({
         <div className="p-4 border-b bg-white">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar por lote, producto, código SAT..." 
+            <Input
+              placeholder="Buscar por lote, producto, código SAT..."
               className="pl-9"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -384,215 +386,25 @@ const ValidationBadge = ({ isValid, label }: { isValid: boolean; label: string }
   </div>
 );
 
-// --- MOCK DATA ---
-const clientes: Cliente[] = [
-  {
-    id: "1",
-    nombre: "Distribuidora Nacional SA",
-    tipo: "nacional",
-    rfc: "DNL-123456-789",
-    direccion: "Av. Insurgentes 123, CDMX",
-    telefono: "+52 55 1234 5678",
-    email: "compras@distribuidora.com",
-    condicionesPago: 30
-  },
-  {
-    id: "2",
-    nombre: "Fresh Produce Inc. (USA)",
-    tipo: "exportacion_usa",
-    rfc: "FPI-987654-321",
-    direccion: "1234 Trade St, McAllen, TX 78501",
-    telefono: "+1 956 555 1234",
-    email: "orders@freshproduce.com",
-    condicionesPago: 45
-  },
-  {
-    id: "3",
-    nombre: "Mayorista del Centro",
-    tipo: "nacional",
-    rfc: "MDC-456789-123",
-    direccion: "Blvd. Solidaridad 456, Monterrey, NL",
-    telefono: "+52 81 9876 5432",
-    email: "ventas@mayoristacentro.com",
-    condicionesPago: 15
-  },
-  {
-    id: "4",
-    nombre: "US Citrus Exports LLC",
-    tipo: "exportacion_usa",
-    rfc: "UCE-321654-987",
-    direccion: "5678 Export Ave, Miami, FL 33101",
-    telefono: "+1 305 555 7890",
-    email: "export@uscitrus.com",
-    condicionesPago: 60
-  },
-];
-
-const transportistas: Transportista[] = [
-  {
-    id: "T001",
-    nombre: "Transportes del Norte S.A.",
-    rfc: "TNE-123456-ABC",
-    placas: "ABC-123-XYZ",
-    numeroPermiso: "TP-2024-001",
-    telefono: "+52 81 2345 6789",
-    tipoPermiso: "federal",
-    seguroResponsabilidadCivil: true,
-    polizaSeguro: "SG-2024-001"
-  },
-  {
-    id: "T002",
-    nombre: "Fletes Rápidos Express",
-    rfc: "FRE-789012-DEF",
-    placas: "XYZ-789-ABC",
-    numeroPermiso: "TP-2024-002",
-    telefono: "+52 55 9876 5432",
-    tipoPermiso: "estatal",
-    seguroResponsabilidadCivil: true,
-    polizaSeguro: "SG-2024-002"
-  },
-  {
-    id: "T003",
-    nombre: "Carga Internacional Mexicana",
-    rfc: "CIM-345678-GHI",
-    placas: "DEF-456-GHI",
-    numeroPermiso: "TP-2024-003",
-    telefono: "+52 33 1234 5678",
-    tipoPermiso: "internacional",
-    seguroResponsabilidadCivil: true,
-    polizaSeguro: "SG-2024-003"
-  },
-];
-
-const inventarioMock: LoteInventario[] = [
-  {
-    id: "L-2024001",
-    producto: "Limón Persa Cal. 175",
-    codigoSAT: "01010101",
-    cajas: 80,
-    peso: 1600,
-    volumen: 4.8,
-    ubicacion: "Pasillo A-01",
-    origen: "camara",
-    unidadMedida: "Caja",
-    valorUnitario: 450.00,
-    temperaturaRecomendada: 4
-  },
-  {
-    id: "L-2024002",
-    producto: "Limón Persa Cal. 200",
-    codigoSAT: "01010102",
-    cajas: 60,
-    peso: 1200,
-    volumen: 3.6,
-    ubicacion: "Pasillo A-02",
-    origen: "camara",
-    unidadMedida: "Caja",
-    valorUnitario: 420.00,
-    temperaturaRecomendada: 4
-  },
-  {
-    id: "L-2024005",
-    producto: "Aguacate Hass Mendez",
-    codigoSAT: "01010103",
-    cajas: 40,
-    peso: 800,
-    volumen: 2.4,
-    ubicacion: "Pasillo B-01",
-    origen: "camara",
-    unidadMedida: "Caja",
-    valorUnitario: 850.00,
-    temperaturaRecomendada: 6
-  },
-  {
-    id: "P-2024099",
-    producto: "Limón Persa Cal. 230",
-    codigoSAT: "01010104",
-    cajas: 100,
-    peso: 2000,
-    volumen: 6.0,
-    ubicacion: "Línea 3 - Salida",
-    origen: "piso",
-    unidadMedida: "Caja",
-    valorUnitario: 380.00,
-    temperaturaRecomendada: 4
-  },
-  {
-    id: "P-2024100",
-    producto: "Toronja Ruby Red",
-    codigoSAT: "01010105",
-    cajas: 50,
-    peso: 1000,
-    volumen: 3.0,
-    ubicacion: "Línea 1 - Paletizado",
-    origen: "piso",
-    unidadMedida: "Caja",
-    valorUnitario: 320.00,
-    temperaturaRecomendada: 8
-  },
-];
-
-const cartasPorteMock: CartaPorte[] = [
-  {
-    id: "CP001",
-    folio: "CP-2024-001",
-    fechaGeneracion: new Date(2024, 0, 15),
-    estado: "validada",
-    cliente: clientes[0],
-    transportista: transportistas[0],
-    tipoTransporte: "terrestre",
-    tipoOperacion: "directa",
-    lugarOrigen: "Nuevo León, México",
-    lugarDestino: "CDMX, México",
-    fechaSalida: new Date(2024, 0, 15),
-    fechaEstimadaLlegada: new Date(2024, 0, 17),
-    mercancia: {
-      lotes: [inventarioMock[0], inventarioMock[1]],
-      pesoTotal: 2800,
-      volumenTotal: 8.4,
-      valorMercancia: 62400,
-      tipoMercancia: "perecedera",
-      embalaje: "Cajas de cartón",
-      instruccionesEspeciales: "Mantener refrigeración entre 4-6°C"
-    },
-    datosVehiculo: {
-      placas: "ABC-123-XYZ",
-      modelo: "Freightliner",
-      marca: "Cascadia",
-      anio: 2022,
-      polizaSeguro: "SG-2024-001",
-      capacidadCarga: 5000,
-      tarjetaCirculacion: "TC-2024-001"
-    },
-    datosRemitente: {
-      nombre: "Agroexport S.A. de C.V.",
-      rfc: "AGE-120304-567",
-      direccion: "Carretera Nacional KM 123, Nuevo León",
-      telefono: "+52 81 5555 1234"
-    },
-    datosDestinatario: {
-      nombre: "Distribuidora Nacional SA",
-      rfc: "DNL-123456-789",
-      direccion: "Av. Insurgentes 123, CDMX",
-      telefono: "+52 55 1234 5678"
-    },
-    documentosAdjuntos: ["certificado-fitosanitario.pdf", "factura-001.pdf"],
-    observaciones: "Mercancía perecedera, mantener cadena de frío",
-    sellosDigitales: {
-      uuid: "123e4567-e89b-12d3-a456-426614174000",
-      fechaTimbrado: new Date(2024, 0, 15, 10, 30),
-      qrCode: "https://api.qrserver.com/v1/create-qr-code/?data=CP-2024-001"
-    },
-    costoTransporte: 12500,
-    ivaTransporte: 2000,
-    totalTransporte: 14500
-  },
-];
+// --- REPLACEMENT OF MOCK DATA WITH HOOKS ---
 
 export default function Logistica() {
   const { toast } = useToast();
+  const {
+    transportistas = [],
+    inventarioDisponible = [],
+    guiasRecientes = [],
+    loadingTransportistas,
+    loadingInventario,
+    loadingGuias,
+    crearGuia,
+    isCreando
+  } = useLogistica();
+
+  const { clientes = [] } = useFacturacion();
+
   const [activeTab, setActiveTab] = useState<string>("embarque");
-  
+
   // Estados para Embarque
   const [clienteId, setClienteId] = useState("");
   const [temperaturaPrecarga, setTemperaturaPrecarga] = useState("");
@@ -654,7 +466,7 @@ export default function Logistica() {
     .every(d => d.checked);
 
   const requisitosGenerales = tieneProductos && !!clienteId;
-  
+
   let requisitosCumplidos = false;
   if (esExportacionUSA) {
     requisitosCumplidos = requisitosGenerales && docsUSAOK && temperaturaOK;
@@ -695,10 +507,10 @@ export default function Logistica() {
 
   const handleFinalizarCarga = useCallback(() => {
     if (!requisitosCumplidos) {
-      toast({ 
-        title: "Faltan Requisitos", 
-        description: "Verifica documentos o carga.", 
-        variant: "destructive" 
+      toast({
+        title: "Faltan Requisitos",
+        description: "Verifica documentos o carga.",
+        variant: "destructive"
       });
       return;
     }
@@ -724,9 +536,9 @@ export default function Logistica() {
     try {
       // Simular generación de Carta Porte
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       const nuevoFolio = `CP-${format(new Date(), 'yyyy')}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      
+
       // Crear objeto de Carta Porte
       const nuevaCartaPorte: CartaPorte = {
         id: `CP${Date.now()}`,
@@ -785,7 +597,7 @@ export default function Logistica() {
 
       // Aquí normalmente enviarías la carta porte a tu API
       console.log("Carta Porte generada:", nuevaCartaPorte);
-      
+
       toast({
         title: "✅ Carta Porte Generada",
         description: `Folio: ${nuevoFolio}. Se ha timbrado y registrado en el SAT.`,
@@ -799,7 +611,7 @@ export default function Logistica() {
       setTransportistaId("");
       setCostoTransporte("");
       setInstruccionesEspeciales("");
-      
+
     } catch (error) {
       toast({
         title: "Error al generar",
@@ -810,24 +622,24 @@ export default function Logistica() {
       setIsGenerandoCartaPorte(false);
     }
   }, [
-    cartaPorteValida, 
-    clienteSeleccionado, 
-    transportistaSeleccionado, 
-    tipoTransporte, 
-    tipoOperacion, 
-    lugarOrigen, 
-    lugarDestino, 
-    fechaSalida, 
-    fechaLlegada, 
-    lotesCartaPorte, 
-    totalPesoCartaPorte, 
-    totalVolumenCartaPorte, 
-    valorMercanciaCartaPorte, 
-    tipoMercancia, 
-    embalaje, 
-    instruccionesEspeciales, 
-    observacionesCartaPorte, 
-    costoTransporte, 
+    cartaPorteValida,
+    clienteSeleccionado,
+    transportistaSeleccionado,
+    tipoTransporte,
+    tipoOperacion,
+    lugarOrigen,
+    lugarDestino,
+    fechaSalida,
+    fechaLlegada,
+    lotesCartaPorte,
+    totalPesoCartaPorte,
+    totalVolumenCartaPorte,
+    valorMercanciaCartaPorte,
+    tipoMercancia,
+    embalaje,
+    instruccionesEspeciales,
+    observacionesCartaPorte,
+    costoTransporte,
     toast
   ]);
 
@@ -836,7 +648,7 @@ export default function Logistica() {
       title: "Descargando PDF",
       description: `Preparando Carta Porte ${folio}...`,
     });
-    
+
     // Simular descarga
     setTimeout(() => {
       toast({
@@ -936,8 +748,8 @@ export default function Logistica() {
                   </div>
 
                   {!tieneProductos ? (
-                    <div 
-                      onClick={() => setIsSelectorOpen(true)} 
+                    <div
+                      onClick={() => setIsSelectorOpen(true)}
                       className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors gap-2"
                     >
                       <Package className="h-10 w-10 text-slate-300" />
@@ -1025,7 +837,7 @@ export default function Logistica() {
                             value={temperaturaPrecarga}
                             onChange={(e) => setTemperaturaPrecarga(e.target.value)}
                             className={cn(
-                              "h-10 text-center font-mono", 
+                              "h-10 text-center font-mono",
                               temperaturaOK ? "border-green-500 bg-green-50 text-green-700" : ""
                             )}
                           />
@@ -1067,21 +879,21 @@ export default function Logistica() {
                   </div>
 
                   {esNacional && (
-                    <ValidationBadge 
-                      isValid={docsNacionalOK} 
-                      label="Carta Porte" 
+                    <ValidationBadge
+                      isValid={docsNacionalOK}
+                      label="Carta Porte"
                     />
                   )}
 
                   {esExportacionUSA && (
                     <>
-                      <ValidationBadge 
-                        isValid={docsUSAOK} 
-                        label="Documentos USA" 
+                      <ValidationBadge
+                        isValid={docsUSAOK}
+                        label="Documentos USA"
                       />
-                      <ValidationBadge 
-                        isValid={temperaturaOK} 
-                        label="Temperatura" 
+                      <ValidationBadge
+                        isValid={temperaturaOK}
+                        label="Temperatura"
                       />
                     </>
                   )}
@@ -1215,16 +1027,16 @@ export default function Logistica() {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="font-semibold">Lugar de Origen *</Label>
-                      <Input 
-                        value={lugarOrigen} 
+                      <Input
+                        value={lugarOrigen}
                         onChange={(e) => setLugarOrigen(e.target.value)}
                         placeholder="Ej: Nuevo León, México"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="font-semibold">Lugar de Destino *</Label>
-                      <Input 
-                        value={lugarDestino} 
+                      <Input
+                        value={lugarDestino}
                         onChange={(e) => setLugarDestino(e.target.value)}
                         placeholder="Ej: CDMX, México"
                         required
@@ -1272,8 +1084,8 @@ export default function Logistica() {
                     </div>
 
                     {lotesSeleccionadosCartaPorte.length === 0 ? (
-                      <div 
-                        onClick={() => setIsSelectorOpenCartaPorte(true)} 
+                      <div
+                        onClick={() => setIsSelectorOpenCartaPorte(true)}
                         className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors gap-2"
                       >
                         <Package className="h-10 w-10 text-slate-300" />
@@ -1492,29 +1304,29 @@ export default function Logistica() {
                   <CardTitle className="text-sm">Validaciones</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <ValidationBadge 
-                    isValid={!!clienteId} 
-                    label="Cliente seleccionado" 
+                  <ValidationBadge
+                    isValid={!!clienteId}
+                    label="Cliente seleccionado"
                   />
-                  <ValidationBadge 
-                    isValid={!!transportistaId} 
-                    label="Transportista seleccionado" 
+                  <ValidationBadge
+                    isValid={!!transportistaId}
+                    label="Transportista seleccionado"
                   />
-                  <ValidationBadge 
-                    isValid={lotesSeleccionadosCartaPorte.length > 0} 
-                    label="Mercancía seleccionada" 
+                  <ValidationBadge
+                    isValid={lotesSeleccionadosCartaPorte.length > 0}
+                    label="Mercancía seleccionada"
                   />
-                  <ValidationBadge 
-                    isValid={!!lugarDestino} 
-                    label="Destino especificado" 
+                  <ValidationBadge
+                    isValid={!!lugarDestino}
+                    label="Destino especificado"
                   />
-                  <ValidationBadge 
-                    isValid={!!embalaje} 
-                    label="Embalaje especificado" 
+                  <ValidationBadge
+                    isValid={!!embalaje}
+                    label="Embalaje especificado"
                   />
-                  <ValidationBadge 
-                    isValid={!!fechaSalida && !!fechaLlegada} 
-                    label="Fechas configuradas" 
+                  <ValidationBadge
+                    isValid={!!fechaSalida && !!fechaLlegada}
+                    label="Fechas configuradas"
                   />
                 </CardContent>
               </Card>
@@ -1581,9 +1393,9 @@ export default function Logistica() {
                             <Button variant="ghost" size="icon" className="h-8 w-8">
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8"
                               onClick={() => handleDescargarPDF(carta.folio)}
                             >
