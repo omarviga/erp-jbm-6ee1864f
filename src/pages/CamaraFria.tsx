@@ -1,5 +1,24 @@
+import { useState, useMemo } from "react";
 import { useCamaraFria } from "@/hooks/useCamaraFria";
 import { differenceInDays, format } from "date-fns";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Thermometer,
+  Droplets,
+  AlertTriangle,
+  Clock,
+  Loader2,
+  Snowflake,
+  Package,
+  Search,
+  ArrowRightLeft,
+  Filter
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const pasillos = ["A", "B", "C"];
 const posiciones = ["01", "02", "03", "04"];
@@ -32,7 +51,6 @@ export default function CamaraFria() {
       };
     });
   }, [inventario]);
-  const [filtroEstado, setFiltroEstado] = useState<number | null>(null); // null = ver todos
 
   // Estadísticas Rápidas
   const capacidadTotal = pasillos.length * posiciones.length;
@@ -201,7 +219,7 @@ export default function CamaraFria() {
                                 {/* Tooltip simulado al hover */}
                                 <div className="absolute inset-0 bg-black/80 text-white p-2 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center items-center z-10 pointer-events-none">
                                   <span className="font-bold">{loteEnPosicion.id}</span>
-                                  <span>{item?.kgs?.toLocaleString()} kg</span>
+                                  <span>{loteEnPosicion?.kgs?.toLocaleString()} kg</span>
                                   <span className="text-amber-300 mt-1">Ver Detalle</span>
                                 </div>
                               </>

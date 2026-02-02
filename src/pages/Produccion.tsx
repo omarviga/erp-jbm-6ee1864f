@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { loteService } from "@/services/loteService";
+import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,14 @@ interface Presentacion {
   peso_kg: number;
 }
 
+interface Clasificacion {
+  id: number;
+  nombre_producto: string;
+  calibre: string;
+  codigo_interno: string;
+  orden_visual: number;
+}
+
 // --- CONSTANTES ---
 const colores = [
   { value: "verde_oscuro", label: "Verde Oscuro", color: "bg-green-700" },
@@ -36,21 +45,7 @@ const colores = [
   { value: "amarillo", label: "Amarillo", color: "bg-yellow-400" },
 ];
 
-// CATALOGO DE CLASIFICACIONES (ESCALA AGUIRRE)
-const clasificacionesDB = [
-  // LIMON VERDE
-  { id: 1, nombre_producto: "Limon Verde", calibre: "4", orden: 1 },
-  { id: 2, nombre_producto: "Limon Verde", calibre: "X", orden: 2 },
-  { id: 3, nombre_producto: "Limon Verde", calibre: "XX", orden: 3 },
-  { id: 4, nombre_producto: "Limon Verde", calibre: "XXX", orden: 4 },
-  { id: 5, nombre_producto: "Limon Verde", calibre: "EXTRA", orden: 5 },
-  { id: 6, nombre_producto: "Limon Verde", calibre: "SUPER", orden: 6 },
-  // LIMON ALIMONADO
-  { id: 7, nombre_producto: "Limon Alimonado", calibre: "X", orden: 2 },
-  { id: 8, nombre_producto: "Limon Alimonado", calibre: "XX", orden: 3 },
-  { id: 9, nombre_producto: "Limon Alimonado", calibre: "XXX", orden: 4 },
-  { id: 10, nombre_producto: "Limon Alimonado", calibre: "EXTRA", orden: 5 },
-];
+// CATALOGO DE CLASIFICACIONES - Ahora se carga desde la base de datos
 
 // Componente Placeholder para Etiqueta
 // 1. Definimos la estructura exacta de los datos de la etiqueta
@@ -87,6 +82,24 @@ export default function Produccion() {
   const { data: presentaciones = [], isLoading: loadingPresentaciones } = useQuery({
     queryKey: ['presentaciones'],
     queryFn: () => loteService.getPresentaciones()
+  });
+
+  // Cargar clasificaciones desde la base de datos
+  const { data: clasificacionesDB = [], isLoading: loadingClasificaciones } = useQuery({
+    queryKey: ['clasificaciones'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cat_clasificaciones')
+        .select('*')
+        .order('orden_visual', { ascending: true });
+
+      if (error) {
+        console.error('Error cargando clasificaciones:', error);
+        throw error;
+      }
+
+      return data as Clasificacion[];
+    }
   });
 
   // --- DERIVADOS ---
@@ -165,8 +178,10 @@ export default function Produccion() {
                       <SelectValue placeholder="Tamaño..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {clasificacionesDB
-                        .filter(c => c.nombre_producto === productoSeleccionado)
+                      {loadingClasificaciones ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">Cargando clasificaciones...</div>
+                      ) : clasificacionesDB
+                        .filter(c => c.nombre_producto.toLowerCase().includes('limón') || c.nombre_producto.toLowerCase().includes('limon'))
                         .map((item) => (
                           <SelectItem key={item.id} value={item.calibre} className="py-3">
                             <div className="flex items-center gap-3">
