@@ -1,6 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useId, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { loteService } from "@/services/loteService";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,15 +11,21 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
   Package, Factory, ArrowRight,
-  AlertTriangle, Info, CheckCircle, Printer
+  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle
 } from "lucide-react";
 
 // --- TIPOS ---
 interface LoteDisponible {
   id: string;
-  numero: string;
-  productor: string;
-  variedad: string;
+  numero_lote: string;
+  peso_neto: number;
+  kilos_merma: number;
+  peso_pagable: number;
+  productores?: { nombre: string };
+  huertos?: { variedad: string };
+  estado: string;
+  kilos_disponibles?: number;
+  kilos_procesados?: number;
 }
 
 interface Presentacion {
@@ -30,11 +35,13 @@ interface Presentacion {
 }
 
 interface Clasificacion {
-  id: number;
+  id: string;
   nombre_producto: string;
   calibre: string;
   codigo_interno: string;
+  nombre_completo?: string;
   orden_visual: number;
+  created_at?: string;
 }
 
 // --- CONSTANTES ---
@@ -45,10 +52,7 @@ const colores = [
   { value: "amarillo", label: "Amarillo", color: "bg-yellow-400" },
 ];
 
-// CATALOGO DE CLASIFICACIONES - Ahora se carga desde la base de datos
-
 // Componente Placeholder para Etiqueta
-// 1. Definimos la estructura exacta de los datos de la etiqueta
 interface EtiquetaData {
   numeroLote: string;
   calibre: string;
@@ -56,10 +60,9 @@ interface EtiquetaData {
   presentacion: string;
   pesoKg: number;
   fecha: Date;
-  productor?: string; // El signo ? significa que es opcional
+  productor?: string;
 }
 
-// 2. Usamos 'EtiquetaData' en lugar de 'any'
 const EtiquetaCaja = ({ disabled, etiquetaInfo }: { disabled: boolean, etiquetaInfo: EtiquetaData }) => (
   <Button variant="outline" disabled={disabled} className="border-dashed border-2 w-full sm:w-auto">
     <Printer className="mr-2 h-4 w-4" /> Imprimir
@@ -67,54 +70,161 @@ const EtiquetaCaja = ({ disabled, etiquetaInfo }: { disabled: boolean, etiquetaI
 );
 
 export default function Produccion() {
+  // Generar IDs únicos para accesibilidad
+  const idLote = useId();
+  const idCalibre = useId();
+  const idColor = useId();
+  const idPresentacion = useId();
+  const idCantidad = useId();
+  const idPesoBascula = useId();
+
   // --- ESTADOS ---
   const [loteId, setLoteId] = useState("");
   const [calibre, setCalibre] = useState("");
   const [color, setColor] = useState("");
   const [presentacionId, setPresentacionId] = useState("");
   const [cantidadCajas, setCantidadCajas] = useState("");
+  const [pesoIndustria, setPesoIndustria] = useState("");
 
+  // Cargar lotes activos
   const { data: lotesDisponibles = [], isLoading: loadingLotes } = useQuery({
     queryKey: ['lotes-activos'],
-    queryFn: () => loteService.getLotesActivos()
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('lotes')
+          .select(`
+            *,
+            productores (nombre),
+            huertos (variedad)
+          `)
+          .in('estado', ['EN_PROCESO', 'RECIBIDO', 'PENDIENTE'])
+          .order('fecha_recepcion', { ascending: false });
+
+        if (error) throw error;
+
+        return data || [];
+      } catch (err) {
+        console.error('Error cargando lotes:', err);
+        return [];
+      }
+    }
+  });
+
+  // Cargar producción para calcular kilos procesados
+  const { data: produccionPorLote = {} } = useQuery({
+    queryKey: ['produccion-por-lote'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('produccion')
+          .select('lote_id, peso_total_kg')
+          .not('lote_id', 'is', null);
+
+        if (error) throw error;
+
+        // Agrupar por lote_id
+        const agrupado: Record<string, number> = {};
+        data?.forEach(item => {
+          if (item.lote_id) {
+            if (!agrupado[item.lote_id]) {
+              agrupado[item.lote_id] = 0;
+            }
+            agrupado[item.lote_id] += item.peso_total_kg || 0;
+          }
+        });
+
+        return agrupado;
+      } catch (err) {
+        console.error('Error cargando producción:', err);
+        return {};
+      }
+    }
   });
 
   const { data: presentaciones = [], isLoading: loadingPresentaciones } = useQuery({
     queryKey: ['presentaciones'],
-    queryFn: () => loteService.getPresentaciones()
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('presentaciones')
+          .select('*')
+          .order('nombre');
+
+        if (error) throw error;
+        return data || [];
+      } catch (err) {
+        console.error('Error cargando presentaciones:', err);
+        return [];
+      }
+    }
   });
 
-  // Cargar clasificaciones desde la base de datos
+  // Cargar clasificaciones
   const { data: clasificacionesDB = [], isLoading: loadingClasificaciones } = useQuery({
     queryKey: ['clasificaciones'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cat_clasificaciones')
-        .select('*')
-        .order('orden_visual', { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from('cat_clasificaciones')
+          .select('*')
+          .order('orden_visual', { ascending: true });
 
-      if (error) {
-        console.error('Error cargando clasificaciones:', error);
-        throw error;
+        if (error) throw error;
+        return data || [];
+      } catch (err) {
+        console.error('Error cargando clasificaciones:', err);
+        return [];
       }
-
-      return data as Clasificacion[];
     }
   });
 
-  // --- DERIVADOS ---
+  // --- DERIVADOS Y CÁLCULOS ---
   const loteSeleccionado = lotesDisponibles.find((l: LoteDisponible) => l.id === loteId);
-  const productoSeleccionado = loteSeleccionado?.variedad || "Limon Verde";
   const presentacionSeleccionada = presentaciones.find((p: Presentacion) => p.id === presentacionId);
 
-  const pesoTotal = useMemo(() => {
-    if (presentacionSeleccionada && cantidadCajas) {
-      return (presentacionSeleccionada.peso_kg * parseInt(cantidadCajas)).toFixed(2);
-    }
-    return "0.00";
-  }, [presentacionSeleccionada, cantidadCajas]);
+  // Calcular kilos procesados del lote seleccionado
+  const kilosProcesados = useMemo(() => {
+    if (!loteId) return 0;
+    return produccionPorLote[loteId] || 0;
+  }, [loteId, produccionPorLote]);
 
-  // Lógica automática de clasificación (Reglas de Negocio)
+  // Calcular kilos disponibles (peso_pagable - kilos procesados - kilos merma)
+  const kilosDisponibles = useMemo(() => {
+    if (!loteSeleccionado) return 0;
+
+    const pesoPagable = loteSeleccionado.peso_pagable || 0;
+    const kilosMerma = loteSeleccionado.kilos_merma || 0;
+
+    // Kilos disponibles = peso pagable - merma - ya procesados
+    return Math.max(0, pesoPagable - kilosMerma - kilosProcesados);
+  }, [loteSeleccionado, kilosProcesados]);
+
+  // Calcular porcentaje utilizado
+  const porcentajeUtilizado = useMemo(() => {
+    if (!loteSeleccionado || !loteSeleccionado.peso_pagable || loteSeleccionado.peso_pagable <= 0) {
+      return 0;
+    }
+    return (kilosProcesados / loteSeleccionado.peso_pagable) * 100;
+  }, [loteSeleccionado, kilosProcesados]);
+
+  // Calcular kilos solicitados para empaque normal
+  const kilosSolicitados = useMemo(() => {
+    if (esIndustria) {
+      return parseFloat(pesoIndustria) || 0;
+    }
+    if (presentacionSeleccionada && cantidadCajas) {
+      return presentacionSeleccionada.peso_kg * parseInt(cantidadCajas);
+    }
+    return 0;
+  }, [presentacionSeleccionada, cantidadCajas, pesoIndustria]);
+
+  // Validar si sobrepasa los kilos disponibles
+  const sobrepasaKilosDisponibles = kilosSolicitados > kilosDisponibles;
+  const tieneKilosSuficientes = kilosDisponibles > 0 && !sobrepasaKilosDisponibles;
+  const diferenciaKilos = kilosSolicitados - kilosDisponibles;
+
+  // Lógica automática de clasificación
   const getDestinoAutomatico = (colorValue: string) => {
     if (colorValue === "amarillo") {
       return { destino: "molino", calidad: "industria", mensaje: "🏭 Enviado a Molino (Industria)", tipo: 'warning' };
@@ -128,9 +238,70 @@ export default function Produccion() {
   const destinoInfo = color ? getDestinoAutomatico(color) : null;
   const esIndustria = destinoInfo?.destino === "molino";
 
+  // Filtrar calibres para limón
+  const calibresLimon = useMemo(() => {
+    if (!clasificacionesDB || clasificacionesDB.length === 0) return [];
+
+    return clasificacionesDB.filter(c => {
+      const nombre = c.nombre_producto?.toLowerCase() || '';
+      return nombre.includes('limón') || nombre.includes('limon');
+    });
+  }, [clasificacionesDB]);
+
+  // Función para calcular el peso total
+  const pesoTotal = useMemo(() => {
+    return kilosSolicitados.toFixed(2);
+  }, [kilosSolicitados]);
+
   // Eficiencia proyectada
   const eficiencia = 87.5;
   const mermaActual = 3.2;
+
+  // Función para registrar producción
+  const registrarProduccion = useCallback(async () => {
+    if (!loteSeleccionado) return;
+
+    try {
+      // Validar kilos disponibles
+      if (sobrepasaKilosDisponibles) {
+        alert(`❌ Error: Sobrepasa los kilos disponibles.\nDisponible: ${kilosDisponibles} kg\nSolicitado: ${kilosSolicitados} kg`);
+        return;
+      }
+
+      const datosProduccion = {
+        lote_id: loteId,
+        calibre: calibre,
+        color: color,
+        calidad: destinoInfo?.calidad || 'primera',
+        presentacion_id: esIndustria ? null : presentacionId,
+        cantidad_cajas: esIndustria ? 0 : parseInt(cantidadCajas),
+        peso_total_kg: kilosSolicitados,
+        destino: destinoInfo?.destino || 'piso_empaque'
+      };
+
+      const { error } = await supabase
+        .from('produccion')
+        .insert([datosProduccion]);
+
+      if (error) throw error;
+
+      alert(`✅ Producción registrada exitosamente:\nLote: ${loteSeleccionado.numero_lote}\nKilos: ${kilosSolicitados} kg`);
+
+      // Limpiar formulario
+      setCantidadCajas("");
+      setPesoIndustria("");
+      setCalibre("");
+      setColor("");
+      setPresentacionId("");
+
+      // Refrescar datos
+      // queryClient.invalidateQueries({ queryKey: ['produccion-por-lote'] });
+
+    } catch (error: any) {
+      console.error('Error registrando producción:', error);
+      alert(`❌ Error al registrar producción: ${error.message}`);
+    }
+  }, [loteSeleccionado, loteId, calibre, color, destinoInfo, esIndustria, presentacionId, cantidadCajas, kilosSolicitados, sobrepasaKilosDisponibles, kilosDisponibles]);
 
   return (
     <MainLayout title="Producción" subtitle="Mesa de Clasificación y Empaque">
@@ -148,18 +319,35 @@ export default function Produccion() {
 
               {/* 1. SELECCIÓN DE LOTE */}
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500 uppercase">Lote en Línea</Label>
+                <Label htmlFor={idLote} className="text-xs font-bold text-slate-500 uppercase">
+                  Lote en Línea
+                </Label>
                 <Select value={loteId} onValueChange={setLoteId}>
-                  <SelectTrigger className="h-14 bg-slate-50 text-lg">
+                  <SelectTrigger id={idLote} name="lote" className="h-14 bg-slate-50 text-lg">
                     <SelectValue placeholder="Seleccione Lote..." />
                   </SelectTrigger>
                   <SelectContent>
                     {lotesDisponibles.length > 0 ? (
-                      lotesDisponibles.map((l: LoteDisponible) => (
-                        <SelectItem key={l.id} value={l.id} className="py-3">
-                          <span className="font-bold">{l.numero}</span> - {l.productor} ({l.variedad})
-                        </SelectItem>
-                      ))
+                      lotesDisponibles.map((lote: LoteDisponible) => {
+                        const kilosProd = produccionPorLote[lote.id] || 0;
+                        const kilosDisp = Math.max(0, (lote.peso_pagable || 0) - (lote.kilos_merma || 0) - kilosProd);
+
+                        return (
+                          <SelectItem key={lote.id} value={lote.id} className="py-3">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="font-bold">{lote.numero_lote}</span>
+                                <span className="text-xs text-slate-500 ml-2">
+                                  {lote.productores?.nombre || 'Sin productor'}
+                                </span>
+                              </div>
+                              <div className="text-xs font-mono bg-slate-100 px-2 py-1 rounded">
+                                {kilosDisp.toFixed(0)} kg disp.
+                              </div>
+                            </div>
+                          </SelectItem>
+                        );
+                      })
                     ) : (
                       <div className="p-4 text-center text-sm text-muted-foreground italic">
                         No hay lotes pendientes de producción
@@ -169,20 +357,122 @@ export default function Produccion() {
                 </Select>
               </div>
 
+              {/* 2. INFORMACIÓN DE KILOS DEL LOTE */}
+              {loteSeleccionado && (
+                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Scale className="h-5 w-5 text-slate-600" />
+                    <h4 className="font-semibold text-slate-700">Control de Kilos del Lote</h4>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Peso Pagable</p>
+                      <p className="text-xl font-bold text-slate-800">
+                        {(loteSeleccionado.peso_pagable || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} kg
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Merma Estimada</p>
+                      <p className="text-xl font-bold text-amber-600">
+                        {(loteSeleccionado.kilos_merma || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} kg
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase">Ya Procesado</p>
+                      <p className="text-xl font-bold text-blue-600">
+                        {kilosProcesados.toLocaleString('es-MX', { minimumFractionDigits: 2 })} kg
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase">
+                        {sobrepasaKilosDisponibles ? 'FALTANTE' : 'DISPONIBLE'}
+                      </p>
+                      <p className={cn(
+                        "text-xl font-bold",
+                        sobrepasaKilosDisponibles ? "text-red-600" :
+                          kilosDisponibles < 500 ? "text-amber-600" : "text-green-600"
+                      )}>
+                        {kilosDisponibles.toLocaleString('es-MX', { minimumFractionDigits: 2 })} kg
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Barra de progreso */}
+                  <div className="mb-2">
+                    <div className="flex justify-between text-xs text-slate-500 mb-1">
+                      <span>Progreso: {porcentajeUtilizado.toFixed(1)}%</span>
+                      <span>{kilosProcesados.toFixed(0)} / {(loteSeleccionado.peso_pagable || 0).toFixed(0)} kg</span>
+                    </div>
+                    <Progress
+                      value={porcentajeUtilizado}
+                      className="h-2"
+                    />
+                  </div>
+
+                  {/* Alerta si sobrepasa */}
+                  {sobrepasaKilosDisponibles && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-800">
+                          ¡Advertencia! Sobrepasa los kilos disponibles
+                        </p>
+                        <p className="text-xs text-red-600">
+                          Solicitas: <span className="font-bold">{kilosSolicitados.toFixed(2)} kg</span> |
+                          Disponible: <span className="font-bold">{kilosDisponibles.toFixed(2)} kg</span> |
+                          Exceso: <span className="font-bold">{diferenciaKilos.toFixed(2)} kg</span>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Confirmación si está bien */}
+                  {tieneKilosSuficientes && kilosSolicitados > 0 && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-green-800">
+                          ✅ Kilos disponibles suficientes
+                        </p>
+                        <p className="text-xs text-green-600">
+                          Solicitud: {kilosSolicitados.toFixed(2)} kg |
+                          Restante después: {(kilosDisponibles - kilosSolicitados).toFixed(2)} kg
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 2. SELECCIÓN DE CALIBRE (Escala Aguirre: X, XX, EXTRA) */}
+                {/* 3. SELECCIÓN DE CALIBRE */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 uppercase">Calibre</Label>
-                  <Select value={calibre} onValueChange={setCalibre} disabled={!loteId}>
-                    <SelectTrigger className="h-14">
-                      <SelectValue placeholder="Tamaño..." />
+                  <Label htmlFor={idCalibre} className="text-xs font-bold text-slate-500 uppercase">
+                    Calibre
+                  </Label>
+                  <Select
+                    value={calibre}
+                    onValueChange={setCalibre}
+                    disabled={!loteId || loadingClasificaciones}
+                  >
+                    <SelectTrigger id={idCalibre} name="calibre" className="h-14">
+                      <SelectValue placeholder={
+                        loadingClasificaciones ? "Cargando..." :
+                          !loteId ? "Seleccione un lote primero" :
+                            "Seleccione calibre"
+                      } />
                     </SelectTrigger>
                     <SelectContent>
                       {loadingClasificaciones ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">Cargando clasificaciones...</div>
-                      ) : clasificacionesDB
-                        .filter(c => c.nombre_producto.toLowerCase().includes('limón') || c.nombre_producto.toLowerCase().includes('limon'))
-                        .map((item) => (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          Cargando calibres...
+                        </div>
+                      ) : calibresLimon.length > 0 ? (
+                        calibresLimon.map((item) => (
                           <SelectItem key={item.id} value={item.calibre} className="py-3">
                             <div className="flex items-center gap-3">
                               <span className={cn(
@@ -194,20 +484,31 @@ export default function Produccion() {
                               )}>
                                 {item.calibre.substring(0, 2)}
                               </span>
-                              <span className="font-bold text-lg">{item.calibre}</span>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-lg">{item.calibre}</span>
+                                <span className="text-xs text-slate-500">
+                                  {item.nombre_producto}
+                                </span>
+                              </div>
                             </div>
                           </SelectItem>
-                        ))}
-                      {clasificacionesDB.length === 0 && <SelectItem value="0">Sin datos</SelectItem>}
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No se encontraron calibres
+                        </div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* 3. SELECCIÓN DE COLOR */}
+                {/* 4. SELECCIÓN DE COLOR */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 uppercase">Color</Label>
+                  <Label htmlFor={idColor} className="text-xs font-bold text-slate-500 uppercase">
+                    Color
+                  </Label>
                   <Select value={color} onValueChange={setColor}>
-                    <SelectTrigger className="h-14">
+                    <SelectTrigger id={idColor} name="color" className="h-14">
                       <SelectValue placeholder="Madurez..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -224,7 +525,7 @@ export default function Produccion() {
                 </div>
               </div>
 
-              {/* 4. ALERTA DE DESTINO */}
+              {/* 5. ALERTA DE DESTINO */}
               {destinoInfo?.mensaje && (
                 <div className={cn(
                   "p-4 rounded-lg border flex items-center gap-3 animate-in fade-in zoom-in-95 duration-200",
@@ -244,13 +545,19 @@ export default function Produccion() {
                 </div>
               )}
 
-              {/* 5. INPUTS FINALES */}
-              {!esIndustria && (
+              {/* 6. INPUTS FINALES */}
+              {!esIndustria ? (
                 <div className="grid sm:grid-cols-2 gap-4 pt-2">
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-500 uppercase">Presentación</Label>
-                    <Select value={presentacionId} onValueChange={setPresentacionId}>
-                      <SelectTrigger className="h-16 bg-slate-50">
+                    <Label htmlFor={idPresentacion} className="text-xs font-bold text-slate-500 uppercase">
+                      Presentación
+                    </Label>
+                    <Select
+                      value={presentacionId}
+                      onValueChange={setPresentacionId}
+                      disabled={sobrepasaKilosDisponibles && kilosDisponibles <= 0}
+                    >
+                      <SelectTrigger id={idPresentacion} name="presentacion" className="h-16 bg-slate-50">
                         <SelectValue placeholder="Tipo de Envase..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -264,54 +571,142 @@ export default function Produccion() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold text-slate-500 uppercase">Cantidad</Label>
+                    <Label htmlFor={idCantidad} className="text-xs font-bold text-slate-500 uppercase">
+                      Cantidad de Cajas
+                    </Label>
                     <Input
+                      id={idCantidad}
+                      name="cantidad"
                       type="number"
                       value={cantidadCajas}
-                      onChange={(e) => setCantidadCajas(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCantidadCajas(value);
+                      }}
                       placeholder="0"
-                      className="h-16 text-3xl font-mono text-center font-bold tracking-tighter"
+                      className={cn(
+                        "h-16 text-3xl font-mono text-center font-bold tracking-tighter",
+                        sobrepasaKilosDisponibles && "border-red-300 focus-visible:ring-red-500"
+                      )}
+                      min="0"
+                      step="1"
+                      disabled={sobrepasaKilosDisponibles && kilosDisponibles <= 0}
                     />
+                    {presentacionSeleccionada && cantidadCajas && (
+                      <p className="text-sm text-slate-600 text-center">
+                        {cantidadCajas} cajas × {presentacionSeleccionada.peso_kg} kg =
+                        <span className="font-bold ml-1">
+                          {(parseInt(cantidadCajas) * presentacionSeleccionada.peso_kg).toFixed(2)} kg
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
-              )}
-
-              {esIndustria && (
-                <div className="space-y-2 bg-amber-50 p-6 rounded-xl border border-amber-100 text-center">
-                  <Label className="text-amber-800 font-bold uppercase text-sm">Peso Báscula de Piso (Kg)</Label>
+              ) : (
+                <div className="space-y-2 bg-amber-50 p-6 rounded-xl border border-amber-100">
+                  <Label htmlFor={idPesoBascula} className="text-amber-800 font-bold uppercase text-sm">
+                    Peso Báscula de Piso (Kg)
+                  </Label>
                   <Input
+                    id={idPesoBascula}
+                    name="peso_bascula"
                     type="number"
+                    value={pesoIndustria}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPesoIndustria(value);
+                    }}
                     placeholder="0.00"
-                    className="h-16 text-4xl font-mono text-center border-amber-300 focus-visible:ring-amber-500 bg-white"
+                    className={cn(
+                      "h-16 text-4xl font-mono text-center border-amber-300 focus-visible:ring-amber-500 bg-white",
+                      sobrepasaKilosDisponibles && "border-red-300 focus-visible:ring-red-500"
+                    )}
+                    min="0"
+                    step="0.01"
+                    disabled={sobrepasaKilosDisponibles && kilosDisponibles <= 0}
                   />
+                  {pesoIndustria && (
+                    <div className="text-center">
+                      <p className="text-sm text-slate-600">
+                        <span className="font-bold">{parseFloat(pesoIndustria).toFixed(2)} kg</span> a molino
+                      </p>
+                      {sobrepasaKilosDisponibles && (
+                        <p className="text-sm text-red-600 font-semibold mt-1">
+                          ¡Excede por {diferenciaKilos.toFixed(2)} kg!
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* 6. BOTONES */}
+              {/* 7. RESUMEN Y BOTONES */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
-                <Button
-                  className="flex-1 h-14 text-lg bg-blue-700 hover:bg-blue-800 shadow-md transition-all active:scale-95"
-                  disabled={!loteId || (!esIndustria && !cantidadCajas)}
-                >
-                  <Package className="h-5 w-5 mr-2" />
-                  Registrar {esIndustria ? "Peso" : "Cajas"}
-                </Button>
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm font-semibold text-slate-700">Resumen de producción</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-slate-100 p-2 rounded">
+                      <span className="text-slate-500">Peso total:</span>
+                      <span className="font-bold ml-1">{pesoTotal} kg</span>
+                    </div>
+                    <div className={cn(
+                      "p-2 rounded",
+                      sobrepasaKilosDisponibles ? "bg-red-100" : "bg-green-100"
+                    )}>
+                      <span className={sobrepasaKilosDisponibles ? "text-red-600" : "text-green-600"}>
+                        {sobrepasaKilosDisponibles ? "Exceso:" : "Disponible:"}
+                      </span>
+                      <span className={cn(
+                        "font-bold ml-1",
+                        sobrepasaKilosDisponibles ? "text-red-700" : "text-green-700"
+                      )}>
+                        {sobrepasaKilosDisponibles ?
+                          `+${diferenciaKilos.toFixed(2)} kg` :
+                          `${(kilosDisponibles - kilosSolicitados).toFixed(2)} kg`
+                        }
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-                <EtiquetaCaja
-                  // La lógica de disabled está bien, la dejamos igual
-                  disabled={!loteId || !calibre || !color || (!esIndustria && (!presentacionId || !cantidadCajas))}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    className="flex-1 h-14 text-lg bg-blue-700 hover:bg-blue-800 shadow-md transition-all active:scale-95"
+                    disabled={
+                      !loteId ||
+                      !calibre ||
+                      !color ||
+                      (!esIndustria && (!presentacionId || !cantidadCajas)) ||
+                      (esIndustria && !pesoIndustria) ||
+                      sobrepasaKilosDisponibles ||
+                      kilosSolicitados <= 0
+                    }
+                    type="button"
+                    onClick={registrarProduccion}
+                  >
+                    <Package className="h-5 w-5 mr-2" />
+                    Registrar {esIndustria ? "Peso" : "Cajas"}
+                  </Button>
 
-                  // AQUÍ ESTÁ EL CAMBIO: Llenamos los datos reales
-                  etiquetaInfo={{
-                    numeroLote: loteSeleccionado?.numero || "Pendiente",
-                    calibre: calibre || "S/N",
-                    color: color || "S/N",
-                    presentacion: presentacionSeleccionada?.nombre || "Granel",
-                    pesoKg: presentacionSeleccionada?.peso || 0,
-                    fecha: new Date(),
-                    productor: loteSeleccionado?.productor || "Desconocido"
-                  }}
-                />
+                  <EtiquetaCaja
+                    disabled={
+                      !loteId ||
+                      !calibre ||
+                      !color ||
+                      (!esIndustria && (!presentacionId || !cantidadCajas)) ||
+                      sobrepasaKilosDisponibles
+                    }
+                    etiquetaInfo={{
+                      numeroLote: loteSeleccionado?.numero_lote || "Pendiente",
+                      calibre: calibre || "S/N",
+                      color: color || "S/N",
+                      presentacion: presentacionSeleccionada?.nombre || "Granel",
+                      pesoKg: kilosSolicitados,
+                      fecha: new Date(),
+                      productor: loteSeleccionado?.productores?.nombre || "Desconocido"
+                    }}
+                  />
+                </div>
               </div>
 
             </CardContent>
@@ -322,15 +717,23 @@ export default function Produccion() {
         <div className="lg:col-span-4 space-y-6">
           <Card>
             <CardHeader className="pb-2 bg-slate-50 border-b">
-              <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-500">Eficiencia Turno</CardTitle>
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                Eficiencia Turno
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div>
-                <div className="flex justify-between mb-2"><span className="font-bold text-slate-600">Global</span> <span className="font-bold text-blue-600">{eficiencia}%</span></div>
+                <div className="flex justify-between mb-2">
+                  <span className="font-bold text-slate-600">Global</span>
+                  <span className="font-bold text-blue-600">{eficiencia}%</span>
+                </div>
                 <Progress value={eficiencia} className="h-3" />
               </div>
               <div>
-                <div className="flex justify-between mb-2"><span className="font-bold text-slate-600">Merma</span> <span className="font-bold text-green-600">{mermaActual}%</span></div>
+                <div className="flex justify-between mb-2">
+                  <span className="font-bold text-slate-600">Merma</span>
+                  <span className="font-bold text-green-600">{mermaActual}%</span>
+                </div>
                 <Progress value={mermaActual * 10} className="h-3 [&>div]:bg-green-500" />
               </div>
             </CardContent>
@@ -339,7 +742,9 @@ export default function Produccion() {
           {/* ULTIMAS CAJAS */}
           <Card>
             <CardHeader className="pb-2 bg-slate-50 border-b">
-              <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-500">Últimos Registros</CardTitle>
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                Últimos Registros
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-3">
               {[
