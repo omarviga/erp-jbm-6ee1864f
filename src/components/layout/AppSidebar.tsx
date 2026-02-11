@@ -1,3 +1,4 @@
+// src/components/layout/AppSidebar.tsx
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +24,7 @@ import {
   Settings,
   LogOut,
   Shield,
+  Citrus, // Agregar icono de limón
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,7 +44,11 @@ const mainNavItems: NavItem[] = [
   { title: "Producción", href: "/produccion", icon: Factory },
   { title: "Cámara Fría", href: "/camara-fria", icon: Snowflake },
   { title: "Logística", href: "/logistica", icon: Truck },
-  { title: "Ventas", href: "/ventas", icon: ShoppingCart },
+  {
+    title: "Punto de Venta Limón",
+    href: "/ventas",
+    icon: Citrus, // Cambiado de ShoppingCart a Citrus
+  },
   { title: "Facturación", href: "/facturacion", icon: FileText },
   { title: "Finanzas", href: "/finanzas", icon: Wallet },
   { title: "Insumos", href: "/insumos", icon: Package },
@@ -83,12 +89,23 @@ export function AppSidebar() {
                   isActive={location.pathname === item.href}
                   className={cn(
                     "h-12 text-base font-medium hover:bg-green-600/20 transition-colors",
-                    "data-[active=true]:bg-[#65a30d] data-[active=true]:text-white"
+                    "data-[active=true]:bg-[#65a30d] data-[active=true]:text-white",
+                    // Color especial para el botón de ventas de limón
+                    item.href === "/ventas" && "hover:bg-green-500/30"
                   )}
                 >
                   <Link to={item.href} className="flex items-center gap-3">
-                    <item.icon className="w-5 h-5" />
+                    <item.icon className={cn(
+                      "w-5 h-5",
+                      // Icono más grande y color especial para limón
+                      item.href === "/ventas" && "text-green-600"
+                    )} />
                     <span>{item.title}</span>
+                    {item.href === "/ventas" && (
+                      <span className="ml-auto text-xs font-normal bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                        Nuevo
+                      </span>
+                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

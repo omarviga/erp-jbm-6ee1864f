@@ -29,9 +29,9 @@ const historialPrecios = [
 // Opciones de zonas de destino
 const zonasDestino = [
   { id: "anden_descarga", nombre: "🚛 Andén de Descarga", costoBascula: 50 },
-  { id: "camara_materia_prima", nombre: "❄️ Cámara MP (Frio)", costoBascula: 75 },
-  { id: "patio_maniobras", nombre: "🏭 Patio de Maniobras", costoBascula: 50 },
-  { id: "linea_directa", nombre: "⚙️ Directo a Línea", costoBascula: 30 },
+  { id: "camara_materia_prima", nombre: "❄️ Cámara MP (Frio)", costoBascula: 0 },
+  { id: "patio_maniobras", nombre: "🏭 Patio de Maniobras", costoBascula: 0 },
+  { id: "linea_directa", nombre: "⚙️ Directo a Línea", costoBascula: 0 },
 ];
 
 export default function Recepcion() {

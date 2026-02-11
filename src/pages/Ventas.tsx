@@ -1,474 +1,387 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Trash2, Printer, CreditCard, User, Calculator, Search, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
-import { useVentas } from "@/hooks/useVentas";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  ClipboardCheck,
+  ShoppingCart,
+  Package,
+  Camera,
+  CheckCircle,
+  AlertCircle,
+  DollarSign,
+  Plus,
+  Minus,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export default function Ventas() {
-  const {
-    productos,
-    clientes,
-    carrito,
-    stock,
-    loading,
-    agregarAlCarrito,
-    actualizarItem,
-    eliminarDelCarrito,
-    limpiarCarrito,
-    cobrar
-  } = useVentas();
+// --- DATOS INICIALES ---
 
-  const [clienteId, setClienteId] = useState<string>("mostrador");
-  const [busqueda, setBusqueda] = useState("");
-  const [modalCobroOpen, setModalCobroOpen] = useState(false);
-  const [montoRecibido, setMontoRecibido] = useState("");
-  const [metodoPago, setMetodoPago] = useState("efectivo");
-  const [ticketOpen, setTicketOpen] = useState(false);
-  const [ticketData, setTicketData] = useState<any>(null);
+const embarquesPendientes = [
+  {
+    id: "EMB-2501",
+    origen: "Michoacán",
+    tarimas: 24,
+    estado: "llegado",
+    hora: "11:45 AM",
+  },
+];
 
-  // Cálculos del carrito
-  const totalVenta = useMemo(() =>
-    carrito.reduce((sum, item) => sum + (item.cantidad * item.precio_venta), 0),
-    [carrito]);
+const productosRecibirInicial = [
+  { producto: "Limón Verde Super", enviado: 8, recibido: 8 },
+  { producto: "Limón Verde Extra", enviado: 6, recibido: 6 },
+  { producto: "Limón Verde XXX", enviado: 5, recibido: 4 },
+  { producto: "Limón Alimonado", enviado: 5, recibido: 5 },
+];
 
-  const totalArticulos = useMemo(() =>
-    carrito.reduce((sum, item) => sum + item.cantidad, 0),
-    [carrito]);
+const inventarioCDMX = [
+  { producto: "Limón Verde Super", cantidad: 45, precio: 850 },
+  { producto: "Limón Verde Extra", cantidad: 32, precio: 750 },
+  { producto: "Limón Verde XXX", cantidad: 28, precio: 680 },
+  { producto: "Limón Alimonado", cantidad: 18, precio: 620 },
+];
 
-  const cambio = useMemo(() => {
-    const recibido = parseFloat(montoRecibido) || 0;
-    return Math.max(0, recibido - totalVenta);
-  }, [montoRecibido, totalVenta]);
+interface CartItem {
+  producto: string;
+  cantidad: number;
+  precio: number;
+}
 
-  // Cliente seleccionado
-  const clienteActual = useMemo(() => {
-    if (clienteId === "mostrador") return { nombre: "Público General", tipo: "nacional" };
-    return clientes.find(c => c.id === clienteId);
-  }, [clienteId, clientes]);
+export default function CDMXPage() {
+  // --- ESTADO ---
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [recepcionList, setRecepcionList] = useState(productosRecibirInicial);
 
-  const handleCobrar = async () => {
-    const venta = await cobrar(
-      clienteId === "mostrador" ? null : clienteId,
-      parseFloat(montoRecibido) || totalVenta,
-      metodoPago
+  // --- LÓGICA DE CARRITO ---
+  const addToCart = (producto: any) => {
+    setCart((prevCart) => {
+      const existingItem = prevCart.find((item) => item.producto === producto.producto);
+      if (existingItem) {
+        toast.success(`Incrementada cantidad de ${producto.producto}`);
+        return prevCart.map((item) =>
+          item.producto === producto.producto
+            ? { ...item, cantidad: item.cantidad + 1 }
+            : item
+        );
+      }
+      toast.success(`${producto.producto} agregado al carrito`);
+      return [...prevCart, { producto: producto.producto, cantidad: 1, precio: producto.precio }];
+    });
+  };
+
+  const removeFromCart = (productName: string) => {
+    setCart((prevCart) => prevCart.filter((item) => item.producto !== productName));
+    toast.error("Producto eliminado del carrito");
+  };
+
+  const updateQuantity = (productName: string, delta: number) => {
+    setCart((prevCart) =>
+      prevCart.map((item) => {
+        if (item.producto === productName) {
+          const newQty = Math.max(1, item.cantidad + delta);
+          return { ...item, cantidad: newQty };
+        }
+        return item;
+      })
     );
+  };
 
-    if (venta) {
-      setTicketData({
-        ...venta,
-        items: [...carrito],
-        cliente: clienteActual,
-        recibido: parseFloat(montoRecibido) || totalVenta,
-        cambio: cambio
+  const updatePrice = (productName: string, newPrice: number) => {
+    setCart((prevCart) =>
+      prevCart.map((item) =>
+        item.producto === productName ? { ...item, precio: newPrice } : item
+      )
+    );
+  };
+
+  const totalVenta = useMemo(() => {
+    return cart.reduce((acc, item) => acc + item.cantidad * item.precio, 0);
+  }, [cart]);
+
+  // --- LÓGICA DE RECEPCIÓN ---
+  const handleRecepcionChange = (index: number, value: string) => {
+    const newVal = parseInt(value) || 0;
+    const newList = [...recepcionList];
+    newList[index].recibido = newVal;
+    setRecepcionList(newList);
+  };
+
+  const handleConfirmarRecepcion = () => {
+    const tieneDiscrepancias = recepcionList.some((p) => p.enviado !== p.recibido);
+    if (tieneDiscrepancias) {
+      toast.warning("Se ha confirmado con discrepancias", {
+        description: "Se notificará al equipo de Michoacán.",
       });
-      setModalCobroOpen(false);
-      setTicketOpen(true);
-      setMontoRecibido("");
+    } else {
+      toast.success("Materia prima recibida correctamente");
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-    setTicketOpen(false);
+  const handleProcesarVenta = () => {
+    toast.success("Venta procesada con éxito", {
+      description: `Total: $${totalVenta.toLocaleString()}`,
+    });
+    setCart([]);
   };
 
   return (
-    <MainLayout title="Punto de Venta" subtitle="Central de Abastos CDMX">
-      <div className="grid lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
+    <MainLayout title="Operación CDMX" subtitle="Recepción y Punto de Venta">
+      <Tabs defaultValue="recepcion" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2 h-12 mb-6">
+          <TabsTrigger value="recepcion" className="text-base gap-2">
+            <ClipboardCheck className="w-4 h-4" />
+            Recepción
+          </TabsTrigger>
+          <TabsTrigger value="ventas" className="text-base gap-2">
+            <ShoppingCart className="w-4 h-4" />
+            Punto de Venta
+          </TabsTrigger>
+        </TabsList>
 
-        {/* --- COLUMNA IZQUIERDA: CATÁLOGO (7 Cols) --- */}
-        <div className="lg:col-span-7 flex flex-col gap-4 h-full">
-          {/* Barra de búsqueda y categorías */}
-          <Card className="flex-shrink-0">
-            <div className="p-4 flex gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar productos..."
-                  className="pl-10 h-12 text-lg"
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <Select defaultValue="todos">
-                <SelectTrigger className="w-[180px] h-12">
-                  <SelectValue placeholder="Categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todas</SelectItem>
-                  <SelectItem value="cajas">Cajas</SelectItem>
-                  <SelectItem value="arpillas">Arpillas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </Card>
-
-          {/* Grid de Productos */}
-          <div className="flex-1 overflow-y-auto pr-2 pb-2">
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-              {productos
-                .filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
-                .map((producto) => {
-                  const stockDisponible = stock[producto.id] || 0;
-                  return (
-                    <Button
-                      key={producto.id}
-                      variant={stockDisponible > 0 ? "outline" : "ghost"}
-                      className={cn(
-                        "h-36 flex flex-col items-center justify-center gap-2 transition-all whitespace-normal border-2 relative",
-                        stockDisponible > 0 ? "hover:bg-primary/5 hover:border-primary" : "opacity-60 grayscale cursor-not-allowed"
-                      )}
-                      onClick={() => stockDisponible > 0 && agregarAlCarrito(producto)}
-                      disabled={stockDisponible === 0}
-                    >
-                      <div className="absolute top-2 right-2">
-                        <Badge variant={stockDisponible > 0 ? "default" : "destructive"} className="text-[10px] px-1.5 h-5">
-                          {stockDisponible > 0 ? `${stockDisponible}` : "0"}
-                        </Badge>
-                      </div>
-
-                      <span className="text-3xl filter drop-shadow-sm mt-2">
-                        {producto.tipo.includes("arpilla") ? "🧺" : "📦"}
-                      </span>
-                      <div className="text-center w-full px-1">
-                        <span className="text-sm font-bold leading-tight block mb-1 truncate">
-                          {producto.nombre}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground bg-slate-100 px-2 py-0.5 rounded-full inline-block">
-                          {producto.peso_kg} kg
-                        </span>
-                      </div>
-                      <Badge variant="secondary" className="mt-1 font-bold text-primary">
-                        ${producto.precio_sugerido}
-                      </Badge>
-                    </Button>
-                  );
-                })}
-
-              {productos.length === 0 && (
-                <div className="col-span-full py-12 text-center text-muted-foreground">
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p>Cargando catálogo...</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* --- COLUMNA DERECHA: CARRITO (5 Cols) --- */}
-        <div className="lg:col-span-5 flex flex-col h-full gap-4">
-          <Card className="flex flex-col h-full border-l-4 border-l-primary shadow-lg overflow-hidden">
-            {/* Header del Carrito */}
-            <CardHeader className="bg-slate-50 pb-4 border-b">
-              <div className="flex items-center justify-between mb-4">
-                <CardTitle className="flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5 text-primary" />
-                  Ticket de Venta
-                </CardTitle>
-                <Badge variant={carrito.length > 0 ? "default" : "secondary"}>
-                  {totalArticulos} artículos
-                </Badge>
-              </div>
-
-              {/* Selección de Cliente */}
-              <div className="flex items-center gap-2 bg-white p-2 rounded-lg border shadow-sm">
-                <User className="h-5 w-5 text-muted-foreground ml-2" />
-                <Select value={clienteId} onValueChange={setClienteId}>
-                  <SelectTrigger className="border-0 focus:ring-0 h-10 font-semibold text-lg">
-                    <SelectValue placeholder="Seleccionar Cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mostrador" className="font-bold">
-                      🛍️ Público General (Mostrador)
-                    </SelectItem>
-                    <Separator className="my-2" />
-                    {clientes.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* --- PESTAÑA RECEPCIÓN --- */}
+        <TabsContent value="recepcion" className="space-y-6 animate-fade-in">
+          <Card className="border-2 border-warning/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-warning" />
+                Embarque Pendiente de Revisión
+              </CardTitle>
             </CardHeader>
-
-            {/* Lista de Items */}
-            <CardContent className="flex-1 overflow-y-auto p-0">
-              {carrito.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50 space-y-4">
-                  <ShoppingCart className="h-24 w-24" />
-                  <p className="text-xl font-medium">Su carrito está vacío</p>
-                  <p className="text-sm">Agregue productos del catálogo para comenzar</p>
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {carrito.map((item) => (
-                    <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors flex gap-3 items-center group">
-                      <div className="h-12 w-12 bg-white rounded-lg border flex items-center justify-center text-2xl shadow-sm">
-                        {item.tipo.includes("arpilla") ? "🧺" : "📦"}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start mb-1">
-                          <p className="font-bold text-slate-800 truncate pr-2">
-                            {item.nombre}
-                          </p>
-                          <p className="font-bold text-slate-900">
-                            ${(item.cantidad * item.precio_venta).toLocaleString()}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              className="w-16 h-8 border rounded px-2 text-center font-semibold text-slate-700 focus:ring-2 focus:ring-primary/20 outline-none"
-                              value={item.precio_venta}
-                              onChange={(e) => actualizarItem(item.id, { precio_venta: parseFloat(e.target.value) || 0 })}
-                              onClick={(e) => e.currentTarget.select()}
-                            />
-                            <span className="text-muted-foreground">x unidad</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-center gap-1 ml-2">
-                        <div className="flex items-center bg-white rounded-lg border shadow-sm">
-                          <button
-                            className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 text-slate-600 rounded-l-lg active:bg-slate-200"
-                            onClick={() => actualizarItem(item.id, { cantidad: Math.max(1, item.cantidad - 1) })}
-                          >
-                            -
-                          </button>
-                          <span className="w-8 text-center font-bold text-sm select-none">
-                            {item.cantidad}
-                          </span>
-                          <button
-                            className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 text-green-600 rounded-r-lg active:bg-green-100"
-                            onClick={() => actualizarItem(item.id, { cantidad: item.cantidad + 1 })}
-                          >
-                            +
-                          </button>
-                        </div>
-                        <button
-                          className="text-xs text-rose-500 hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => eliminarDelCarrito(item.id)}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-
-            {/* Footer de Totales y Pago */}
-            <div className="p-6 bg-slate-50 border-t space-y-4">
-              <div className="flex justify-between items-center text-lg">
-                <span className="text-muted-foreground font-medium">Total a Pagar</span>
-                <span className="text-3xl font-bold text-primary">
-                  ${totalVenta.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  className="h-14 text-base border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                  onClick={limpiarCarrito}
-                  disabled={carrito.length === 0}
-                >
-                  <Trash2 className="h-5 w-5 mr-2" />
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={() => setModalCobroOpen(true)}
-                  disabled={carrito.length === 0}
-                  className="h-14 text-lg font-bold shadow-md hover:shadow-lg transition-all"
-                >
-                  <CreditCard className="h-6 w-6 mr-2" />
-                  Cobrar
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* --- MODAL DE COBRO --- */}
-      <Dialog open={modalCobroOpen} onOpenChange={setModalCobroOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-2xl">
-              <Calculator className="h-6 w-6 text-primary" />
-              Procesar Pago
-            </DialogTitle>
-            <DialogDescription>
-              Resumen de la venta para {clienteActual?.nombre}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-4">
-            <div className="flex justify-between items-end border-b pb-4">
-              <span className="text-lg font-medium">Total a Pagar:</span>
-              <span className="text-4xl font-bold text-slate-900">
-                ${totalVenta.toLocaleString()}
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-base">Monto Recibido</Label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-slate-400">$</span>
-                <Input
-                  type="number"
-                  className="pl-10 h-16 text-3xl font-bold font-mono"
-                  placeholder="0.00"
-                  value={montoRecibido}
-                  onChange={(e) => setMontoRecibido(e.target.value)}
-                  autoFocus
-                />
-              </div>
-
-              {/* Botones rápidos de efectivo */}
-              <div className="flex gap-2 justify-center">
-                {[500, 1000, 2000, 5000].map(amt => (
-                  <Button
-                    key={amt}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setMontoRecibido(amt.toString())}
-                    className="flex-1"
-                  >
-                    ${amt}
-                  </Button>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setMontoRecibido(totalVenta.toString())}
-                  className="flex-1 bg-slate-100 font-bold"
-                >
-                  Exacto
-                </Button>
-              </div>
-            </div>
-
-            <div className={cn(
-              "p-4 rounded-xl flex justify-between items-center transition-colors",
-              cambio >= 0 ? "bg-green-50 text-green-900" : "bg-red-50 text-red-900"
-            )}>
-              <span className="font-semibold text-lg">Cambio:</span>
-              <span className="text-3xl font-bold font-mono">
-                ${cambio.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Label>Método de Pago:</Label>
-              <Select value={metodoPago} onValueChange={setMetodoPago}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="efectivo">💵 Efectivo</SelectItem>
-                  <SelectItem value="tarjeta">💳 Tarjeta</SelectItem>
-                  <SelectItem value="transferencia">🏦 Transferencia</SelectItem>
-                  <SelectItem value="credito">📝 Crédito</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setModalCobroOpen(false)}>
-              Volver
-            </Button>
-            <Button
-              className="w-full sm:w-auto h-12 text-lg px-8"
-              onClick={handleCobrar}
-              disabled={loading || (parseFloat(montoRecibido) < totalVenta && metodoPago === "efectivo")}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Procesando...
-                </>
-              ) : (
-                "Confirmar Pago"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* --- TICKET MODAL --- */}
-      <Dialog open={ticketOpen} onOpenChange={setTicketOpen}>
-        <DialogContent className="max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="text-center">¡Venta Exitosa!</DialogTitle>
-          </DialogHeader>
-
-          <div className="bg-white p-6 rounded shadow-sm border border-slate-100 text-center space-y-4 font-mono text-sm max-h-[60vh] overflow-y-auto">
-            <div className="border-b pb-4 mb-4 border-dashed border-slate-300">
-              <h3 className="font-bold text-lg">JBM Cloud</h3>
-              <p>Central de Abastos CDMX</p>
-              <p className="text-xs text-muted-foreground">{new Date().toLocaleString()}</p>
-              <p className="text-xs mt-1">Ticket: {ticketData?.numero_venta || "PENDIENTE"}</p>
-            </div>
-
-            <div className="space-y-2 text-left">
-              {ticketData?.items.map((item: any) => (
-                <div key={item.id} className="flex justify-between">
-                  <span>{item.cantidad} x {item.nombre}</span>
-                  <span>${(item.cantidad * item.precio_venta).toFixed(2)}</span>
+            <CardContent>
+              {embarquesPendientes.map((embarque) => (
+                <div key={embarque.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div>
+                    <h3 className="font-bold text-lg">{embarque.id}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {embarque.tarimas} tarimas • Origen: {embarque.origen} • Llegó {embarque.hora}
+                    </p>
+                  </div>
+                  <Badge className="bg-warning/10 text-warning border-warning/20 px-3 py-1">
+                    Esperando Revisión
+                  </Badge>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-2">
+            <CardHeader>
+              <CardTitle>Checklist de Recepción - {embarquesPendientes[0]?.id}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Producto</TableHead>
+                    <TableHead className="text-center">Enviado</TableHead>
+                    <TableHead className="text-center">Recibido</TableHead>
+                    <TableHead className="text-center">Estado</TableHead>
+                    <TableHead className="text-center">Evidencia</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recepcionList.map((producto, index) => {
+                    const isDiscrepancia = producto.enviado !== producto.recibido;
+                    return (
+                      <TableRow key={index} className={cn(isDiscrepancia && "bg-destructive/5")}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {producto.producto}
+                            {isDiscrepancia && <AlertCircle className="w-4 h-4 text-destructive animate-pulse" />}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center font-mono">{producto.enviado}</TableCell>
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            value={producto.recibido}
+                            onChange={(e) => handleRecepcionChange(index, e.target.value)}
+                            className={cn(
+                              "w-20 mx-auto text-center font-bold",
+                              isDiscrepancia && "border-destructive text-destructive"
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {!isDiscrepancia ? (
+                            <CheckCircle className="w-5 h-5 text-success mx-auto" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-destructive mx-auto" />
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toast.info("Próximamente: Capturar evidencia")}
+                          >
+                            <Camera className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              <div className="flex justify-end mt-4">
+                <Button className="gap-2 px-6" onClick={handleConfirmarRecepcion}>
+                  <CheckCircle className="w-4 h-4" />
+                  Confirmar Recepción
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* --- PESTAÑA PUNTO DE VENTA --- */}
+        <TabsContent value="ventas" className="space-y-6 animate-fade-in">
+          <div className="grid lg:grid-cols-12 gap-6">
+            {/* GRID DE PRODUCTOS */}
+            <div className="lg:col-span-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                {inventarioCDMX.map((producto, index) => (
+                  <Card
+                    key={index}
+                    className="border-2 hover:border-primary transition-all group overflow-hidden"
+                  >
+                    <CardContent className="pt-6 relative">
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors">
+                        <Package className="w-6 h-6 text-primary group-hover:text-white" />
+                      </div>
+                      <div className="text-center">
+                        <p className="font-bold text-base mb-1">{producto.producto}</p>
+                        <Badge variant="secondary" className="mb-2">
+                          {producto.cantidad} tarimas disp.
+                        </Badge>
+                        <p className="text-2xl font-bold text-primary">
+                          ${producto.precio.toLocaleString()}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full mt-4 gap-2 opacity-90 group-hover:opacity-100"
+                        onClick={() => addToCart(producto)}
+                      >
+                        <Plus className="w-4 h-4" />
+                        Agregar al Carrito
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
 
-            <div className="border-t border-dashed border-slate-300 pt-4 mt-4 space-y-1">
-              <div className="flex justify-between font-bold text-base">
-                <span>TOTAL</span>
-                <span>${ticketData?.total?.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Efectivo</span>
-                <span>${ticketData?.recibido?.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-slate-800 font-semibold">
-                <span>Cambio</span>
-                <span>${ticketData?.cambio?.toLocaleString()}</span>
-              </div>
-            </div>
+            {/* CARRITO */}
+            <div className="lg:col-span-4 h-full">
+              <Card className="border-2 sticky top-4 h-[calc(100vh-220px)] flex flex-col">
+                <CardHeader className="bg-muted/30 pb-4">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <ShoppingCart className="w-6 h-6 text-primary" />
+                    Carrito de Venta
+                    {cart.length > 0 && (
+                      <Badge className="ml-auto bg-primary text-white">
+                        {cart.reduce((s, i) => s + i.cantidad, 0)} items
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
 
-            <div className="pt-6 text-center text-xs text-muted-foreground">
-              <p>¡Gracias por su compra!</p>
+                <CardContent className="flex-1 overflow-y-auto p-0">
+                  {cart.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                      <ShoppingCart className="w-16 h-16 mb-4 opacity-20" />
+                      <p className="font-medium">Tu carrito está vacío</p>
+                      <p className="text-sm">Agrega productos para comenzar</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {cart.map((item, idx) => (
+                        <div key={idx} className="p-4 space-y-3 group bg-white hover:bg-slate-50 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <span className="font-bold text-slate-800">{item.producto}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive/50 hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => removeFromCart(item.producto)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center border rounded-md h-9 bg-white shadow-sm">
+                              <button
+                                className="px-2 h-full hover:bg-muted transition-colors rounded-l-md"
+                                onClick={() => updateQuantity(item.producto, -1)}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </button>
+                              <span className="w-10 text-center font-bold font-mono text-sm leading-none bg-slate-50 h-full flex items-center justify-center border-x">
+                                {item.cantidad}
+                              </span>
+                              <button
+                                className="px-2 h-full hover:bg-muted transition-colors rounded-r-md"
+                                onClick={() => updateQuantity(item.producto, 1)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                            </div>
+                            <div className="text-right">
+                              <Input
+                                type="number"
+                                className="w-24 h-9 text-right font-bold text-primary border-none shadow-none focus-visible:ring-0 p-0 text-lg"
+                                value={item.precio}
+                                onChange={(e) => updatePrice(item.producto, parseFloat(e.target.value) || 0)}
+                                contentEditable
+                              />
+                              <p className="text-[10px] uppercase text-muted-foreground font-medium -mt-1 tracking-wider">P. Unitario</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+
+                <div className="p-6 bg-muted/30 border-t space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-muted-foreground text-sm">
+                      <span>Subtotal</span>
+                      <span className="font-mono">${totalVenta.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-2xl font-black text-slate-900 pt-2 border-t border-slate-200">
+                      <span>TOTAL</span>
+                      <span className="text-primary">${totalVenta.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    className="w-full h-14 text-lg font-bold gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+                    disabled={cart.length === 0}
+                    onClick={handleProcesarVenta}
+                  >
+                    <DollarSign className="w-5 h-5" />
+                    Procesar Venta
+                  </Button>
+                </div>
+              </Card>
             </div>
           </div>
-
-          <DialogFooter className="flex-col gap-2">
-            <Button className="w-full" size="lg" onClick={handlePrint}>
-              <Printer className="h-4 w-4 mr-2" />
-              Imprimir Ticket
-            </Button>
-            <Button variant="ghost" className="w-full" onClick={() => setTicketOpen(false)}>
-              Cerrar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </TabsContent>
+      </Tabs>
     </MainLayout>
   );
 }

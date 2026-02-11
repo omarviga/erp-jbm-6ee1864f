@@ -44,6 +44,18 @@ interface Clasificacion {
   created_at?: string;
 }
 
+interface RegistroProduccion {
+  calibre: string;
+  color: string;
+  qty: number;
+}
+
+interface KPIData {
+  eficiencia: number;
+  merma: number;
+  produccion_hoy: number;
+}
+
 // --- CONSTANTES ---
 const colores = [
   { value: "verde_oscuro", label: "Verde Oscuro", color: "bg-green-700" },
@@ -179,6 +191,29 @@ export default function Produccion() {
     }
   });
 
+  // Cargar KPI data
+  const { data: kpiData = { eficiencia: 87.5, merma: 3.2, produccion_hoy: 0 } } = useQuery<KPIData>({
+    queryKey: ['kpi-data'],
+    queryFn: async () => {
+      try {
+        // Aquí puedes hacer una consulta real a Supabase
+        // Por ahora retornamos datos estáticos
+        return {
+          eficiencia: 87.5,
+          merma: 3.2,
+          produccion_hoy: 1250
+        };
+      } catch (err) {
+        console.error('Error cargando KPI:', err);
+        return {
+          eficiencia: 0,
+          merma: 0,
+          produccion_hoy: 0
+        };
+      }
+    }
+  });
+
   // --- DERIVADOS Y CÁLCULOS ---
   const loteSeleccionado = lotesDisponibles.find((l: LoteDisponible) => l.id === loteId);
   const presentacionSeleccionada = presentaciones.find((p: Presentacion) => p.id === presentacionId);
@@ -253,9 +288,15 @@ export default function Produccion() {
     return kilosSolicitados.toFixed(2);
   }, [kilosSolicitados]);
 
-  // Eficiencia proyectada
-  const eficiencia = 87.5;
-  const mermaActual = 3.2;
+  // Datos de KPI
+  const { eficiencia, merma, produccion_hoy } = kpiData;
+
+  // Datos de últimos registros
+  const ultimosRegistros: RegistroProduccion[] = [
+    { calibre: 'SUPER', color: 'bg-green-700', qty: 10 },
+    { calibre: 'EXTRA', color: 'bg-green-500', qty: 25 },
+    { calibre: 'XXX', color: 'bg-green-400', qty: 40 },
+  ];
 
   // Función para registrar producción
   const registrarProduccion = useCallback(async () => {
@@ -732,9 +773,18 @@ export default function Produccion() {
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="font-bold text-slate-600">Merma</span>
-                  <span className="font-bold text-green-600">{mermaActual}%</span>
+                  <span className="font-bold text-green-600">{merma}%</span>
                 </div>
-                <Progress value={mermaActual * 10} className="h-3 [&>div]:bg-green-500" />
+                <Progress value={merma * 10} className="h-3 [&>div]:bg-green-500" />
+              </div>
+              <div className="pt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-bold text-slate-600">Producción Hoy</p>
+                    <p className="text-xs text-slate-500">Kilos procesados</p>
+                  </div>
+                  <span className="text-2xl font-bold text-slate-800">{produccion_hoy.toLocaleString()} kg</span>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -747,17 +797,13 @@ export default function Produccion() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-3">
-              {[
-                { calibre: 'SUPER', color: 'bg-green-700', qty: 10 },
-                { calibre: 'EXTRA', color: 'bg-green-500', qty: 25 },
-                { calibre: 'XXX', color: 'bg-green-400', qty: 40 },
-              ].map((item, i) => (
+              {ultimosRegistros.map((registro, i) => (
                 <div key={i} className="flex justify-between items-center p-2 border-b last:border-0">
                   <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${item.color}`}></div>
-                    <span className="font-bold text-sm">Limon Verde {item.calibre}</span>
+                    <div className={`w-3 h-3 rounded-full ${registro.color}`}></div>
+                    <span className="font-bold text-sm">Limon Verde {registro.calibre}</span>
                   </div>
-                  <span className="font-mono font-bold text-slate-600">{item.qty} cjs</span>
+                  <span className="font-mono font-bold text-slate-600">{registro.qty} cjs</span>
                 </div>
               ))}
             </CardContent>

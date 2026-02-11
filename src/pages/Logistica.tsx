@@ -10,13 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Database, Enums } from '@/integrations/supabase/types';
 import {
   Truck, Package, X, Search, ShieldAlert, Lock, Unlock, Thermometer,
   Map, Factory, Calendar, User, FileText, Phone, MapPin, Download,
   Printer, Check, AlertCircle, Loader2, FileSignature, ClipboardCheck,
   Scale, Weight, Route, Building, Mail, ExternalLink, Copy, Eye,
   MoreVertical, Tag, Hash, BarChart3, AlertTriangle, TruckIcon,
-  Users, CheckCircle, Clock, Filter, ArrowRight
+  Users, CheckCircle, Clock, Filter, ArrowRight, DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -43,7 +44,7 @@ type TipoMercancia = "perecedera" | "refrigerada" | "seca" | "peligrosa";
 interface Cliente {
   id: string;
   nombre: string;
-  tipo: TipoCliente;
+  tipo: Enums<'tipo_cliente'>;
   rfc?: string;
   direccion: string;
   telefono: string;
@@ -66,7 +67,7 @@ interface Transportista {
 interface LoteInventario {
   id: string;
   producto: string;
-  codigoSAT: string;
+  codigoSAT?: string;
   cajas: number;
   peso: number;
   volumen: number;

@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Database } from '@/integrations/supabase/types';
+import { Database, Tables } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 
-export type Transportista = Database['public']['Tables']['transportistas']['Row'];
-export type GuiaSalida = Database['public']['Tables']['guias_salida']['Row'];
-export type GuiaDetalle = Database['public']['Tables']['guia_detalles']['Row'];
+export type Transportista = Tables<'transportistas'>;
+export type GuiaSalida = Tables<'guias_salida'>;
+export type GuiaDetalle = Tables<'guia_detalles'>;
 
 export const useLogistica = () => {
     const { toast } = useToast();
@@ -52,7 +52,8 @@ export const useLogistica = () => {
           *,
           produccion (
             *,
-            lotes (numero_lote)
+            lotes (numero_lote),
+            presentaciones (nombre)
           )
         `)
                 .gt('cantidad_disponible', 0);
@@ -65,8 +66,10 @@ export const useLogistica = () => {
                 producto: `${item.produccion?.calidad} ${item.produccion?.calibre} - Lote: ${item.produccion?.lotes?.numero_lote}`,
                 cajas: item.cantidad_disponible,
                 peso: item.produccion?.peso_total_kg || 0,
+                volumen: 0,
                 ubicacion: 'Cámara Fría',
                 origen: 'camara' as const,
+                unidadMedida: (item.produccion as any)?.presentaciones?.nombre || 'Caja',
                 valorUnitario: 0, // Should be fetched from somewhere or handled in UI
             }));
         },

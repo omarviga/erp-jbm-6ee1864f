@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Database } from '@/integrations/supabase/types';
+import { Database, Enums } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 
 // Tipos mejorados
@@ -33,6 +33,7 @@ export type ClienteFacturacion = {
     telefono: string;
     condicionesPago: number;
     moneda: 'USD' | 'MXN';
+    tipo: Enums<'tipo_cliente'>;
 };
 
 export const useFacturacion = () => {
@@ -160,7 +161,8 @@ export const useFacturacion = () => {
                         email: c.email || "N/A",
                         telefono: c.telefono || "N/A",
                         condicionesPago: c.dias_credito || 0,
-                        moneda: (c.tipo === 'exportacion_usa' ? 'USD' : 'MXN') as 'USD' | 'MXN'
+                        moneda: (c.tipo === 'exportacion_usa' ? 'USD' : 'MXN') as 'USD' | 'MXN',
+                        tipo: c.tipo
                     };
                 });
             } catch (err) {

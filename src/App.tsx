@@ -22,7 +22,9 @@ import Reportes from "./pages/Reportes";
 import Productores from "./pages/Productores";
 import Configuracion from "./pages/Configuracion";
 import LoteExpediente from "./components/trazabilidad/LoteExpediente";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotFound from "./pages/NotFound";
+import { useSupabase } from '@/hooks/useSupabase';
 
 const queryClient = new QueryClient();
 
@@ -33,35 +35,97 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/registro" element={<Registro />} />
+          <ErrorBoundary>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/registro" element={<Registro />} />
 
-            {/* Access pending route (no roles required) */}
-            <Route path="/acceso-pendiente" element={<ProtectedRoute requireRoles={false}><AccesoPendiente /></ProtectedRoute>} />
+              {/* Access pending route (no roles required) */}
+              <Route path="/acceso-pendiente" element={
+                <ProtectedRoute requireRoles={false}>
+                  <AccesoPendiente />
+                </ProtectedRoute>
+              } />
 
-            {/* Admin-only routes */}
-            <Route path="/admin/usuarios" element={<ProtectedRoute adminOnly><AdminUsuarios /></ProtectedRoute>} />
+              {/* Admin-only routes */}
+              <Route path="/admin/usuarios" element={
+                <ProtectedRoute adminOnly>
+                  <AdminUsuarios />
+                </ProtectedRoute>
+              } />
 
-            {/* Protected routes */}
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/recepcion" element={<ProtectedRoute><Recepcion /></ProtectedRoute>} />
-            <Route path="/produccion" element={<ProtectedRoute><Produccion /></ProtectedRoute>} />
-            <Route path="/camara-fria" element={<ProtectedRoute><CamaraFria /></ProtectedRoute>} />
-            <Route path="/logistica" element={<ProtectedRoute><Logistica /></ProtectedRoute>} />
-            <Route path="/ventas" element={<ProtectedRoute><Ventas /></ProtectedRoute>} />
-            <Route path="/facturacion" element={<ProtectedRoute><Facturacion /></ProtectedRoute>} />
-            <Route path="/finanzas" element={<ProtectedRoute><Finanzas /></ProtectedRoute>} />
-            <Route path="/insumos" element={<ProtectedRoute><Insumos /></ProtectedRoute>} />
-            <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
-            <Route path="/productores" element={<ProtectedRoute><Productores /></ProtectedRoute>} />
-            <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
-            <Route path="/lotes/:loteId" element={<ProtectedRoute><LoteExpediente /></ProtectedRoute>} />
+              {/* Protected routes */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } />
+              <Route path="/recepcion" element={
+                <ProtectedRoute>
+                  <Recepcion />
+                </ProtectedRoute>
+              } />
+              <Route path="/produccion" element={
+                <ProtectedRoute>
+                  <Produccion />
+                </ProtectedRoute>
+              } />
+              <Route path="/camara-fria" element={
+                <ProtectedRoute>
+                  <CamaraFria />
+                </ProtectedRoute>
+              } />
+              <Route path="/logistica" element={
+                <ProtectedRoute>
+                  <Logistica />
+                </ProtectedRoute>
+              } />
+              <Route path="/ventas" element={
+                <ProtectedRoute>
+                  <Ventas />
+                </ProtectedRoute>
+              } />
+              <Route path="/facturacion" element={
+                <ProtectedRoute>
+                  <Facturacion />
+                </ProtectedRoute>
+              } />
+              <Route path="/finanzas" element={
+                <ProtectedRoute>
+                  <Finanzas />
+                </ProtectedRoute>
+              } />
+              <Route path="/insumos" element={
+                <ProtectedRoute>
+                  <Insumos />
+                </ProtectedRoute>
+              } />
+              <Route path="/reportes" element={
+                <ProtectedRoute>
+                  <Reportes />
+                </ProtectedRoute>
+              } />
+              <Route path="/productores" element={
+                <ProtectedRoute>
+                  <Productores />
+                </ProtectedRoute>
+              } />
+              <Route path="/configuracion" element={
+                <ProtectedRoute>
+                  <Configuracion />
+                </ProtectedRoute>
+              } />
+              <Route path="/lotes/:loteId" element={
+                <ProtectedRoute>
+                  <LoteExpediente />
+                </ProtectedRoute>
+              } />
 
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              {/* Catch-all route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </ErrorBoundary>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
