@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
 import { useCamaraFria } from "@/hooks/useCamaraFria";
-import { differenceInDays, format } from "date-fns";
+import { differenceInDays } from "date-fns";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -26,35 +28,61 @@ const posiciones = ["01", "02", "03", "04"];
 export default function CamaraFria() {
   const { inventario, temperaturas, isLoading } = useCamaraFria();
   const [filtroEstado, setFiltroEstado] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const capacidadTotal = pasillos.length * posiciones.length;
 
   const items = useMemo(() => {
-    return inventario.map((item, index) => {
-      const dias = differenceInDays(new Date(), new Date(item.fecha_ingreso));
-      let estado = 1;
-      if (dias >= 10) estado = 3;
-      else if (dias >= 5) estado = 2;
+    const base = [...inventario]
+      .sort((a, b) => new Date(a.fecha_ingreso).getTime() - new Date(b.fecha_ingreso).getTime())
+      .map((item, index) => {
+        const dias = differenceInDays(new Date(), new Date(item.fecha_ingreso));
+        let estado = 1;
+        if (dias >= 10) estado = 3;
+        else if (dias >= 5) estado = 2;
 
-      // Generar ubicación ficticia basada en el índice para llenar el grid
-      const pasilloIndex = Math.floor(index / 4);
-      const posicionIndex = (index % 4) + 1;
-      const pasillo = ["A", "B", "C"][pasilloIndex % 3];
-      const posicion = posicionIndex.toString().padStart(2, '0');
-      const ubicacion = `${pasillo}-${posicion}`;
+        const pasilloIndex = Math.floor(index / posiciones.length);
+        const posicionIndex = index % posiciones.length;
+        const ubicacion = pasilloIndex < pasillos.length
+          ? `${pasillos[pasilloIndex]}-${posiciones[posicionIndex]}`
+          : null;
 
-      return {
-        id: item.produccion?.lotes?.numero_lote || item.id.slice(0, 8),
-        producto: `${item.produccion?.calidad} ${item.produccion?.calibre}`,
-        ubicacion,
-        dias,
-        estado,
-        kgs: (item.cantidad_disponible * (item.produccion?.peso_total_kg || 0) / (item.produccion?.cantidad_cajas || 1)) || 0
-      };
-    });
+        return {
+          id: item.produccion?.lotes?.numero_lote || item.id.slice(0, 8),
+          producto: `${item.produccion?.calidad || "Sin calidad"} ${item.produccion?.calibre || "S/C"}`.trim(),
+          ubicacion,
+          dias,
+          estado,
+          kgs: (item.cantidad_disponible * (item.produccion?.peso_total_kg || 0) / (item.produccion?.cantidad_cajas || 1)) || 0
+        };
+      });
+
+    return base;
   }, [inventario]);
 
+  const filteredItems = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return items.filter((item) => {
+      const estadoOk = filtroEstado === null || item.estado === filtroEstado;
+      const searchOk = !term || item.id.toLowerCase().includes(term) || item.producto.toLowerCase().includes(term);
+      return estadoOk && searchOk;
+    });
+  }, [items, filtroEstado, searchTerm]);
+
+  const gridItemsByLocation = useMemo(() => {
+    const map = new Map<string, (typeof filteredItems)[number]>();
+    filteredItems.forEach((item) => {
+      if (item.ubicacion && !map.has(item.ubicacion)) {
+        map.set(item.ubicacion, item);
+      }
+    });
+    return map;
+  }, [filteredItems]);
+
+  const overflowItems = filteredItems.filter((item) => !item.ubicacion);
+
   // Estadísticas Rápidas
-  const capacidadTotal = pasillos.length * posiciones.length;
-  const ocupacion = items.length;
+  const ocupacion = Math.min(items.length, capacidadTotal);
   const porcentajeOcupacion = (ocupacion / capacidadTotal) * 100;
   const lotesUrgentes = items.filter(i => i.estado === 3).length;
 
@@ -184,10 +212,7 @@ export default function CamaraFria() {
                     <div className="grid grid-cols-4 gap-4 pl-4">
                       {posiciones.map((numPos) => {
                         const codigoUbicacion = `${letraPasillo}-${numPos}`;
-                        const loteEnPosicion = items.find(i => i.ubicacion === codigoUbicacion);
-
-                        // Si hay filtro activo y este item no coincide, lo mostramos "apagado"
-                        const isDimmed = filtroEstado !== null && loteEnPosicion?.estado !== filtroEstado;
+                        const loteEnPosicion = gridItemsByLocation.get(codigoUbicacion);
 
                         return (
                           <div
@@ -196,8 +221,7 @@ export default function CamaraFria() {
                               "relative aspect-square rounded-lg border-2 flex flex-col items-center justify-center p-2 text-center transition-all cursor-pointer group",
                               loteEnPosicion
                                 ? getStatusColor(loteEnPosicion.estado)
-                                : "border-dashed border-slate-200 bg-white/50 hover:border-blue-300",
-                              isDimmed && "opacity-20 grayscale"
+                                : "border-dashed border-slate-200 bg-white/50 hover:border-blue-300"
                             )}
                           >
                             <span className="absolute top-1 left-2 text-[10px] font-bold opacity-40">
@@ -263,9 +287,18 @@ export default function CamaraFria() {
               <CardTitle className="text-sm font-semibold">Acciones Rápidas</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
-                <Search className="mr-2 h-4 w-4" /> Buscar Lote Específico
-              </Button>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase text-muted-foreground">Buscar lote</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Folio o producto..."
+                    className="pl-9"
+                  />
+                </div>
+              </div>
               <Button className="w-full justify-start" variant="outline">
                 <ArrowRightLeft className="mr-2 h-4 w-4" /> Reubicar Tarima
               </Button>
@@ -274,6 +307,19 @@ export default function CamaraFria() {
               </Button>
             </CardContent>
           </Card>
+
+          {overflowItems.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50/40">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-amber-700">Capacidad excedida</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-amber-800">
+                  {overflowItems.length} lotes están fuera del mapa visual (sin posición física asignada).
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Lista de Próximos a Caducar */}
           <Card className="module-card">
@@ -285,11 +331,11 @@ export default function CamaraFria() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {items
-                  .sort((a, b) => b.dias - a.dias) // Ordenar por días descendente
-                  .slice(0, 4) // Solo top 4
+                {[...filteredItems]
+                  .sort((a, b) => b.dias - a.dias)
+                  .slice(0, 4)
                   .map((item, idx) => (
-                    <div key={item.id} className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100 text-sm">
+                    <div key={`${item.id}-${idx}`} className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100 text-sm">
                       <div className="flex items-center gap-3">
                         <div className={cn(
                           "h-6 w-6 rounded flex items-center justify-center font-bold text-xs text-white",
@@ -307,6 +353,9 @@ export default function CamaraFria() {
                       </div>
                     </div>
                   ))}
+                {filteredItems.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">No hay lotes para el filtro actual.</p>
+                )}
               </div>
               <Button variant="link" className="w-full mt-2 h-auto p-0 text-xs text-muted-foreground">
                 Ver reporte completo

@@ -1,5 +1,5 @@
-import { useState, useMemo, useId, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useId, useCallback, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
-  Package, Factory, ArrowRight,
-  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle
+  Package, Factory,
+  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, Filter, Plus, Bell, TrendingUp, Download
 } from "lucide-react";
 
 // --- TIPOS ---
@@ -82,6 +83,8 @@ const EtiquetaCaja = ({ disabled, etiquetaInfo }: { disabled: boolean, etiquetaI
 );
 
 export default function Produccion() {
+  const queryClient = useQueryClient();
+
   // Generar IDs únicos para accesibilidad
   const idLote = useId();
   const idCalibre = useId();
@@ -97,6 +100,7 @@ export default function Produccion() {
   const [presentacionId, setPresentacionId] = useState("");
   const [cantidadCajas, setCantidadCajas] = useState("");
   const [pesoIndustria, setPesoIndustria] = useState("");
+  const [busquedaLote, setBusquedaLote] = useState("");
 
   // Cargar lotes activos
   const { data: lotesDisponibles = [], isLoading: loadingLotes } = useQuery({
@@ -215,7 +219,35 @@ export default function Produccion() {
   });
 
   // --- DERIVADOS Y CÁLCULOS ---
-  const loteSeleccionado = lotesDisponibles.find((l: LoteDisponible) => l.id === loteId);
+  const esVariedadLimon = (variedad?: string) => {
+    if (!variedad) return false;
+    const normalizada = variedad
+      .normalize("NFD")
+      .replace(/[^\w\s]/g, "")
+      .toLowerCase();
+    return normalizada.includes("limon");
+  };
+
+  const lotesProduccionDisponibles = useMemo(() => {
+    return lotesDisponibles.filter((l: LoteDisponible) => {
+      const kilosProd = produccionPorLote[l.id] || 0;
+      const kilosDisp = Math.max(0, (l.peso_pagable || 0) - kilosProd);
+      return esVariedadLimon(l.huertos?.variedad) && kilosDisp > 0;
+    });
+  }, [lotesDisponibles, produccionPorLote]);
+
+  const lotesFiltrados = useMemo(() => {
+    const term = busquedaLote.trim().toLowerCase();
+    if (!term) return lotesProduccionDisponibles;
+
+    return lotesProduccionDisponibles.filter((l: LoteDisponible) =>
+      l.numero_lote?.toLowerCase().includes(term) ||
+      l.productores?.nombre?.toLowerCase().includes(term) ||
+      l.huertos?.variedad?.toLowerCase().includes(term)
+    );
+  }, [lotesProduccionDisponibles, busquedaLote]);
+
+  const loteSeleccionado = lotesProduccionDisponibles.find((l: LoteDisponible) => l.id === loteId);
   const presentacionSeleccionada = presentaciones.find((p: Presentacion) => p.id === presentacionId);
 
   // Calcular kilos procesados del lote seleccionado
@@ -224,15 +256,21 @@ export default function Produccion() {
     return produccionPorLote[loteId] || 0;
   }, [loteId, produccionPorLote]);
 
+  useEffect(() => {
+    if (!loteId) return;
+    const sigueDisponible = lotesProduccionDisponibles.some((l) => l.id === loteId);
+    if (!sigueDisponible) {
+      setLoteId("");
+    }
+  }, [loteId, lotesProduccionDisponibles]);
+
   // Calcular kilos disponibles (peso_pagable - kilos procesados - kilos merma)
   const kilosDisponibles = useMemo(() => {
     if (!loteSeleccionado) return 0;
 
     const pesoPagable = loteSeleccionado.peso_pagable || 0;
-    const kilosMerma = loteSeleccionado.kilos_merma || 0;
-
-    // Kilos disponibles = peso pagable - merma - ya procesados
-    return Math.max(0, pesoPagable - kilosMerma - kilosProcesados);
+    // Inconsistencia corregida: peso_pagable ya considera mermas de recepción
+    return Math.max(0, pesoPagable - kilosProcesados);
   }, [loteSeleccionado, kilosProcesados]);
 
   // Calcular porcentaje utilizado
@@ -252,7 +290,7 @@ export default function Produccion() {
       return presentacionSeleccionada.peso_kg * parseInt(cantidadCajas);
     }
     return 0;
-  }, [presentacionSeleccionada, cantidadCajas, pesoIndustria]);
+  }, [presentacionSeleccionada, cantidadCajas, pesoIndustria, esIndustria]);
 
   // Validar si sobrepasa los kilos disponibles
   const sobrepasaKilosDisponibles = kilosSolicitados > kilosDisponibles;
@@ -305,7 +343,9 @@ export default function Produccion() {
     try {
       // Validar kilos disponibles
       if (sobrepasaKilosDisponibles) {
-        alert(`❌ Error: Sobrepasa los kilos disponibles.\nDisponible: ${kilosDisponibles} kg\nSolicitado: ${kilosSolicitados} kg`);
+        toast.error("Kilos insuficientes para registrar", {
+          description: `Disponible: ${kilosDisponibles.toFixed(2)} kg | Solicitado: ${kilosSolicitados.toFixed(2)} kg`
+        });
         return;
       }
 
@@ -315,7 +355,7 @@ export default function Produccion() {
         color: color,
         calidad: destinoInfo?.calidad || 'primera',
         presentacion_id: esIndustria ? null : presentacionId,
-        cantidad_cajas: esIndustria ? 0 : parseInt(cantidadCajas),
+        cantidad_cajas: esIndustria ? 0 : parseInt(cantidadCajas, 10),
         peso_total_kg: kilosSolicitados,
         destino: destinoInfo?.destino || 'piso_empaque'
       };
@@ -326,7 +366,9 @@ export default function Produccion() {
 
       if (error) throw error;
 
-      alert(`✅ Producción registrada exitosamente:\nLote: ${loteSeleccionado.numero_lote}\nKilos: ${kilosSolicitados} kg`);
+      toast.success("Producción registrada exitosamente", {
+        description: `Lote: ${loteSeleccionado.numero_lote} | Kilos: ${kilosSolicitados.toFixed(2)} kg`
+      });
 
       // Limpiar formulario
       setCantidadCajas("");
@@ -335,18 +377,83 @@ export default function Produccion() {
       setColor("");
       setPresentacionId("");
 
-      // Refrescar datos
-      // queryClient.invalidateQueries({ queryKey: ['produccion-por-lote'] });
+      await queryClient.invalidateQueries({ queryKey: ['produccion-por-lote'] });
+      await queryClient.invalidateQueries({ queryKey: ['lotes-activos'] });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error registrando producción:', error);
-      alert(`❌ Error al registrar producción: ${error.message}`);
+      toast.error("Error al registrar producción", {
+        description: error instanceof Error ? error.message : "Error desconocido"
+      });
     }
-  }, [loteSeleccionado, loteId, calibre, color, destinoInfo, esIndustria, presentacionId, cantidadCajas, kilosSolicitados, sobrepasaKilosDisponibles, kilosDisponibles]);
+  }, [loteSeleccionado, loteId, calibre, color, destinoInfo, esIndustria, presentacionId, cantidadCajas, kilosSolicitados, sobrepasaKilosDisponibles, kilosDisponibles, queryClient]);
 
   return (
-    <MainLayout title="Producción" subtitle="Mesa de Clasificación y Empaque">
-      <div className="grid lg:grid-cols-12 gap-6">
+    <MainLayout title="Clasificación de Producción" subtitle="Módulo de control de calidad e industrialización">
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Panel operativo</p>
+            <h2 className="text-2xl font-bold text-slate-900">Clasificación de Producción</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700"><span className="mr-2 h-2 w-2 rounded-full bg-emerald-500" />En línea</Badge>
+            <Bell className="h-5 w-5 text-slate-500" />
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-4">
+          <Card className="border-l-4 border-l-emerald-600">
+            <CardContent className="pt-6">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Lotes activos</p>
+              <p className="mt-2 text-4xl font-bold">{lotesProduccionDisponibles.length}</p>
+              <p className="mt-1 text-sm text-emerald-700"><TrendingUp className="mr-1 inline h-4 w-4" />Operación estable</p>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-lime-400">
+            <CardContent className="pt-6">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Rendimiento actual</p>
+              <p className="mt-2 text-4xl font-bold">{eficiencia.toFixed(1)}%</p>
+              <Progress value={eficiencia} className="mt-3 h-2 [&>div]:bg-lime-400" />
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-slate-800">
+            <CardContent className="pt-6">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Procesado (hoy)</p>
+              <p className="mt-2 text-4xl font-bold">{(produccion_hoy / 1000).toFixed(1)} Tn</p>
+              <p className="mt-1 text-xs text-muted-foreground">Objetivo diario: 50.0 Tn</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-emerald-950 text-white">
+            <CardContent className="flex h-full items-center justify-between pt-6">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-emerald-200">Estado planta</p>
+                <p className="mt-2 text-3xl font-bold">Operativo</p>
+              </div>
+              <Factory className="h-8 w-8 text-lime-300" />
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busquedaLote}
+              onChange={(e) => setBusquedaLote(e.target.value)}
+              placeholder="Buscar por lote, productor o variedad..."
+              className="h-12 rounded-xl bg-white pl-10"
+            />
+          </div>
+          <Button variant="outline" className="h-12 rounded-xl">
+            <Filter className="mr-2 h-4 w-4" /> Filtrar
+          </Button>
+          <Button className="h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700">
+            <Plus className="mr-2 h-4 w-4" /> Nuevo lote
+          </Button>
+        </div>
+
+        <div className="grid lg:grid-cols-12 gap-6">
 
         {/* --- COLUMNA IZQUIERDA: FORMULARIO (8/12) --- */}
         <div className="lg:col-span-8 space-y-6">
@@ -368,10 +475,10 @@ export default function Produccion() {
                     <SelectValue placeholder="Seleccione Lote..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {lotesDisponibles.length > 0 ? (
-                      lotesDisponibles.map((lote: LoteDisponible) => {
+                    {lotesFiltrados.length > 0 ? (
+                      lotesFiltrados.map((lote: LoteDisponible) => {
                         const kilosProd = produccionPorLote[lote.id] || 0;
-                        const kilosDisp = Math.max(0, (lote.peso_pagable || 0) - (lote.kilos_merma || 0) - kilosProd);
+                        const kilosDisp = Math.max(0, (lote.peso_pagable || 0) - kilosProd);
 
                         return (
                           <SelectItem key={lote.id} value={lote.id} className="py-3">
@@ -391,7 +498,7 @@ export default function Produccion() {
                       })
                     ) : (
                       <div className="p-4 text-center text-sm text-muted-foreground italic">
-                        No hay lotes pendientes de producción
+                        No hay lotes de limón pendientes de producción
                       </div>
                     )}
                   </SelectContent>
@@ -810,6 +917,48 @@ export default function Produccion() {
           </Card>
         </div>
 
+
+
+        <Card className="rounded-2xl border border-slate-200">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-xl">Reporte de Calidad y Descarte (Acumulado)</CardTitle>
+            <Button variant="link" className="text-emerald-700"><Download className="mr-2 h-4 w-4" />Descargar CSV</Button>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="pb-3">Tipo de descarte</th>
+                    <th className="pb-3">Frecuencia</th>
+                    <th className="pb-3">Impacto</th>
+                    <th className="pb-3">Tendencia</th>
+                    <th className="pb-3 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { tipo: "Oleocelosis (Mancha de Aceite)", kg: 245, impacto: 3.4, tendencia: "Alza" },
+                    { tipo: "Daño por Frío", kg: 112, impacto: 1.1, tendencia: "Baja" },
+                    { tipo: "Fruta Sobre-madura", kg: 48, impacto: 0.4, tendencia: "Estable" }
+                  ].map((row) => (
+                    <tr key={row.tipo} className="border-b last:border-0">
+                      <td className="py-4 font-medium">{row.tipo}</td>
+                      <td className="py-4">{row.kg} kg</td>
+                      <td className="py-4">{row.impacto}%</td>
+                      <td className="py-4">{row.tendencia}</td>
+                      <td className="py-4 text-right">
+                        <Button size="sm" variant="outline">Detalle</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+      </div>
       </div>
     </MainLayout>
   );
