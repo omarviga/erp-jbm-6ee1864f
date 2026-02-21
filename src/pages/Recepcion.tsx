@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Scale, Printer, Plus, Trash2, History, Truck, Leaf, QrCode, AlertOctagon, Save, Loader2, CheckCircle, Calculator, DollarSign, Search, User, AlertCircle } from "lucide-react";
+import { Scale, Printer, Plus, Trash2, History, Truck, Leaf, QrCode, AlertOctagon, Save, Loader2, CheckCircle, Calculator, DollarSign, Search, User, AlertCircle, MapPin, Download } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -56,6 +56,7 @@ export default function Recepcion() {
     incluirCostoBascula: true,
     costoBascula: 50
   });
+  const ticketPrintRef = useRef<HTMLDivElement>(null);
 
   // IDs únicos para cada campo de formulario
   const fieldIds = {
@@ -254,18 +255,40 @@ export default function Recepcion() {
     return productoresDB?.find(p => p.id === id);
   };
 
+  const formatoMoneda = (valor: number) => `$${valor.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fechaTicket = new Date().toLocaleString("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+  const subtotalTicket = (parseFloat(calculos.pesoPagable) || 0) * (parseFloat(precio) || 0);
+
+  const handleImprimirTicket = () => {
+    if (!ticketPrintRef.current) return;
+    window.print();
+  };
+
   return (
-    <MainLayout title="Recepción de Materia Prima" subtitle="Báscula y Control de Calidad">
-      <div className="grid lg:grid-cols-12 gap-6">
+    <MainLayout title="Recepción con Cálculos y Precio" subtitle="Gestión de entrada de materia prima con liquidación automática por peso neto.">
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700/80">Recepción terceros actualizada</p>
+          <p className="mt-1 text-sm text-muted-foreground">Interfaz optimizada para captura rápida en báscula, control de calidad y liquidación final.</p>
+        </div>
+
+        <div className="grid lg:grid-cols-12 gap-6">
         {/* --- COLUMNA IZQUIERDA: FLUJO (8 Cols) --- */}
         <div className="lg:col-span-8 space-y-6">
           {/* TABS DE ORIGEN */}
           <Tabs value={origen} onValueChange={handleOrigenChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="terceros" disabled={paso > 1}>
+            <TabsList className="grid w-full grid-cols-2 mb-4 rounded-xl bg-slate-100 p-1">
+              <TabsTrigger value="terceros" disabled={paso > 1} className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Truck className="h-4 w-4 mr-2" /> Compra a Terceros
               </TabsTrigger>
-              <TabsTrigger value="propia" disabled={paso > 1}>
+              <TabsTrigger value="propia" disabled={paso > 1} className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Leaf className="h-4 w-4 mr-2 text-green-600" /> Cosecha Propia
               </TabsTrigger>
             </TabsList>
@@ -273,19 +296,19 @@ export default function Recepcion() {
             {/* CONTENIDO TERCEROS */}
             <TabsContent value="terceros">
               {/* PASO 1: DATOS */}
-              <Card className={cn("transition-all duration-300 border-l-4", paso === 1 ? "border-l-blue-500 shadow-md" : "border-l-transparent opacity-60 grayscale")}>
+              <Card className={cn("transition-all duration-300 rounded-2xl border border-slate-200", paso === 1 ? "shadow-md" : "opacity-60 grayscale")}>
                 <CardHeader className="pb-3">
                   <div className="flex justify-between items-center">
                     <CardTitle className="flex items-center gap-2">
-                      <div className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</div>
-                      Datos del Productor
+                      <div className="bg-emerald-500 text-emerald-950 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                      Origen y Control
                     </CardTitle>
                   </div>
                 </CardHeader>
 
                 <CardContent className="pt-6 space-y-6">
                   {/* NUEVO CAMPO: FOLIO TICKET BÁSCULA */}
-                  <div className="bg-slate-100 p-4 rounded-lg border border-slate-300 mb-6">
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
                     <Label className="text-slate-700 font-bold flex items-center gap-2">
                       <Printer className="h-4 w-4" />
                       Folio del Ticket Físico (Báscula)
@@ -625,12 +648,12 @@ export default function Recepcion() {
 
               {/* PASO 2: CONTROL DE CALIDAD */}
               {paso >= 2 && (
-                <Card className={cn("transition-all duration-300 border-l-4 mt-6", paso === 2 ? "border-l-amber-500 shadow-md" : "border-l-transparent opacity-60 grayscale")}>
+                <Card className={cn("transition-all duration-300 rounded-2xl border border-slate-200 mt-6", paso === 2 ? "shadow-md" : "opacity-60 grayscale")}>
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-center">
                       <CardTitle className="flex items-center gap-2">
-                        <div className="bg-amber-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</div>
-                        Control de Calidad
+                        <div className="bg-emerald-500 text-emerald-950 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                        Detalles de Pesaje y Precio
                       </CardTitle>
                       <Button
                         type="button"
@@ -913,18 +936,18 @@ export default function Recepcion() {
         </div>
 
         {/* --- COLUMNA DERECHA: BOLETA VIRTUAL (4 Cols) --- */}
-        <div className="lg:col-span-4">
-          <Card className="h-full border-t-8 border-t-slate-800 shadow-2xl bg-slate-50/50 sticky top-4">
-            <CardHeader className="bg-white border-b border-dashed pb-6">
+        <div className="lg:col-span-4 space-y-6">
+          <Card className="border border-slate-800 bg-[#14151d] text-white shadow-2xl sticky top-4">
+            <CardHeader className="border-b border-white/10 pb-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">JBM CÍTRICOS PREMIUM</p>
-                  <CardTitle className="text-2xl font-mono">TICKET #</CardTitle>
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Resumen de liquidación</p>
+                  <CardTitle className="text-2xl font-mono text-white">TICKET #</CardTitle>
                 </div>
-                <QrCode className="h-10 w-10 text-slate-900" aria-hidden="true" />
+                <QrCode className="h-10 w-10 text-emerald-300" aria-hidden="true" />
               </div>
               <div className="mt-4 flex gap-2">
-                <Badge variant="outline" className="text-xs uppercase font-bold text-slate-600">
+                <Badge variant="outline" className="text-xs uppercase font-bold border-white/20 text-white/80">
                   {origen === "terceros" ? "COMPRA EXTERNA" : "COSECHA INTERNA"}
                 </Badge>
                 {estadoCalidad === "Rechazado" && <Badge variant="destructive">RECHAZADO</Badge>}
@@ -937,13 +960,13 @@ export default function Recepcion() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-muted-foreground">Folio Físico</p>
+                    <p className="text-xs text-white/60">Folio Físico</p>
                     <p className="font-semibold truncate font-mono text-lg">
                       {folioTicket || "---"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Destino</p>
+                    <p className="text-xs text-white/60">Destino</p>
                     <p className="font-semibold">
                       {zonasDestino.find(z => z.id === formData.zonaDestino)?.nombre.split(" ").slice(1).join(" ") || "---"}
                     </p>
@@ -954,25 +977,25 @@ export default function Recepcion() {
                 <div className="space-y-3">
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-center">
-                      <p className="text-xs text-muted-foreground">Bruto</p>
+                      <p className="text-xs text-white/60">Bruto</p>
                       <p className="text-lg font-bold">{pesoBruto || "0"} kg</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xs text-muted-foreground">Tara</p>
+                      <p className="text-xs text-white/60">Tara</p>
                       <p className="text-lg font-bold">{tara || "0"} kg</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xs text-muted-foreground">Neto Físico</p>
-                      <p className="text-lg font-bold text-primary">{calculos.netoFisico} kg</p>
+                      <p className="text-xs text-white/60">Neto Físico</p>
+                      <p className="text-lg font-bold text-emerald-300">{calculos.netoFisico} kg</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Resumen Financiero Corregido */}
-                <Separator />
+                <Separator className="bg-white/10" />
                 <div className="space-y-3 pt-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Peso Neto Físico:</span>
+                    <span className="text-white/60">Peso Neto Físico:</span>
                     <span className="font-mono">{calculos.netoFisico} kg</span>
                   </div>
 
@@ -982,14 +1005,14 @@ export default function Recepcion() {
                     <span className="font-mono font-bold">-{calculos.kilosMerma} kg</span>
                   </div>
 
-                  <div className="flex justify-between text-base font-medium text-slate-800 border-t border-dashed pt-1">
+                  <div className="flex justify-between text-base font-medium border-t border-white/10 pt-1">
                     <span>Peso a Pagar:</span>
                     <span className="font-mono">{calculos.pesoPagable} kg</span>
                   </div>
 
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Precio/Kg:</span>
-                    <span className="font-mono font-bold bg-yellow-100 px-2 rounded">${precio || "0.00"}</span>
+                    <span className="text-white/60">Precio/Kg:</span>
+                    <span className="font-mono font-bold bg-emerald-500/20 text-emerald-300 px-2 rounded">${precio || "0.00"}</span>
                   </div>
 
                   {formData.incluirCostoBascula && (
@@ -999,9 +1022,9 @@ export default function Recepcion() {
                     </div>
                   )}
 
-                  <div className="flex justify-between text-xl pt-2 border-t-2 border-slate-800 mt-2">
-                    <span className="font-black text-slate-900">A PAGAR:</span>
-                    <span className="font-black text-emerald-600">
+                  <div className="flex justify-between text-xl pt-2 border-t-2 border-white/20 mt-2">
+                    <span className="font-black text-emerald-300">TOTAL A PAGAR:</span>
+                    <span className="font-black text-white">
                       ${parseFloat(calculos.totalEstimado).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -1060,15 +1083,114 @@ export default function Recepcion() {
 
               {/* Notas adicionales */}
               {formData.notas && (
-                <div className="mt-4 p-3 bg-slate-50 rounded-lg border" role="region" aria-label="Notas adicionales">
-                  <p className="text-xs text-muted-foreground mb-1">Notas</p>
-                  <p className="text-sm">{formData.notas}</p>
+                <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10" role="region" aria-label="Notas adicionales">
+                  <p className="text-xs text-white/60 mb-1">Notas</p>
+                  <p className="text-sm text-white/90">{formData.notas}</p>
                 </div>
               )}
             </CardContent>
           </Card>
+
+          <Card className="rounded-2xl border border-slate-200 bg-white">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-xl">Ubicación de Descarga</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-100 p-4">
+                <div className="mx-auto flex h-40 w-full max-w-xs items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white">
+                  <div className="text-center text-sm text-slate-500">
+                    <MapPin className="mx-auto mb-2 h-6 w-6 text-emerald-500" />
+                    {zonasDestino.find(z => z.id === formData.zonaDestino)?.nombre || "Zona pendiente"}
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                La liquidación final se calcula con base en Peso Neto (Bruto - Tara), merma de calidad y cargos adicionales.
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </div>
+        </div>
+
+        <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm no-print">
+          <div className="mb-4 flex flex-col gap-3 border-b border-emerald-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-emerald-500 p-2 text-emerald-950">
+                <Printer className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">ERP JBM Cítricos</h3>
+                <p className="text-sm text-muted-foreground">Generador de Ticket de Báscula (80mm)</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" className="bg-emerald-500 text-emerald-950 hover:bg-emerald-400" onClick={handleImprimirTicket}>
+                <Printer className="mr-2 h-4 w-4" /> Imprimir Ticket
+              </Button>
+              <Button type="button" variant="outline" onClick={handleImprimirTicket}>
+                <Download className="mr-2 h-4 w-4" /> PDF
+              </Button>
+            </div>
+          </div>
+
+          <div className="mx-auto w-full max-w-[360px] rounded-xl bg-slate-100 p-4 shadow-inner">
+            <div ref={ticketPrintRef} className="ticket-print-root mx-auto w-[302px] bg-white p-4 font-mono text-[12px] leading-5 text-slate-900 shadow-lg">
+              <div className="text-center">
+                <p className="text-lg font-bold">JBM CÍTRICOS PREMIUM</p>
+                <p className="text-[11px]">BARRAGÁN</p>
+                <p className="text-[10px]">"DEL CAMPO A TU MESA"</p>
+                <p className="mt-1 text-[10px]">FOLIO DE BÁSCULA</p>
+                <p className="text-xl font-bold">#{folioTicket || "PENDIENTE"}</p>
+                <p className="text-[10px]">{fechaTicket}</p>
+              </div>
+
+              <div className="my-3 border-t border-b border-dashed border-slate-400 py-2 text-[11px]">
+                <div className="flex justify-between gap-2"><span className="font-semibold">PRODUCTOR:</span><span className="text-right">{productorSeleccionado?.nombre || "SIN ASIGNAR"}</span></div>
+                <div className="flex justify-between gap-2"><span className="font-semibold">ORIGEN:</span><span className="text-right">{origen === "terceros" ? "Compra externa" : "Cosecha propia"}</span></div>
+                <div className="flex justify-between gap-2"><span className="font-semibold">LOTE/HUERTA:</span><span className="text-right">{huertoId || "--"}</span></div>
+              </div>
+
+              <div className="space-y-1 text-[12px]">
+                <p className="text-center text-[11px] font-semibold">DETALLE DE PESO (KG)</p>
+                <div className="flex justify-between"><span>PESO BRUTO:</span><span>{(parseFloat(pesoBruto) || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span></div>
+                <div className="flex justify-between"><span>TARA:</span><span>- {(parseFloat(tara) || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span></div>
+                <div className="mt-1 flex justify-between border-t border-dashed border-slate-400 pt-1 text-lg font-bold"><span>PESO NETO:</span><span>{(parseFloat(calculos.pesoPagable) || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span></div>
+              </div>
+
+              <div className="my-3 border-t border-b border-dashed border-slate-400 py-2 text-[12px]">
+                <div className="flex justify-between"><span>PRECIO POR KG:</span><span>{formatoMoneda(parseFloat(precio) || 0)}</span></div>
+                <div className="flex justify-between"><span>SUBTOTAL:</span><span>{formatoMoneda(subtotalTicket)}</span></div>
+                <div className="flex justify-between"><span>CARGO BÁSCULA:</span><span>{formatoMoneda(formData.incluirCostoBascula ? formData.costoBascula : 0)}</span></div>
+                <div className="mt-2 flex justify-between bg-slate-900 px-2 py-1 text-base font-bold text-white"><span>TOTAL A PAGAR:</span><span>{formatoMoneda(parseFloat(calculos.totalEstimado) || 0)}</span></div>
+              </div>
+
+              <div className="mb-3 text-center text-[10px]">
+                <div className="mx-auto mb-2 flex h-20 w-20 items-center justify-center border border-slate-300">
+                  <QrCode className="h-8 w-8 text-slate-500" />
+                </div>
+                <p className="font-semibold">ESCANEA PARA CONSULTAR EL ESTADO DE TU PAGO</p>
+                <p className="text-slate-500">portal.jbmcitricos.com/status/{folioTicket || "nuevo"}</p>
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 gap-3 text-center text-[10px]">
+                <div>
+                  <div className="border-t border-slate-500 pt-1">FIRMA OPERADOR</div>
+                </div>
+                <div>
+                  <div className="border-t border-slate-500 pt-1">FIRMA PRODUCTOR</div>
+                </div>
+              </div>
+
+              <p className="mt-4 text-center text-xs font-bold">¡GRACIAS POR SU PREFERENCIA!</p>
+            </div>
+          </div>
+
+          <div className="mx-auto mt-4 max-w-2xl rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-800">
+            <span className="font-semibold">Nota de Impresión:</span> Optimizado para 80mm. Configure márgenes como "Ninguno" y escala "100%".
+          </div>
+        </section>
+
+     </div>
     </MainLayout>
   );
 }
