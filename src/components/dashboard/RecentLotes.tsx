@@ -33,10 +33,10 @@ export function RecentLotes() {
   // Get producer/huerto name
   const getOrigen = (lote: NonNullable<typeof lotes>[number]) => {
     if (lote.es_cosecha_propia && lote.huertos) {
-      return `Cosecha Propia - ${lote.huertos.nombre}`;
+      return `Cosecha Propia - ${(lote.huertos as any)?.nombre || 'Sin huerto'}`;
     }
     if (lote.productores) {
-      return lote.productores.nombre;
+      return (lote.productores as any)?.nombre || 'Sin productor';
     }
     return "Sin origen";
   };

@@ -926,7 +926,7 @@ export default function Facturacion() {
               precio: prod.precio,
               unidad: prod.unidad,
               iva: prod.iva,
-              ieps: prod.ieps,
+              ieps: (prod as any).ieps ?? false,
               cantidadDisponible: prod.cantidadDisponible
             };
           }
@@ -975,7 +975,7 @@ export default function Facturacion() {
         precio: prod.precio,
         unidad: prod.unidad,
         iva: prod.iva,
-        ieps: prod.ieps,
+        ieps: (prod as any).ieps ?? false,
         cantidadDisponible: prod.cantidadDisponible
       };
     }).filter(Boolean) as LineItem[];
@@ -1558,37 +1558,22 @@ export default function Facturacion() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {facturasDB.map((factura) => (
-                      <TableRow key={factura.folio}>
-                        <TableCell className="font-medium">{factura.folio}</TableCell>
-                        <TableCell>{factura.cliente.nombre}</TableCell>
-                        <TableCell>{format(factura.fechaEmision, 'dd/MM/yyyy', { locale: es })}</TableCell>
-                        <TableCell>{format(factura.fechaVencimiento, 'dd/MM/yyyy', { locale: es })}</TableCell>
+                    {facturasDB.map((factura: any) => (
+                      <TableRow key={factura.numero_factura || factura.id}>
+                        <TableCell className="font-medium">{factura.numero_factura || factura.id}</TableCell>
+                        <TableCell>{factura.clientes?.nombre || 'N/A'}</TableCell>
+                        <TableCell>{factura.fecha_emision ? format(new Date(factura.fecha_emision), 'dd/MM/yyyy', { locale: es }) : 'N/A'}</TableCell>
+                        <TableCell>N/A</TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">N/A</Badge></TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">N/A</Badge></TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {factura.formaPago}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {factura.metodoPago === "por_definir" ? "Por definir (PPD)" : factura.metodoPago}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <InvoiceStatusBadgeTable status={factura.status} />
+                          <InvoiceStatusBadgeTable status={(factura.estado?.toLowerCase() || 'borrador') as InvoiceStatus} />
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {new Intl.NumberFormat('es-MX', {
-                            style: 'currency',
-                            currency: factura.cliente.moneda,
-                            minimumFractionDigits: 2
-                          }).format(factura.total)}
+                          {new Intl.NumberFormat('es-MX', { style: 'currency', currency: factura.clientes?.moneda || 'MXN', minimumFractionDigits: 2 }).format(factura.total)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" type="button">
-                            <Eye className="h-4 w-4" />
-                            <span className="sr-only">Ver factura {factura.folio}</span>
-                          </Button>
+                          <Button variant="ghost" size="sm" type="button"><Eye className="h-4 w-4" /></Button>
                         </TableCell>
                       </TableRow>
                     ))}

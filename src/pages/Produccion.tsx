@@ -1,4 +1,5 @@
 import { useState, useMemo, useId, useCallback, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -280,6 +281,20 @@ export default function Produccion() {
     return (kilosProcesados / loteSeleccionado.peso_pagable) * 100;
   }, [loteSeleccionado, kilosProcesados]);
 
+  // Lógica automática de clasificación
+  const getDestinoAutomatico = (colorValue: string) => {
+    if (colorValue === "amarillo") {
+      return { destino: "molino", calidad: "industria", mensaje: "🏭 Enviado a Molino (Industria)", tipo: 'warning' };
+    }
+    if (colorValue === "alimonado") {
+      return { destino: "piso_empaque", calidad: "segunda", mensaje: "⚠️ Calidad Segunda (Mercado Nacional)", tipo: 'info' };
+    }
+    return { destino: "piso_empaque", calidad: "primera", mensaje: "✅ Calidad Primera (Exportación/Premium)", tipo: 'success' };
+  };
+
+  const destinoInfo = color ? getDestinoAutomatico(color) : null;
+  const esIndustria = destinoInfo?.destino === "molino";
+
   // Calcular kilos solicitados para empaque normal
   const kilosSolicitados = useMemo(() => {
     if (esIndustria) {
@@ -295,20 +310,6 @@ export default function Produccion() {
   const sobrepasaKilosDisponibles = kilosSolicitados > kilosDisponibles;
   const tieneKilosSuficientes = kilosDisponibles > 0 && !sobrepasaKilosDisponibles;
   const diferenciaKilos = kilosSolicitados - kilosDisponibles;
-
-  // Lógica automática de clasificación
-  const getDestinoAutomatico = (colorValue: string) => {
-    if (colorValue === "amarillo") {
-      return { destino: "molino", calidad: "industria", mensaje: "🏭 Enviado a Molino (Industria)", tipo: 'warning' };
-    }
-    if (colorValue === "alimonado") {
-      return { destino: "piso_empaque", calidad: "segunda", mensaje: "⚠️ Calidad Segunda (Mercado Nacional)", tipo: 'info' };
-    }
-    return { destino: "piso_empaque", calidad: "primera", mensaje: "✅ Calidad Primera (Exportación/Premium)", tipo: 'success' };
-  };
-
-  const destinoInfo = color ? getDestinoAutomatico(color) : null;
-  const esIndustria = destinoInfo?.destino === "molino";
 
   // Filtrar calibres para limón
   const calibresLimon = useMemo(() => {
