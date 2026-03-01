@@ -217,7 +217,7 @@ export const loteService = {
     return (data || []).map(l => ({
       id: l.id,
       numero: l.numero_lote,
-      productor: l.es_cosecha_propia ? l.huerto?.nombre : l.productor?.nombre,
+      productor: l.es_cosecha_propia ? (l.huerto as any)?.nombre : (l.productor as any)?.nombre,
       variedad: l.es_cosecha_propia ? 'Cosecha Propia' : 'Compra Terceros'
     }));
   },

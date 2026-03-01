@@ -547,7 +547,7 @@ export default function Logistica() {
         fechaGeneracion: new Date(),
         estado: "generada",
         cliente: clienteSeleccionado!,
-        transportista: transportistaSeleccionado!,
+        transportista: transportistaSeleccionado! as any,
         tipoTransporte,
         tipoOperacion,
         lugarOrigen,
@@ -568,7 +568,7 @@ export default function Logistica() {
           modelo: "Modelo no especificado",
           marca: "Marca no especificada",
           anio: new Date().getFullYear() - 2,
-          polizaSeguro: transportistaSeleccionado!.polizaSeguro,
+          polizaSeguro: (transportistaSeleccionado as any)?.polizaSeguro || 'N/A',
           capacidadCarga: 5000,
           tarjetaCirculacion: `TC-${format(new Date(), 'yyyyMMdd')}`
         },
@@ -1101,7 +1101,7 @@ export default function Logistica() {
                               <div className="font-medium flex items-center gap-2">
                                 {lote.producto}
                                 <Badge variant="secondary" className="text-[10px] h-5">
-                                  SAT: {lote.codigoSAT}
+                                SAT: {(lote as any).codigoSAT || 'N/A'}
                                 </Badge>
                               </div>
                               <div className="text-muted-foreground text-xs">
@@ -1213,7 +1213,7 @@ export default function Logistica() {
             {/* COLUMNA DERECHA: RESUMEN Y PRECONFIGURADOS */}
             <div className="space-y-6">
               {transportistaSeleccionado && (
-                <TransportistaCard transportista={transportistaSeleccionado} />
+                <TransportistaCard transportista={transportistaSeleccionado as any} />
               )}
 
               {/* RESUMEN CARTA PORTE */}

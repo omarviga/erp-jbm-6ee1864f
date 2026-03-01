@@ -580,8 +580,8 @@ export default function Finanzas() {
                                   productor={{
                                     id: productorSeleccionado.id,
                                     nombre: productorSeleccionado.nombre,
-                                    rfc: "XAXX010101000" // Aquí podrías jalar el RFC real si lo tuvieras
-                                  }}
+                                    rfc: "XAXX010101000"
+                                  } as any}
                                   periodo={{ inicio: "01/01/2026", fin: "31/01/2026" }} // Esto debería ser dinámico
                                   resumen={{
                                     saldoInicial: 0,
@@ -894,9 +894,8 @@ export default function Finanzas() {
                             productor={{
                               nombre: productorSeleccionado.nombre,
                               id: productorSeleccionado.id,
-                              rfc: "XAXX010101000", // Valor por defecto
-                              direccion: "" // Valor vacío por defecto
-                            }}
+                              rfc: "XAXX010101000",
+                            } as any}
                             periodo={{
                               inicio: new Date(Math.min(...ticketsData.map(t => new Date(t.fecha_recepcion).getTime()))).toLocaleDateString('es-MX'),
                               fin: new Date().toLocaleDateString('es-MX')
