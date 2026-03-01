@@ -3,7 +3,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 // 1. Leemos las variables usando import.meta.env
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
 // 2. IMPRIMIR EN CONSOLA (Esto es para debug, lo borras luego)
 console.log("--- DEBUG SUPABASE ---")
