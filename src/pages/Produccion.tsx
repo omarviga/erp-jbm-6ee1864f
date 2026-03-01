@@ -59,7 +59,6 @@ interface KPIData {
 
 // --- CONSTANTES ---
 const colores = [
-  { value: "verde_oscuro", label: "Verde Oscuro", color: "bg-green-700" },
   { value: "verde", label: "Verde", color: "bg-green-500" },
   { value: "alimonado", label: "Alimonado", color: "bg-lime-400" },
   { value: "amarillo", label: "Amarillo", color: "bg-yellow-400" },

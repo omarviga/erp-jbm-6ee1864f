@@ -186,7 +186,6 @@ export function EtiquetaCaja({ etiquetaInfo, disabled }: EtiquetaCajaProps) {
 
   const getColorLabel = (color: string) => {
     const colores: Record<string, string> = {
-      verde_oscuro: "Verde Oscuro",
       verde: "Verde",
       alimonado: "Alimonado",
       amarillo: "Amarillo"
