@@ -102,6 +102,7 @@ export type Database = {
           saldo_deudor: number | null
           tipo: Database["public"]["Enums"]["tipo_cliente"]
           updated_at: string
+          vendedor_id: string | null
         }
         Insert: {
           created_at?: string
@@ -111,6 +112,7 @@ export type Database = {
           saldo_deudor?: number | null
           tipo?: Database["public"]["Enums"]["tipo_cliente"]
           updated_at?: string
+          vendedor_id?: string | null
         }
         Update: {
           created_at?: string
@@ -120,6 +122,43 @@ export type Database = {
           saldo_deudor?: number | null
           tipo?: Database["public"]["Enums"]["tipo_cliente"]
           updated_at?: string
+          vendedor_id?: string | null
+        }
+        Relationships: []
+      }
+      clientes_maquila: {
+        Row: {
+          activo: boolean | null
+          contacto: string | null
+          created_at: string | null
+          id: string
+          nombre: string
+          rfc: string | null
+          tarifa_caja: number
+          tarifa_kg: number
+          telefono: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          contacto?: string | null
+          created_at?: string | null
+          id?: string
+          nombre: string
+          rfc?: string | null
+          tarifa_caja?: number
+          tarifa_kg?: number
+          telefono?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          contacto?: string | null
+          created_at?: string | null
+          id?: string
+          nombre?: string
+          rfc?: string | null
+          tarifa_caja?: number
+          tarifa_kg?: number
+          telefono?: string | null
         }
         Relationships: []
       }
@@ -158,7 +197,7 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "clientes"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       cortadores: {
@@ -185,128 +224,52 @@ export type Database = {
         }
         Relationships: []
       }
-      factura_detalles: {
+      fletes_productor: {
         Row: {
-          cantidad: number
-          created_at: string
-          descripcion: string
-          descuento: number | null
-          factura_id: string
+          aplicado: boolean | null
+          concepto: string
+          created_at: string | null
+          fecha: string
           id: string
-          ieps_aplicable: number | null
-          iva_aplicable: boolean | null
-          precio_unitario: number
-          producto_id: string | null
-          subtotal: number
-          unidad: string
+          liquidacion_id: string | null
+          monto: number
+          productor_id: string
         }
         Insert: {
-          cantidad?: number
-          created_at?: string
-          descripcion: string
-          descuento?: number | null
-          factura_id: string
+          aplicado?: boolean | null
+          concepto: string
+          created_at?: string | null
+          fecha?: string
           id?: string
-          ieps_aplicable?: number | null
-          iva_aplicable?: boolean | null
-          precio_unitario?: number
-          producto_id?: string | null
-          subtotal?: number
-          unidad?: string
+          liquidacion_id?: string | null
+          monto: number
+          productor_id: string
         }
         Update: {
-          cantidad?: number
-          created_at?: string
-          descripcion?: string
-          descuento?: number | null
-          factura_id?: string
+          aplicado?: boolean | null
+          concepto?: string
+          created_at?: string | null
+          fecha?: string
           id?: string
-          ieps_aplicable?: number | null
-          iva_aplicable?: boolean | null
-          precio_unitario?: number
-          producto_id?: string | null
-          subtotal?: number
-          unidad?: string
+          liquidacion_id?: string | null
+          monto?: number
+          productor_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "factura_detalles_factura_id_fkey"
-            columns: ["factura_id"]
+            foreignKeyName: "fletes_productor_liquidacion_id_fkey"
+            columns: ["liquidacion_id"]
             isOneToOne: false
-            referencedRelation: "facturas"
+            referencedRelation: "liquidaciones"
             referencedColumns: ["id"]
-          }
-        ]
-      }
-      facturas: {
-        Row: {
-          cliente_id: string
-          created_at: string
-          fecha_emision: string
-          fecha_vencimiento: string | null
-          folio: string
-          forma_pago: string | null
-          id: string
-          ieps: number
-          iva: number
-          metodo_pago: string | null
-          notas: string | null
-          retenciones: number
-          status: string
-          subtotal: number
-          terminos: string | null
-          total: number
-          updated_at: string
-          uso_cfdi: string | null
-        }
-        Insert: {
-          cliente_id: string
-          created_at?: string
-          fecha_emision?: string
-          fecha_vencimiento?: string | null
-          folio: string
-          forma_pago?: string | null
-          id?: string
-          ieps?: number
-          iva?: number
-          metodo_pago?: string | null
-          notas?: string | null
-          retenciones?: number
-          status?: string
-          subtotal?: number
-          terminos?: string | null
-          total?: number
-          updated_at?: string
-          uso_cfdi?: string | null
-        }
-        Update: {
-          cliente_id?: string
-          created_at?: string
-          fecha_emision?: string
-          fecha_vencimiento?: string | null
-          folio?: string
-          forma_pago?: string | null
-          id?: string
-          ieps?: number
-          iva?: number
-          metodo_pago?: string | null
-          notas?: string | null
-          retenciones?: number
-          status?: string
-          subtotal?: number
-          terminos?: string | null
-          total?: number
-          updated_at?: string
-          uso_cfdi?: string | null
-        }
-        Relationships: [
+          },
           {
-            foreignKeyName: "facturas_cliente_id_fkey"
-            columns: ["cliente_id"]
+            foreignKeyName: "fletes_productor_productor_id_fkey"
+            columns: ["productor_id"]
             isOneToOne: false
-            referencedRelation: "clientes"
+            referencedRelation: "productores"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       guia_detalles: {
@@ -380,7 +343,6 @@ export type Database = {
           numero_guia: string
           temperatura_precarga: number | null
           total_cajas: number | null
-          transportista_id: string | null
           updated_at: string
           valor_total: number | null
         }
@@ -399,7 +361,6 @@ export type Database = {
           numero_guia: string
           temperatura_precarga?: number | null
           total_cajas?: number | null
-          transportista_id?: string | null
           updated_at?: string
           valor_total?: number | null
         }
@@ -418,7 +379,6 @@ export type Database = {
           numero_guia?: string
           temperatura_precarga?: number | null
           total_cajas?: number | null
-          transportista_id?: string | null
           updated_at?: string
           valor_total?: number | null
         }
@@ -428,13 +388,6 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "guias_salida_transportista_id_fkey"
-            columns: ["transportista_id"]
-            isOneToOne: false
-            referencedRelation: "transportistas"
             referencedColumns: ["id"]
           },
         ]
@@ -569,13 +522,22 @@ export type Database = {
       }
       liquidaciones: {
         Row: {
+          autorizado_por: string | null
           created_at: string
           deduccion_anticipo: number | null
           deduccion_corte: number | null
           deduccion_flete: number | null
+          estado_liq: Database["public"]["Enums"]["estado_liquidacion"] | null
+          fecha_autorizacion: string | null
           fecha_liquidacion: string
           forma_pago: Database["public"]["Enums"]["forma_pago"]
           id: string
+          kilos_exportacion: number | null
+          kilos_industria: number | null
+          kilos_nacional: number | null
+          precio_exportacion_aplicado: number | null
+          precio_industria_aplicado: number | null
+          precio_nacional_aplicado: number | null
           precio_por_kg: number
           productor_id: string
           referencia_pago: string | null
@@ -584,13 +546,22 @@ export type Database = {
           total_pagar: number | null
         }
         Insert: {
+          autorizado_por?: string | null
           created_at?: string
           deduccion_anticipo?: number | null
           deduccion_corte?: number | null
           deduccion_flete?: number | null
+          estado_liq?: Database["public"]["Enums"]["estado_liquidacion"] | null
+          fecha_autorizacion?: string | null
           fecha_liquidacion?: string
           forma_pago: Database["public"]["Enums"]["forma_pago"]
           id?: string
+          kilos_exportacion?: number | null
+          kilos_industria?: number | null
+          kilos_nacional?: number | null
+          precio_exportacion_aplicado?: number | null
+          precio_industria_aplicado?: number | null
+          precio_nacional_aplicado?: number | null
           precio_por_kg: number
           productor_id: string
           referencia_pago?: string | null
@@ -599,13 +570,22 @@ export type Database = {
           total_pagar?: number | null
         }
         Update: {
+          autorizado_por?: string | null
           created_at?: string
           deduccion_anticipo?: number | null
           deduccion_corte?: number | null
           deduccion_flete?: number | null
+          estado_liq?: Database["public"]["Enums"]["estado_liquidacion"] | null
+          fecha_autorizacion?: string | null
           fecha_liquidacion?: string
           forma_pago?: Database["public"]["Enums"]["forma_pago"]
           id?: string
+          kilos_exportacion?: number | null
+          kilos_industria?: number | null
+          kilos_nacional?: number | null
+          precio_exportacion_aplicado?: number | null
+          precio_industria_aplicado?: number | null
+          precio_nacional_aplicado?: number | null
           precio_por_kg?: number
           productor_id?: string
           referencia_pago?: string | null
@@ -663,502 +643,675 @@ export type Database = {
         ]
       }
       lotes: {
-        calidad_defectos: number | null
-        costo_bascula: number | null
-        created_at: string
-        es_cosecha_propia: boolean | null
-        estado: Database["public"]["Enums"]["estado_lote"]
-        estado_calidad: string | null
-        fecha_recepcion: string
-        folio_fisico: string | null
-        huerto_id: string | null
-        id: string
-        kilos_merma: number | null
-        notas: string | null
-        numero_lote: string
-        origen: string | null
-        peso_bruto: number
-        peso_neto: number | null
-        peso_pagable: number | null
-        peso_tara: number
-        precio_pactado_kg: number | null
-        productor_id: string | null
-        updated_at: string
-        usuario_id: string | null
-        zona_asignada: string | null
+        Row: {
+          calidad_defectos: number | null
+          cliente_maquila_id: string | null
+          costo_bascula: number | null
+          created_at: string
+          es_cosecha_propia: boolean | null
+          es_maquila: boolean | null
+          estado: Database["public"]["Enums"]["estado_lote"]
+          estado_calidad: string | null
+          fecha_recepcion: string
+          folio_fisico: string | null
+          huerto_id: string | null
+          id: string
+          kilos_merma: number | null
+          notas: string | null
+          numero_lote: string
+          origen: string | null
+          peso_bruto: number
+          peso_neto: number | null
+          peso_pagable: number | null
+          peso_tara: number
+          precio_pactado_kg: number | null
+          productor_id: string | null
+          updated_at: string
+          usuario_id: string | null
+          zona_asignada: string | null
+        }
+        Insert: {
+          calidad_defectos?: number | null
+          cliente_maquila_id?: string | null
+          costo_bascula?: number | null
+          created_at?: string
+          es_cosecha_propia?: boolean | null
+          es_maquila?: boolean | null
+          estado?: Database["public"]["Enums"]["estado_lote"]
+          estado_calidad?: string | null
+          fecha_recepcion?: string
+          folio_fisico?: string | null
+          huerto_id?: string | null
+          id?: string
+          kilos_merma?: number | null
+          notas?: string | null
+          numero_lote: string
+          origen?: string | null
+          peso_bruto: number
+          peso_neto?: number | null
+          peso_pagable?: number | null
+          peso_tara?: number
+          precio_pactado_kg?: number | null
+          productor_id?: string | null
+          updated_at?: string
+          usuario_id?: string | null
+          zona_asignada?: string | null
+        }
+        Update: {
+          calidad_defectos?: number | null
+          cliente_maquila_id?: string | null
+          costo_bascula?: number | null
+          created_at?: string
+          es_cosecha_propia?: boolean | null
+          es_maquila?: boolean | null
+          estado?: Database["public"]["Enums"]["estado_lote"]
+          estado_calidad?: string | null
+          fecha_recepcion?: string
+          folio_fisico?: string | null
+          huerto_id?: string | null
+          id?: string
+          kilos_merma?: number | null
+          notas?: string | null
+          numero_lote?: string
+          origen?: string | null
+          peso_bruto?: number
+          peso_neto?: number | null
+          peso_pagable?: number | null
+          peso_tara?: number
+          precio_pactado_kg?: number | null
+          productor_id?: string | null
+          updated_at?: string
+          usuario_id?: string | null
+          zona_asignada?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lotes_cliente_maquila_id_fkey"
+            columns: ["cliente_maquila_id"]
+            isOneToOne: false
+            referencedRelation: "clientes_maquila"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_huerto_id_fkey"
+            columns: ["huerto_id"]
+            isOneToOne: false
+            referencedRelation: "huertos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_productor_id_fkey"
+            columns: ["productor_id"]
+            isOneToOne: false
+            referencedRelation: "productores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      Insert: {
-        calidad_defectos?: number | null
-        costo_bascula?: number | null
-        created_at?: string
-        es_cosecha_propia?: boolean | null
-        estado?: Database["public"]["Enums"]["estado_lote"]
-        estado_calidad?: string | null
-        fecha_recepcion?: string
-        folio_fisico?: string | null
-        huerto_id?: string | null
-        id?: string
-        kilos_merma?: number | null
-        notas?: string | null
-        numero_lote: string
-        origen?: string | null
-        peso_bruto: number
-        peso_neto?: number | null
-        peso_pagable?: number | null
-        peso_tara?: number
-        precio_pactado_kg?: number | null
-        productor_id?: string | null
-        updated_at?: string
-        usuario_id?: string | null
-        zona_asignada?: string | null
+      ordenes_maquila: {
+        Row: {
+          cajas_empacadas: number | null
+          cliente_maquila_id: string
+          costo_total: number | null
+          created_at: string | null
+          facturado: boolean | null
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          folio: string
+          id: string
+          kilos_procesados: number | null
+          kilos_recibidos: number | null
+          lote_ids: string[] | null
+          status: string | null
+        }
+        Insert: {
+          cajas_empacadas?: number | null
+          cliente_maquila_id: string
+          costo_total?: number | null
+          created_at?: string | null
+          facturado?: boolean | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          folio: string
+          id?: string
+          kilos_procesados?: number | null
+          kilos_recibidos?: number | null
+          lote_ids?: string[] | null
+          status?: string | null
+        }
+        Update: {
+          cajas_empacadas?: number | null
+          cliente_maquila_id?: string
+          costo_total?: number | null
+          created_at?: string | null
+          facturado?: boolean | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          folio?: string
+          id?: string
+          kilos_procesados?: number | null
+          kilos_recibidos?: number | null
+          lote_ids?: string[] | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordenes_maquila_cliente_maquila_id_fkey"
+            columns: ["cliente_maquila_id"]
+            isOneToOne: false
+            referencedRelation: "clientes_maquila"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      Update: {
-        calidad_defectos?: number | null
-        costo_bascula?: number | null
-        created_at?: string
-        es_cosecha_propia?: boolean | null
-        estado?: Database["public"]["Enums"]["estado_lote"]
-        estado_calidad?: string | null
-        fecha_recepcion?: string
-        folio_fisico?: string | null
-        huerto_id?: string | null
-        id?: string
-        kilos_merma?: number | null
-        notas?: string | null
-        numero_lote?: string
-        origen?: string | null
-        peso_bruto?: number
-        peso_neto?: number | null
-        peso_pagable?: number | null
-        peso_tara?: number
-        precio_pactado_kg?: number | null
-        productor_id?: string | null
-        updated_at?: string
-        usuario_id?: string | null
-        zona_asignada?: string | null
+      pagos_clientes: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          forma_pago: Database["public"]["Enums"]["forma_pago"]
+          id: string
+          monto: number
+          referencia: string | null
+          venta_id: string | null
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          forma_pago: Database["public"]["Enums"]["forma_pago"]
+          id?: string
+          monto: number
+          referencia?: string | null
+          venta_id?: string | null
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          forma_pago?: Database["public"]["Enums"]["forma_pago"]
+          id?: string
+          monto?: number
+          referencia?: string | null
+          venta_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_clientes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_clientes_venta_id_fkey"
+            columns: ["venta_id"]
+            isOneToOne: false
+            referencedRelation: "ventas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      Relationships: [
-        {
-          foreignKeyName: "lotes_huerto_id_fkey"
-          columns: ["huerto_id"]
-          isOneToOne: false
-          referencedRelation: "huertos"
-          referencedColumns: ["id"]
-        },
-        {
-          foreignKeyName: "lotes_productor_id_fkey"
-          columns: ["productor_id"]
-          isOneToOne: false
-          referencedRelation: "productores"
-          referencedColumns: ["id"]
-        },
-      ]
+      precios_calidad: {
+        Row: {
+          calidad: Database["public"]["Enums"]["calidad_fruta"]
+          created_at: string | null
+          id: string
+          precio_kg: number
+          vigente_desde: string
+          vigente_hasta: string | null
+        }
+        Insert: {
+          calidad: Database["public"]["Enums"]["calidad_fruta"]
+          created_at?: string | null
+          id?: string
+          precio_kg: number
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Update: {
+          calidad?: Database["public"]["Enums"]["calidad_fruta"]
+          created_at?: string | null
+          id?: string
+          precio_kg?: number
+          vigente_desde?: string
+          vigente_hasta?: string | null
+        }
+        Relationships: []
+      }
+      presentaciones: {
+        Row: {
+          activa: boolean | null
+          created_at: string
+          id: string
+          nombre: string
+          peso_kg: number
+          tipo: string
+        }
+        Insert: {
+          activa?: boolean | null
+          created_at?: string
+          id?: string
+          nombre: string
+          peso_kg: number
+          tipo: string
+        }
+        Update: {
+          activa?: boolean | null
+          created_at?: string
+          id?: string
+          nombre?: string
+          peso_kg?: number
+          tipo?: string
+        }
+        Relationships: []
+      }
+      produccion: {
+        Row: {
+          calibre: Database["public"]["Enums"]["calibre_limon"]
+          calidad: Database["public"]["Enums"]["calidad_limon"]
+          cantidad_cajas: number
+          color: Database["public"]["Enums"]["color_limon"]
+          created_at: string
+          destino: Database["public"]["Enums"]["destino_produccion"]
+          id: string
+          lote_id: string
+          peso_total_kg: number | null
+          presentacion_id: string | null
+        }
+        Insert: {
+          calibre: Database["public"]["Enums"]["calibre_limon"]
+          calidad: Database["public"]["Enums"]["calidad_limon"]
+          cantidad_cajas?: number
+          color: Database["public"]["Enums"]["color_limon"]
+          created_at?: string
+          destino: Database["public"]["Enums"]["destino_produccion"]
+          id?: string
+          lote_id: string
+          peso_total_kg?: number | null
+          presentacion_id?: string | null
+        }
+        Update: {
+          calibre?: Database["public"]["Enums"]["calibre_limon"]
+          calidad?: Database["public"]["Enums"]["calidad_limon"]
+          cantidad_cajas?: number
+          color?: Database["public"]["Enums"]["color_limon"]
+          created_at?: string
+          destino?: Database["public"]["Enums"]["destino_produccion"]
+          id?: string
+          lote_id?: string
+          peso_total_kg?: number | null
+          presentacion_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produccion_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produccion_presentacion_id_fkey"
+            columns: ["presentacion_id"]
+            isOneToOne: false
+            referencedRelation: "presentaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      productores: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string
+          rfc: string | null
+          saldo_anticipos: number | null
+          saldo_pendiente: number | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nombre: string
+          rfc?: string | null
+          saldo_anticipos?: number | null
+          saldo_pendiente?: number | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string
+          rfc?: string | null
+          saldo_anticipos?: number | null
+          saldo_pendiente?: number | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      registro_temperaturas: {
+        Row: {
+          camara_fria_id: string
+          created_at: string
+          id: string
+          registrado_por: string | null
+          temperatura: number
+        }
+        Insert: {
+          camara_fria_id: string
+          created_at?: string
+          id?: string
+          registrado_por?: string | null
+          temperatura: number
+        }
+        Update: {
+          camara_fria_id?: string
+          created_at?: string
+          id?: string
+          registrado_por?: string | null
+          temperatura?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registro_temperaturas_camara_fria_id_fkey"
+            columns: ["camara_fria_id"]
+            isOneToOne: false
+            referencedRelation: "camara_fria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_molino: {
+        Row: {
+          created_at: string
+          fecha_ingreso: string
+          id: string
+          lote_id: string
+          peso_disponible: number
+          peso_kg: number
+        }
+        Insert: {
+          created_at?: string
+          fecha_ingreso?: string
+          id?: string
+          lote_id: string
+          peso_disponible: number
+          peso_kg: number
+        }
+        Update: {
+          created_at?: string
+          fecha_ingreso?: string
+          id?: string
+          lote_id?: string
+          peso_disponible?: number
+          peso_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_molino_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      usuarios: {
+        Row: {
+          activo: boolean | null
+          auth_user_id: string | null
+          created_at: string | null
+          departamento: string | null
+          email: string
+          id: string
+          nombre: string
+          rol: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          auth_user_id?: string | null
+          created_at?: string | null
+          departamento?: string | null
+          email: string
+          id?: string
+          nombre: string
+          rol?: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          auth_user_id?: string | null
+          created_at?: string | null
+          departamento?: string | null
+          email?: string
+          id?: string
+          nombre?: string
+          rol?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      venta_detalles: {
+        Row: {
+          cantidad: number
+          created_at: string
+          descripcion: string
+          id: string
+          precio_unitario: number
+          subtotal: number | null
+          venta_id: string
+        }
+        Insert: {
+          cantidad: number
+          created_at?: string
+          descripcion: string
+          id?: string
+          precio_unitario: number
+          subtotal?: number | null
+          venta_id: string
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          descripcion?: string
+          id?: string
+          precio_unitario?: number
+          subtotal?: number | null
+          venta_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venta_detalles_venta_id_fkey"
+            columns: ["venta_id"]
+            isOneToOne: false
+            referencedRelation: "ventas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ventas: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          fecha_venta: string
+          id: string
+          notas: string | null
+          numero_venta: string
+          pagado: boolean | null
+          tipo: string
+          total: number
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          fecha_venta?: string
+          id?: string
+          notas?: string | null
+          numero_venta: string
+          pagado?: boolean | null
+          tipo: string
+          total?: number
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          fecha_venta?: string
+          id?: string
+          notas?: string | null
+          numero_venta?: string
+          pagado?: boolean | null
+          tipo?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ventas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ventas_exportacion: {
+        Row: {
+          ajuste_merma: number | null
+          anticipo_pagado: boolean | null
+          anticipo_porcentaje: number | null
+          confirmacion_llegada: boolean | null
+          created_at: string | null
+          id: string
+          moneda: string | null
+          notas_calidad: string | null
+          status: string | null
+          tc_pago: number | null
+          tc_venta: number | null
+          venta_id: string
+        }
+        Insert: {
+          ajuste_merma?: number | null
+          anticipo_pagado?: boolean | null
+          anticipo_porcentaje?: number | null
+          confirmacion_llegada?: boolean | null
+          created_at?: string | null
+          id?: string
+          moneda?: string | null
+          notas_calidad?: string | null
+          status?: string | null
+          tc_pago?: number | null
+          tc_venta?: number | null
+          venta_id: string
+        }
+        Update: {
+          ajuste_merma?: number | null
+          anticipo_pagado?: boolean | null
+          anticipo_porcentaje?: number | null
+          confirmacion_llegada?: boolean | null
+          created_at?: string | null
+          id?: string
+          moneda?: string | null
+          notas_calidad?: string | null
+          status?: string | null
+          tc_pago?: number | null
+          tc_venta?: number | null
+          venta_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ventas_exportacion_venta_id_fkey"
+            columns: ["venta_id"]
+            isOneToOne: true
+            referencedRelation: "ventas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
-    pagos_clientes: {
-      Row: {
-        cliente_id: string
-        created_at: string
-        forma_pago: Database["public"]["Enums"]["forma_pago"]
-        id: string
-        monto: number
-        referencia: string | null
-        venta_id: string | null
-      }
-      Insert: {
-        cliente_id: string
-        created_at?: string
-        forma_pago: Database["public"]["Enums"]["forma_pago"]
-        id?: string
-        monto: number
-        referencia?: string | null
-        venta_id?: string | null
-      }
-      Update: {
-        cliente_id?: string
-        created_at?: string
-        forma_pago?: Database["public"]["Enums"]["forma_pago"]
-        id?: string
-        monto?: number
-        referencia?: string | null
-        venta_id?: string | null
-      }
-      Relationships: [
-        {
-          foreignKeyName: "pagos_clientes_cliente_id_fkey"
-          columns: ["cliente_id"]
-          isOneToOne: false
-          referencedRelation: "clientes"
-          referencedColumns: ["id"]
-        },
-        {
-          foreignKeyName: "pagos_clientes_venta_id_fkey"
-          columns: ["venta_id"]
-          isOneToOne: false
-          referencedRelation: "ventas"
-          referencedColumns: ["id"]
-        },
-      ]
+    Views: {
+      [_ in never]: never
     }
-    presentaciones: {
-      Row: {
-        activa: boolean | null
-        created_at: string
-        id: string
-        nombre: string
-        peso_kg: number
-        tipo: string
+    Functions: {
+      generate_lote_number: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
       }
-      Insert: {
-        activa?: boolean | null
-        created_at?: string
-        id?: string
-        nombre: string
-        peso_kg: number
-        tipo: string
+      process_sale_with_inventory: {
+        Args: {
+          p_cliente_id: string
+          p_items: Json
+          p_metodo_pago: string
+          p_monto_total: number
+        }
+        Returns: string
       }
-      Update: {
-        activa?: boolean | null
-        created_at?: string
-        id?: string
-        nombre?: string
-        peso_kg?: number
-        tipo?: string
-      }
-      Relationships: []
     }
-    produccion: {
-      Row: {
-        calibre: Database["public"]["Enums"]["calibre_limon"]
-        calidad: Database["public"]["Enums"]["calidad_limon"]
-        cantidad_cajas: number
-        color: Database["public"]["Enums"]["color_limon"]
-        created_at: string
-        destino: Database["public"]["Enums"]["destino_produccion"]
-        id: string
-        lote_id: string
-        peso_total_kg: number | null
-        presentacion_id: string | null
-      }
-      Insert: {
-        calibre: Database["public"]["Enums"]["calibre_limon"]
-        calidad: Database["public"]["Enums"]["calidad_limon"]
-        cantidad_cajas?: number
-        color: Database["public"]["Enums"]["color_limon"]
-        created_at?: string
-        destino: Database["public"]["Enums"]["destino_produccion"]
-        id?: string
-        lote_id: string
-        peso_total_kg?: number | null
-        presentacion_id?: string | null
-      }
-      Update: {
-        calibre?: Database["public"]["Enums"]["calibre_limon"]
-        calidad?: Database["public"]["Enums"]["calidad_limon"]
-        cantidad_cajas?: number
-        color?: Database["public"]["Enums"]["color_limon"]
-        created_at?: string
-        destino?: Database["public"]["Enums"]["destino_produccion"]
-        id?: string
-        lote_id?: string
-        peso_total_kg?: number | null
-        presentacion_id?: string | null
-      }
-      Relationships: [
-        {
-          foreignKeyName: "produccion_lote_id_fkey"
-          columns: ["lote_id"]
-          isOneToOne: false
-          referencedRelation: "lotes"
-          referencedColumns: ["id"]
-        },
-        {
-          foreignKeyName: "produccion_presentacion_id_fkey"
-          columns: ["presentacion_id"]
-          isOneToOne: false
-          referencedRelation: "presentaciones"
-          referencedColumns: ["id"]
-        },
-      ]
+    Enums: {
+      app_role: "admin" | "produccion" | "finanzas" | "ventas" | "almacen"
+      calibre_limon:
+        | "200"
+        | "300"
+        | "400"
+        | "500"
+        | "600"
+        | "extras"
+        | "4"
+        | "X"
+        | "XX"
+        | "XXX"
+        | "EXTRA"
+        | "SUPER"
+      calidad_fruta: "exportacion" | "nacional" | "industria" | "desecho"
+      calidad_limon: "primera" | "segunda" | "industria"
+      color_limon: "verde" | "alimonado" | "amarillo"
+      destino_produccion:
+        | "piso_empaque"
+        | "camara_fria"
+        | "molino"
+        | "transporte_directo"
+      estado_liquidacion: "BORRADOR" | "AUTORIZADA" | "PAGADA"
+      estado_lote: "pendiente" | "en_proceso" | "liquidado"
+      forma_pago: "efectivo" | "cheque" | "transferencia"
+      tipo_cliente: "nacional" | "mayorista" | "exportacion_usa"
+      tipo_insumo:
+        | "caja_plastica"
+        | "arpilla"
+        | "tarima"
+        | "esquinero"
+        | "fleje"
+        | "cera"
+        | "caja_carton"
     }
-    productores: {
-      Row: {
-        created_at: string
-        id: string
-        nombre: string
-        rfc: string | null
-        saldo_anticipos: number | null
-        saldo_pendiente: number | null
-        telefono: string | null
-        updated_at: string
-      }
-      Insert: {
-        created_at?: string
-        id?: string
-        nombre: string
-        rfc?: string | null
-        saldo_anticipos?: number | null
-        saldo_pendiente?: number | null
-        telefono?: string | null
-        updated_at?: string
-      }
-      Update: {
-        created_at?: string
-        id?: string
-        nombre?: string
-        rfc?: string | null
-        saldo_anticipos?: number | null
-        saldo_pendiente?: number | null
-        telefono?: string | null
-        updated_at?: string
-      }
-      Relationships: []
-    }
-    registro_temperaturas: {
-      Row: {
-        camara_fria_id: string
-        created_at: string
-        id: string
-        registrado_por: string | null
-        temperatura: number
-      }
-      Insert: {
-        camara_fria_id: string
-        created_at?: string
-        id?: string
-        registrado_por?: string | null
-        temperatura: number
-      }
-      Update: {
-        camara_fria_id?: string
-        created_at?: string
-        id?: string
-        registrado_por?: string | null
-        temperatura?: number
-      }
-      Relationships: [
-        {
-          foreignKeyName: "registro_temperaturas_camara_fria_id_fkey"
-          columns: ["camara_fria_id"]
-          isOneToOne: false
-          referencedRelation: "camara_fria"
-          referencedColumns: ["id"]
-        },
-      ]
-    }
-    stock_molino: {
-      Row: {
-        created_at: string
-        fecha_ingreso: string
-        id: string
-        lote_id: string
-        peso_disponible: number
-        peso_kg: number
-      }
-      Insert: {
-        created_at?: string
-        fecha_ingreso?: string
-        id?: string
-        lote_id: string
-        peso_disponible: number
-        peso_kg: number
-      }
-      Update: {
-        created_at?: string
-        fecha_ingreso?: string
-        id?: string
-        lote_id?: string
-        peso_disponible?: number
-        peso_kg?: number
-      }
-      Relationships: [
-        {
-          foreignKeyName: "stock_molino_lote_id_fkey"
-          columns: ["lote_id"]
-          isOneToOne: false
-          referencedRelation: "lotes"
-          referencedColumns: ["id"]
-        },
-      ]
-    }
-    transportistas: {
-      Row: {
-        created_at: string
-        id: string
-        nombre: string
-        numero_permiso: string | null
-        placas: string | null
-        poliza_seguro: string | null
-        rfc: string | null
-        seguro_responsabilidad_civil: boolean | null
-        telefono: string | null
-        tipo_permiso: string | null
-        updated_at: string
-      }
-      Insert: {
-        created_at?: string
-        id?: string
-        nombre: string
-        numero_permiso?: string | null
-        placas?: string | null
-        poliza_seguro?: string | null
-        rfc?: string | null
-        seguro_responsabilidad_civil?: boolean | null
-        telefono?: string | null
-        tipo_permiso?: string | null
-        updated_at?: string
-      }
-      Update: {
-        created_at?: string
-        id?: string
-        nombre?: string
-        numero_permiso?: string | null
-        placas?: string | null
-        poliza_seguro?: string | null
-        rfc?: string | null
-        seguro_responsabilidad_civil?: boolean | null
-        telefono?: string | null
-        tipo_permiso?: string | null
-        updated_at?: string
-      }
-      Relationships: []
-    }
-    user_roles: {
-      Row: {
-        created_at: string
-        id: string
-        role: Database["public"]["Enums"]["app_role"]
-        user_id: string
-      }
-      Insert: {
-        created_at?: string
-        id?: string
-        role: Database["public"]["Enums"]["app_role"]
-        user_id: string
-      }
-      Update: {
-        created_at?: string
-        id?: string
-        role?: Database["public"]["Enums"]["app_role"]
-        user_id?: string
-      }
-      Relationships: []
-    }
-    venta_detalles: {
-      Row: {
-        cantidad: number
-        created_at: string
-        descripcion: string
-        id: string
-        precio_unitario: number
-        subtotal: number | null
-        venta_id: string
-      }
-      Insert: {
-        cantidad: number
-        created_at?: string
-        descripcion: string
-        id?: string
-        precio_unitario: number
-        subtotal?: number | null
-        venta_id: string
-      }
-      Update: {
-        cantidad?: number
-        created_at?: string
-        descripcion?: string
-        id?: string
-        precio_unitario?: number
-        subtotal?: number | null
-        venta_id?: string
-      }
-      Relationships: [
-        {
-          foreignKeyName: "venta_detalles_venta_id_fkey"
-          columns: ["venta_id"]
-          isOneToOne: false
-          referencedRelation: "ventas"
-          referencedColumns: ["id"]
-        },
-      ]
-    }
-    ventas: {
-      Row: {
-        cliente_id: string | null
-        created_at: string
-        fecha_venta: string
-        id: string
-        notas: string | null
-        numero_venta: string
-        pagado: boolean | null
-        tipo: string
-        total: number
-      }
-      Insert: {
-        cliente_id?: string | null
-        created_at?: string
-        fecha_venta?: string
-        id?: string
-        notas?: string | null
-        numero_venta: string
-        pagado?: boolean | null
-        tipo: string
-        total?: number
-      }
-      Update: {
-        cliente_id?: string | null
-        created_at?: string
-        fecha_venta?: string
-        id?: string
-        notas?: string | null
-        numero_venta?: string
-        pagado?: boolean | null
-        tipo?: string
-        total?: number
-      }
-      Relationships: [
-        {
-          foreignKeyName: "ventas_cliente_id_fkey"
-          columns: ["cliente_id"]
-          isOneToOne: false
-          referencedRelation: "clientes"
-          referencedColumns: ["id"]
-        },
-      ]
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
-  Views: {
-    [_ in never]: never
-  }
-  Functions: {
-    generate_lote_number: { Args: never; Returns: string }
-    has_role: {
-      Args: {
-        _role: Database["public"]["Enums"]["app_role"]
-        _user_id: string
-      }
-      Returns: boolean
-    }
-  }
-  Enums: {
-    app_role: "admin" | "produccion" | "finanzas" | "ventas" | "almacen"
-    calibre_limon: "200" | "300" | "400" | "500" | "600" | "extras"
-    calidad_limon: "primera" | "segunda" | "industria"
-    color_limon: "verde_oscuro" | "verde" | "alimonado" | "amarillo"
-    destino_produccion: "piso_empaque" | "camara_fria" | "molino"
-    estado_lote: "pendiente" | "en_proceso" | "liquidado"
-    forma_pago: "efectivo" | "cheque" | "transferencia"
-    tipo_cliente: "nacional" | "mayorista" | "exportacion_usa"
-    tipo_insumo:
-    | "caja_plastica"
-    | "arpilla"
-    | "tarima"
-    | "esquinero"
-    | "fleje"
-  }
-  CompositeTypes: {
-    [_ in never]: never
-  }
-}
 }
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
@@ -1167,129 +1320,157 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-  | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "produccion", "finanzas", "ventas", "almacen"],
-      calibre_limon: ["200", "300", "400", "500", "600", "extras"],
+      calibre_limon: [
+        "200",
+        "300",
+        "400",
+        "500",
+        "600",
+        "extras",
+        "4",
+        "X",
+        "XX",
+        "XXX",
+        "EXTRA",
+        "SUPER",
+      ],
+      calidad_fruta: ["exportacion", "nacional", "industria", "desecho"],
       calidad_limon: ["primera", "segunda", "industria"],
-      color_limon: ["verde_oscuro", "verde", "alimonado", "amarillo"],
-      destino_produccion: ["piso_empaque", "camara_fria", "molino"],
+      color_limon: ["verde", "alimonado", "amarillo"],
+      destino_produccion: [
+        "piso_empaque",
+        "camara_fria",
+        "molino",
+        "transporte_directo",
+      ],
+      estado_liquidacion: ["BORRADOR", "AUTORIZADA", "PAGADA"],
       estado_lote: ["pendiente", "en_proceso", "liquidado"],
       forma_pago: ["efectivo", "cheque", "transferencia"],
       tipo_cliente: ["nacional", "mayorista", "exportacion_usa"],
-      tipo_insumo: ["caja_plastica", "arpilla", "tarima", "esquinero", "fleje"],
+      tipo_insumo: [
+        "caja_plastica",
+        "arpilla",
+        "tarima",
+        "esquinero",
+        "fleje",
+        "cera",
+        "caja_carton",
+      ],
     },
   },
 } as const
