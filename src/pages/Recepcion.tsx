@@ -18,20 +18,10 @@ import { useProductores } from "@/hooks/useProductores";
 import { useRecepcion } from "@/hooks/useRecepcion";
 
 
-// Opciones de zonas de destino
-
 const historialPrecios = [
   { fecha: "15/01/2026", precio: 4.50 },
   { fecha: "10/01/2026", precio: 4.30 },
   { fecha: "05/01/2026", precio: 4.80 },
-];
-
-// Opciones de zonas de destino
-const zonasDestino = [
-  { id: "anden_descarga", nombre: "🚛 Andén de Descarga", costoBascula: 50 },
-  { id: "camara_materia_prima", nombre: "❄️ Cámara MP (Frio)", costoBascula: 0 },
-  { id: "patio_maniobras", nombre: "🏭 Patio de Maniobras", costoBascula: 0 },
-  { id: "linea_directa", nombre: "⚙️ Directo a Línea", costoBascula: 0 },
 ];
 
 export default function Recepcion() {
@@ -52,7 +42,6 @@ export default function Recepcion() {
     placas: "",
     precioPactado: "",
     notas: "",
-    zonaDestino: "anden_descarga",
     incluirCostoBascula: true,
     costoBascula: 50
   });
@@ -61,7 +50,7 @@ export default function Recepcion() {
   // IDs únicos para cada campo de formulario
   const fieldIds = {
     productor: "productor-select",
-    zonaDestino: "zona-destino-select",
+    
     pesoBruto: "peso-bruto-input",
     tara: "tara-input",
     precio: "precio-input",
@@ -138,16 +127,6 @@ export default function Recepcion() {
     console.log("DEBUG useEffect - Total productores:", productoresDB?.length || 0);
   }, [productoresDB, productorSeleccionado]);
 
-  useEffect(() => {
-    // Actualizar costo de báscula cuando cambia la zona de destino
-    const zonaSeleccionada = zonasDestino.find(z => z.id === formData.zonaDestino);
-    if (zonaSeleccionada) {
-      setFormData(prev => ({
-        ...prev,
-        costoBascula: zonaSeleccionada.costoBascula
-      }));
-    }
-  }, [formData.zonaDestino]);
 
   const handleOrigenChange = (value: string) => {
     setOrigen(value);
@@ -171,7 +150,6 @@ export default function Recepcion() {
       placas: "",
       precioPactado: "",
       notas: "",
-      zonaDestino: "anden_descarga",
       incluirCostoBascula: true,
       costoBascula: 50
     });
@@ -204,7 +182,7 @@ export default function Recepcion() {
         peso_neto_fisico: Number(calculos.netoFisico),
         peso_pagable: Number(calculos.pesoPagable),
         kilos_merma: Number(calculos.kilosMerma),
-        zona_asignada: formData.zonaDestino,
+        zona_asignada: "linea_produccion",
         costo_bascula: formData.incluirCostoBascula ? formData.costoBascula : 0,
         notas: formData.notas || "",
         calidad_defectos: calidad.defectos,
@@ -431,32 +409,6 @@ export default function Recepcion() {
                     </div>
                   </div>
 
-                  {/* Zona de Destino */}
-                  <div className="space-y-2">
-                    <Label htmlFor={fieldIds.zonaDestino} className="text-base font-semibold text-blue-600">
-                      Zona de Destino *
-                    </Label>
-                    <Select
-                      value={formData.zonaDestino}
-                      onValueChange={(value) => setFormData({ ...formData, zonaDestino: value })}
-                    >
-                      <SelectTrigger id={fieldIds.zonaDestino} className="h-14 text-base border-blue-200 bg-blue-50">
-                        <SelectValue placeholder="Seleccionar zona..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {zonasDestino.map((zona) => (
-                          <SelectItem key={zona.id} value={zona.id} className="text-base py-3">
-                            <div className="flex items-center justify-between">
-                              <span>{zona.nombre}</span>
-                              <Badge variant="outline" className="text-xs ml-2">
-                                ${zona.costoBascula}
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
 
                   {/* Pesos */}
                   <div className="grid sm:grid-cols-3 gap-4">
@@ -571,7 +523,7 @@ export default function Recepcion() {
                                 Importe a cobrar:
                               </Label>
                               <Badge variant="outline" className="text-xs">
-                                Sugerido: {zonasDestino.find(z => z.id === formData.zonaDestino)?.nombre.split(" ")[0]}
+                                Costo fijo
                               </Badge>
                             </div>
                             <div className="relative">
@@ -967,9 +919,7 @@ export default function Recepcion() {
                   </div>
                   <div>
                     <p className="text-xs text-white/60">Destino</p>
-                    <p className="font-semibold">
-                      {zonasDestino.find(z => z.id === formData.zonaDestino)?.nombre.split(" ").slice(1).join(" ") || "---"}
-                    </p>
+                    <p className="font-semibold">Línea de Producción</p>
                   </div>
                 </div>
 
@@ -1100,7 +1050,7 @@ export default function Recepcion() {
                 <div className="mx-auto flex h-40 w-full max-w-xs items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white">
                   <div className="text-center text-sm text-slate-500">
                     <MapPin className="mx-auto mb-2 h-6 w-6 text-emerald-500" />
-                    {zonasDestino.find(z => z.id === formData.zonaDestino)?.nombre || "Zona pendiente"}
+                    ⚙️ Línea de Producción
                   </div>
                 </div>
               </div>
