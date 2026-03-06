@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Package, Factory,
-  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, Filter, Plus, Bell, TrendingUp, Download
+  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, Filter, Plus, Bell, TrendingUp, Download,
+  Warehouse, Snowflake, Truck
 } from "lucide-react";
 
 // --- TIPOS ---
@@ -95,6 +96,7 @@ export default function Produccion() {
   const [cantidadCajas, setCantidadCajas] = useState("");
   const [pesoIndustria, setPesoIndustria] = useState("");
   const [busquedaLote, setBusquedaLote] = useState("");
+  const [destinoManual, setDestinoManual] = useState<string>("");
 
   // Cargar lotes activos
   const { data: lotesDisponibles = [], isLoading: loadingLotes } = useQuery({
@@ -263,13 +265,23 @@ export default function Produccion() {
       return { destino: "molino", calidad: "industria", mensaje: "🏭 Enviado a Molino (Industria)", tipo: 'warning' };
     }
     if (colorValue === "alimonado") {
-      return { destino: "piso_empaque", calidad: "segunda", mensaje: "⚠️ Calidad Segunda (Mercado Nacional)", tipo: 'info' };
+      return { calidad: "segunda", mensaje: "⚠️ Calidad Segunda (Mercado Nacional)", tipo: 'info' };
     }
-    return { destino: "piso_empaque", calidad: "primera", mensaje: "✅ Calidad Primera (Exportación/Premium)", tipo: 'success' };
+    return { calidad: "primera", mensaje: "✅ Calidad Primera (Exportación/Premium)", tipo: 'success' };
   };
 
   const destinoInfo = color ? getDestinoAutomatico(color) : null;
   const esIndustria = destinoInfo?.destino === "molino";
+
+  // Destino final: para industria es fijo (molino), para otros es manual
+  const destinoFinal = esIndustria ? "molino" : (destinoManual || "piso_empaque");
+
+  // Opciones de destino para selección manual
+  const opcionesDestino = [
+    { value: "piso_empaque", label: "Piso de Empaque", descripcion: "Ubicación momentánea", icon: Warehouse, color: "border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100" },
+    { value: "camara_fria", label: "Cámara Fría", descripcion: "Almacenamiento refrigerado", icon: Snowflake, color: "border-sky-400 bg-sky-50 text-sky-800 hover:bg-sky-100" },
+    { value: "transporte_directo", label: "Directo a Transporte", descripcion: "Embarque inmediato", icon: Truck, color: "border-emerald-400 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" },
+  ];
 
   // Calcular kilos solicitados para empaque normal
   const kilosSolicitados = useMemo(() => {
@@ -333,17 +345,54 @@ export default function Produccion() {
         presentacion_id: esIndustria ? null : presentacionId,
         cantidad_cajas: esIndustria ? 0 : parseInt(cantidadCajas, 10),
         peso_total_kg: kilosSolicitados,
-        destino: destinoInfo?.destino || 'piso_empaque'
+        destino: destinoFinal
       };
 
-      const { error } = await supabase
+      const { data: produccionData, error } = await supabase
         .from('produccion')
-        .insert([datosProduccion]);
+        .insert([datosProduccion])
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Si destino es cámara fría, insertar registro en camara_fria
+      if (destinoFinal === 'camara_fria' && produccionData) {
+        const { error: cfError } = await supabase
+          .from('camara_fria')
+          .insert({
+            produccion_id: produccionData.id,
+            cantidad_cajas: esIndustria ? 0 : parseInt(cantidadCajas, 10),
+            cantidad_disponible: esIndustria ? 0 : parseInt(cantidadCajas, 10),
+            fecha_ingreso: new Date().toISOString(),
+          });
+
+        if (cfError) {
+          console.error('Error insertando en cámara fría:', cfError);
+          toast.warning("Producción registrada pero hubo un error al registrar en cámara fría", {
+            description: cfError.message
+          });
+        }
+      }
+
+      // Si destino es molino, insertar en stock_molino
+      if (destinoFinal === 'molino' && produccionData) {
+        const { error: molinoError } = await supabase
+          .from('stock_molino')
+          .insert({
+            lote_id: loteId,
+            peso_kg: kilosSolicitados,
+            peso_disponible: kilosSolicitados,
+          });
+
+        if (molinoError) {
+          console.error('Error insertando en stock_molino:', molinoError);
+        }
+      }
+
+      const destinoLabel = opcionesDestino.find(o => o.value === destinoFinal)?.label || destinoFinal;
       toast.success("Producción registrada exitosamente", {
-        description: `Lote: ${loteSeleccionado.numero_lote} | Kilos: ${kilosSolicitados.toFixed(2)} kg`
+        description: `Lote: ${loteSeleccionado.numero_lote} | ${kilosSolicitados.toFixed(2)} kg → ${destinoLabel}`
       });
 
       // Limpiar formulario
@@ -352,9 +401,11 @@ export default function Produccion() {
       setCalibre("");
       setColor("");
       setPresentacionId("");
+      setDestinoManual("");
 
       await queryClient.invalidateQueries({ queryKey: ['produccion-por-lote'] });
       await queryClient.invalidateQueries({ queryKey: ['lotes-activos'] });
+      await queryClient.invalidateQueries({ queryKey: ['camara_fria'] });
 
     } catch (error: unknown) {
       console.error('Error registrando producción:', error);
@@ -362,7 +413,7 @@ export default function Produccion() {
         description: error instanceof Error ? error.message : "Error desconocido"
       });
     }
-  }, [loteSeleccionado, loteId, calibre, color, destinoInfo, esIndustria, presentacionId, cantidadCajas, kilosSolicitados, sobrepasaKilosDisponibles, kilosDisponibles, queryClient]);
+  }, [loteSeleccionado, loteId, calibre, color, destinoInfo, esIndustria, presentacionId, cantidadCajas, kilosSolicitados, sobrepasaKilosDisponibles, kilosDisponibles, queryClient, destinoFinal, opcionesDestino]);
 
   return (
     <MainLayout title="Clasificación de Producción" subtitle="Módulo de control de calidad e industrialización">
@@ -657,9 +708,45 @@ export default function Produccion() {
                   {destinoInfo.tipo === 'success' && <CheckCircle className="h-6 w-6" />}
                   <div>
                     <p className="font-bold">{destinoInfo.mensaje}</p>
-                    <p className="text-xs opacity-80 uppercase tracking-wider font-bold mt-1">
-                      Destino: {esIndustria ? "Molino / Desecho" : "Cámara Fría"}
-                    </p>
+                    {esIndustria && (
+                      <p className="text-xs opacity-80 uppercase tracking-wider font-bold mt-1">
+                        Destino: Molino / Industria
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 5.5 SELECTOR DE DESTINO (solo para no-industria) */}
+              {color && !esIndustria && (
+                <div className="space-y-3">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">
+                    ¿A dónde se almacenan las cajas?
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {opcionesDestino.map((opcion) => {
+                      const Icon = opcion.icon;
+                      const isSelected = destinoManual === opcion.value;
+                      return (
+                        <button
+                          key={opcion.value}
+                          type="button"
+                          onClick={() => setDestinoManual(opcion.value)}
+                          className={cn(
+                            "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer",
+                            isSelected
+                              ? cn(opcion.color, "ring-2 ring-offset-1 ring-current shadow-md scale-[1.02]")
+                              : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                          )}
+                        >
+                          <Icon className={cn("h-8 w-8", isSelected ? "" : "text-slate-400")} />
+                          <span className="font-bold text-sm">{opcion.label}</span>
+                          <span className={cn("text-[10px] uppercase tracking-wider", isSelected ? "opacity-80" : "text-slate-400")}>
+                            {opcion.descripcion}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -763,7 +850,7 @@ export default function Produccion() {
               <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
                 <div className="flex-1 space-y-2">
                   <p className="text-sm font-semibold text-slate-700">Resumen de producción</p>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="grid grid-cols-3 gap-2 text-sm">
                     <div className="bg-slate-100 p-2 rounded">
                       <span className="text-slate-500">Peso total:</span>
                       <span className="font-bold ml-1">{pesoTotal} kg</span>
@@ -785,6 +872,19 @@ export default function Produccion() {
                         }
                       </span>
                     </div>
+                    {!esIndustria && destinoManual && (
+                      <div className={cn(
+                        "p-2 rounded flex items-center gap-1",
+                        destinoManual === 'camara_fria' ? "bg-sky-100 text-sky-700" :
+                          destinoManual === 'transporte_directo' ? "bg-emerald-100 text-emerald-700" :
+                            "bg-amber-100 text-amber-700"
+                      )}>
+                        <span className="text-xs">Destino:</span>
+                        <span className="font-bold text-xs">
+                          {opcionesDestino.find(o => o.value === destinoManual)?.label}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -795,7 +895,7 @@ export default function Produccion() {
                       !loteId ||
                       !calibre ||
                       !color ||
-                      (!esIndustria && (!presentacionId || !cantidadCajas)) ||
+                      (!esIndustria && (!presentacionId || !cantidadCajas || !destinoManual)) ||
                       (esIndustria && !pesoIndustria) ||
                       sobrepasaKilosDisponibles ||
                       kilosSolicitados <= 0
