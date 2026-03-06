@@ -1,5 +1,6 @@
 import { useState, useMemo, useId, useCallback, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { EtiquetaCaja } from "@/components/produccion/EtiquetaCaja";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -65,7 +66,6 @@ const colores = [
   { value: "amarillo", label: "Amarillo", color: "bg-yellow-400" },
 ];
 
-// Componente Placeholder para Etiqueta
 interface EtiquetaData {
   numeroLote: string;
   calibre: string;
@@ -75,12 +75,6 @@ interface EtiquetaData {
   fecha: Date;
   productor?: string;
 }
-
-const EtiquetaCaja = ({ disabled, etiquetaInfo }: { disabled: boolean, etiquetaInfo: EtiquetaData }) => (
-  <Button variant="outline" disabled={disabled} className="border-dashed border-2 w-full sm:w-auto">
-    <Printer className="mr-2 h-4 w-4" /> Imprimir
-  </Button>
-);
 
 export default function Produccion() {
   const queryClient = useQueryClient();
