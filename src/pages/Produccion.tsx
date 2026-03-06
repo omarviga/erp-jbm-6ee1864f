@@ -24,7 +24,7 @@ interface LoteDisponible {
   kilos_merma: number;
   peso_pagable: number;
   productores?: { nombre: string };
-  huertos?: { variedad: string };
+  huertos?: { nombre: string };
   estado: string;
   kilos_disponibles?: number;
   kilos_procesados?: number;
@@ -112,9 +112,9 @@ export default function Produccion() {
           .select(`
             *,
             productores (nombre),
-            huertos (variedad)
+            huertos (nombre)
           `)
-          .in('estado', ['EN_PROCESO', 'RECIBIDO', 'PENDIENTE'])
+          .in('estado', ['pendiente', 'en_proceso'])
           .order('fecha_recepcion', { ascending: false });
 
         if (error) throw error;
@@ -176,24 +176,15 @@ export default function Produccion() {
     }
   });
 
-  // Cargar clasificaciones
-  const { data: clasificacionesDB = [], isLoading: loadingClasificaciones } = useQuery({
-    queryKey: ['clasificaciones'],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from('cat_clasificaciones')
-          .select('*')
-          .order('orden_visual', { ascending: true });
-
-        if (error) throw error;
-        return data || [];
-      } catch (err) {
-        console.error('Error cargando clasificaciones:', err);
-        return [];
-      }
-    }
-  });
+  // Clasificaciones estáticas (calibres de limón)
+  const clasificacionesDB: Clasificacion[] = useMemo(() => [
+    { id: '1', nombre_producto: 'Limón', calibre: 'SUPER', codigo_interno: 'SUPER', orden_visual: 1 },
+    { id: '2', nombre_producto: 'Limón', calibre: 'EXTRA', codigo_interno: 'EXTRA', orden_visual: 2 },
+    { id: '3', nombre_producto: 'Limón', calibre: 'XXX', codigo_interno: 'XXX', orden_visual: 3 },
+    { id: '4', nombre_producto: 'Limón', calibre: 'XX', codigo_interno: 'XX', orden_visual: 4 },
+    { id: '5', nombre_producto: 'Limón', calibre: 'X', codigo_interno: 'X', orden_visual: 5 },
+    { id: '6', nombre_producto: 'Limón', calibre: '4', codigo_interno: '4', orden_visual: 6 },
+  ], []);
 
   // Cargar KPI data
   const { data: kpiData = { eficiencia: 87.5, merma: 3.2, produccion_hoy: 0 } } = useQuery<KPIData>({
@@ -219,20 +210,11 @@ export default function Produccion() {
   });
 
   // --- DERIVADOS Y CÁLCULOS ---
-  const esVariedadLimon = (variedad?: string) => {
-    if (!variedad) return false;
-    const normalizada = variedad
-      .normalize("NFD")
-      .replace(/[^\w\s]/g, "")
-      .toLowerCase();
-    return normalizada.includes("limon");
-  };
-
   const lotesProduccionDisponibles = useMemo(() => {
     return lotesDisponibles.filter((l: LoteDisponible) => {
       const kilosProd = produccionPorLote[l.id] || 0;
       const kilosDisp = Math.max(0, (l.peso_pagable || 0) - kilosProd);
-      return esVariedadLimon(l.huertos?.variedad) && kilosDisp > 0;
+      return kilosDisp > 0;
     });
   }, [lotesDisponibles, produccionPorLote]);
 
@@ -243,7 +225,7 @@ export default function Produccion() {
     return lotesProduccionDisponibles.filter((l: LoteDisponible) =>
       l.numero_lote?.toLowerCase().includes(term) ||
       l.productores?.nombre?.toLowerCase().includes(term) ||
-      l.huertos?.variedad?.toLowerCase().includes(term)
+      l.huertos?.nombre?.toLowerCase().includes(term)
     );
   }, [lotesProduccionDisponibles, busquedaLote]);
 
@@ -605,21 +587,16 @@ export default function Produccion() {
                   <Select
                     value={calibre}
                     onValueChange={setCalibre}
-                    disabled={!loteId || loadingClasificaciones}
+                    disabled={!loteId}
                   >
                     <SelectTrigger id={idCalibre} name="calibre" className="h-14">
                       <SelectValue placeholder={
-                        loadingClasificaciones ? "Cargando..." :
-                          !loteId ? "Seleccione un lote primero" :
+                        !loteId ? "Seleccione un lote primero" :
                             "Seleccione calibre"
                       } />
                     </SelectTrigger>
                     <SelectContent>
-                      {loadingClasificaciones ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          Cargando calibres...
-                        </div>
-                      ) : calibresLimon.length > 0 ? (
+                      {calibresLimon.length > 0 ? (
                         calibresLimon.map((item) => (
                           <SelectItem key={item.id} value={item.calibre} className="py-3">
                             <div className="flex items-center gap-3">
