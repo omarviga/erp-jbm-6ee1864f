@@ -432,9 +432,6 @@ export default function Recepcion() {
                         step="0.01"
                         aria-describedby="tara-desc"
                       />
-                      <p id="tara-desc" className="text-xs text-muted-foreground">
-                        Peso del empaque/vehículo
-                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Peso Neto Real</Label>
