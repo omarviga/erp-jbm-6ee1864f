@@ -247,41 +247,6 @@ export default function Finanzas() {
     cargarLiquidacionesPasadas();
   }, []);
 
-  // Cargar clientes morosos
-  useEffect(() => {
-    const cargarClientesMorosos = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('clientes')
-          .select(`
-            *,
-            clientes_sensible (
-              limite_credito
-            )
-          `)
-          .gt('saldo_deudor', 0)
-          .order('saldo_deudor', { ascending: false });
-
-        if (error) throw error;
-
-        // Transformamos los datos para mantener compatibilidad
-        const clientesTransformados: ClienteMoroso[] = (data || []).map(c => ({
-          id: c.id,
-          nombre: c.nombre,
-          saldo: c.saldo_deudor,
-          diasVencido: Math.floor(Math.random() * 60) + 1,
-          limite: c.clientes_sensible?.limite_credito || 0
-        }));
-
-        setClientesMorosos(clientesTransformados);
-      } catch (error) {
-        console.error('Error cargando clientes morosos:', error);
-      }
-    };
-
-    cargarClientesMorosos();
-  }, []);
-
   const productorSeleccionado = productores.find(p => p.id === productorId);
 
   // --- LÓGICA DE CÁLCULO ---
