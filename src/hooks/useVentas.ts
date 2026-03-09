@@ -75,30 +75,45 @@ export function useVentas() {
 
     const cargarStock = async () => {
         try {
-            // Query to sum available quantity per presentation from camara_fria
+            // Query CDMX inventory instead of camara_fria
             const { data, error } = await supabase
-                .from("camara_fria")
+                .from("inventario_bodega_cdmx")
                 .select(`
-          cantidad_disponible,
-          produccion:produccion_id (
-            presentacion_id
-          )
-        `);
+                    id,
+                    cantidad_disponible,
+                    precio_venta,
+                    presentacion_id
+                `)
+                .gt("cantidad_disponible", 0);
 
             if (error) throw error;
 
-            // Aggregate stock by presentacion_id
+            // Aggregate stock and map IDs
             const stockMap: Record<string, number> = {};
+            // Also update products with their real precio_venta from CDMX inventory
+            const preciosMap: Record<string, number> = {};
+            
             data?.forEach((item: any) => {
-                const pId = item.produccion?.presentacion_id;
+                const pId = item.presentacion_id;
                 if (pId) {
                     stockMap[pId] = (stockMap[pId] || 0) + (item.cantidad_disponible || 0);
+                    // Use the first valid precio_venta found for this presentation
+                    if (!preciosMap[pId] && item.precio_venta) {
+                        preciosMap[pId] = item.precio_venta;
+                    }
                 }
             });
 
             setStock(stockMap);
+            
+            // Update product prices if we have them
+            setProductos(prev => prev.map(p => ({
+                ...p,
+                precio_sugerido: preciosMap[p.id] || p.precio_sugerido,
+                inventario_id: data?.find(i => i.presentacion_id === p.id)?.id // Store one valid inventory ID for the sale payload
+            })));
         } catch (error) {
-            console.error("Error cargando stock:", error);
+            console.error("Error cargando stock CDMX:", error);
         }
     };
 
