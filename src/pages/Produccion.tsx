@@ -17,6 +17,7 @@ import {
   AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, Filter, Plus, Bell, TrendingUp, Download,
   Warehouse, Snowflake, Truck
 } from "lucide-react";
+import { descontarInsumosPorProduccion } from "@/services/insumoDeductionService";
 
 // --- TIPOS ---
 interface LoteDisponible {
@@ -390,6 +391,33 @@ export default function Produccion() {
         }
       }
 
+      // --- DESCUENTO AUTOMÁTICO DE INSUMOS ---
+      if (!esIndustria && produccionData) {
+        const cajas = parseInt(cantidadCajas, 10);
+        const calidadProd = destinoInfo?.calidad || 'primera';
+        const deducciones = await descontarInsumosPorProduccion(
+          cajas,
+          calidadProd,
+          loteSeleccionado.numero_lote
+        );
+
+        const errores = deducciones.filter(d => d.error);
+        const exitosos = deducciones.filter(d => !d.error && d.cantidadDescontada > 0);
+
+        if (exitosos.length > 0) {
+          const resumen = exitosos.map(d => `${d.insumoNombre}: -${d.cantidadDescontada}`).join(', ');
+          toast.info("Insumos descontados automáticamente", {
+            description: resumen
+          });
+        }
+
+        if (errores.length > 0) {
+          toast.warning("Algunos insumos no pudieron descontarse", {
+            description: errores.map(d => `${d.insumoNombre}: ${d.error}`).join(', ')
+          });
+        }
+      }
+
       const destinoLabel = opcionesDestino.find(o => o.value === destinoFinal)?.label || destinoFinal;
       toast.success("Producción registrada exitosamente", {
         description: `Lote: ${loteSeleccionado.numero_lote} | ${kilosSolicitados.toFixed(2)} kg → ${destinoLabel}`
@@ -406,6 +434,8 @@ export default function Produccion() {
       await queryClient.invalidateQueries({ queryKey: ['produccion-por-lote'] });
       await queryClient.invalidateQueries({ queryKey: ['lotes-activos'] });
       await queryClient.invalidateQueries({ queryKey: ['camara_fria'] });
+      await queryClient.invalidateQueries({ queryKey: ['insumos'] });
+      await queryClient.invalidateQueries({ queryKey: ['insumo_movimientos'] });
 
     } catch (error: unknown) {
       console.error('Error registrando producción:', error);
