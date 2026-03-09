@@ -33,6 +33,7 @@ import { es } from "date-fns/locale";
 import { debounce } from "lodash";
 import { useLogistica } from "@/hooks/useLogistica";
 import { useFacturacion } from "@/hooks/useFacturacion";
+import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
 
 // --- TYPES ---
 type TipoCliente = "nacional" | "exportacion_usa" | "exportacion_otros";
@@ -677,6 +678,10 @@ export default function Logistica() {
 
   return (
     <MainLayout title="Logística" subtitle="Gestión de embarques, guías de salida y Cartas Porte">
+      <div className="flex items-center justify-between mb-4">
+        <div />
+        <CrearTransferenciaCDMXDialog />
+      </div>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full md:w-auto grid-cols-3">
           <TabsTrigger value="embarque" className="flex items-center gap-2">
