@@ -128,6 +128,11 @@ const App = () => (
                   <Maquila />
                 </ProtectedRoute>
               } />
+              <Route path="/gastos" element={
+                <ProtectedRoute>
+                  <Gastos />
+                </ProtectedRoute>
+              } />
 
               {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />
