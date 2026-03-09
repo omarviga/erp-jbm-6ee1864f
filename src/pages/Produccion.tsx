@@ -223,15 +223,7 @@ export default function Produccion() {
     }
   });
 
-  // Clasificaciones estáticas (calibres de limón)
-  const clasificacionesDB: Clasificacion[] = useMemo(() => [
-    { id: '1', nombre_producto: 'Limón', calibre: 'SUPER', codigo_interno: 'SUPER', orden_visual: 1 },
-    { id: '2', nombre_producto: 'Limón', calibre: 'EXTRA', codigo_interno: 'EXTRA', orden_visual: 2 },
-    { id: '3', nombre_producto: 'Limón', calibre: 'XXX', codigo_interno: 'XXX', orden_visual: 3 },
-    { id: '4', nombre_producto: 'Limón', calibre: 'XX', codigo_interno: 'XX', orden_visual: 4 },
-    { id: '5', nombre_producto: 'Limón', calibre: 'X', codigo_interno: 'X', orden_visual: 5 },
-    { id: '6', nombre_producto: 'Limón', calibre: '4', codigo_interno: '4', orden_visual: 6 },
-  ], []);
+  // Calibres ya definidos como constantes arriba
 
   // Cargar KPI data
   const { data: kpiData = { eficiencia: 87.5, merma: 3.2, produccion_hoy: 0 } } = useQuery<KPIData>({
