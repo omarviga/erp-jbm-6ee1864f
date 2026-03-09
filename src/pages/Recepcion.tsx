@@ -809,31 +809,65 @@ export default function Recepcion() {
 
                       {/* Mostrar cortadores agregados */}
                       {cortadoresLote.length > 0 && (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <Label className="text-sm font-medium">Cajas por Cortador</Label>
-                          {cortadoresLote.map((cortador) => (
-                            <div key={cortador.id} className="flex items-center gap-2">
-                              <span className="flex-1">{cortador.nombre}</span>
-                              <Input
-                                type="number"
-                                value={cortador.cajas}
-                                onChange={(e) => updateCortadorCajas(cortador.id, parseInt(e.target.value) || 0)}
-                                className="w-24"
-                                placeholder="0"
-                                aria-label={`Cajas para ${cortador.nombre}`}
-                                id={`cajas-${cortador.id}`}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeCortador(cortador.id)}
-                                aria-label={`Eliminar ${cortador.nombre}`}
-                              >
-                                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                              </Button>
+                          {cortadoresLote.map((cortador) => {
+                            const precioCaja = parseFloat(precio) || 0;
+                            const pagoCortador = cortador.cajas * precioCaja * 0.30;
+                            return (
+                              <div key={cortador.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="flex-1 font-medium">{cortador.nombre}</span>
+                                  <Input
+                                    type="number"
+                                    value={cortador.cajas}
+                                    onChange={(e) => updateCortadorCajas(cortador.id, parseInt(e.target.value) || 0)}
+                                    className="w-24"
+                                    placeholder="0"
+                                    aria-label={`Cajas para ${cortador.nombre}`}
+                                    id={`cajas-${cortador.id}`}
+                                  />
+                                  <span className="text-xs text-muted-foreground">cajas</span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeCortador(cortador.id)}
+                                    aria-label={`Eliminar ${cortador.nombre}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                  </Button>
+                                </div>
+                                {cortador.cajas > 0 && precioCaja > 0 && (
+                                  <div className="flex items-center justify-between text-sm bg-emerald-50 border border-emerald-200 rounded p-2">
+                                    <span className="text-emerald-700">
+                                      <DollarSign className="h-3 w-3 inline mr-1" />
+                                      Pago (30%): {cortador.cajas} cajas × ${precioCaja.toFixed(2)} × 30%
+                                    </span>
+                                    <span className="font-bold text-emerald-800">
+                                      ${pagoCortador.toFixed(2)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {/* Resumen total de pago a cortadores */}
+                          {cortadoresLote.some(c => c.cajas > 0) && parseFloat(precio) > 0 && (
+                            <div className="p-3 bg-emerald-100 border border-emerald-300 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-emerald-800">Total pago cortadores:</span>
+                                <span className="text-lg font-bold text-emerald-900">
+                                  ${cortadoresLote.reduce((sum, c) => sum + (c.cajas * (parseFloat(precio) || 0) * 0.30), 0).toFixed(2)}
+                                </span>
+                              </div>
+                              <p className="text-xs text-emerald-700 mt-1">
+                                Total cajas: {cortadoresLote.reduce((sum, c) => sum + c.cajas, 0)} |
+                                Precio caja: ${(parseFloat(precio) || 0).toFixed(2)} |
+                                Porcentaje cortador: 30%
+                              </p>
                             </div>
-                          ))}
+                          )}
                         </div>
                       )}
 
