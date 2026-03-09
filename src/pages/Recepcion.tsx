@@ -1159,9 +1159,6 @@ export default function Recepcion() {
             </div>
           </div>
 
-          <div className="mx-auto mt-4 max-w-2xl rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-800">
-            <span className="font-semibold">Nota de Impresión:</span> Optimizado para 80mm. Configure márgenes como "Ninguno" y escala "100%".
-          </div>
         </section>
 
      </div>
