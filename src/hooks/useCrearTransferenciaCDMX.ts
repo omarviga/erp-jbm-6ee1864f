@@ -271,6 +271,112 @@ export function useCrearTransferenciaCDMX() {
           p_referencia_viaje: referenciaViaje,
           p_usuario_id: authData.user.id,
         });
+
+        if (error) {
+          if (!isMissingFunctionError(error) || !ALLOW_INVENTORY_FALLBACK) {
+            throw new Error(
+              `${buildRpcErrorMessage(error)}${
+                !ALLOW_INVENTORY_FALLBACK && isMissingFunctionError(error)
+                  ? " | El fallback está deshabilitado. Activa VITE_ALLOW_INVENTORY_FALLBACK=true para permitir operación de contingencia."
+                  : ""
+              }`
+            );
+          }
+
+          const { data: produccionActual, error: prodError } = await supabase
+            .from("produccion")
+            .select("id, destino, cantidad_cajas, presentacion_id")
+            .eq("id", item.produccion_id)
+            .single();
+
+          if (prodError || !produccionActual) {
+            throw new Error(buildRpcErrorMessage(prodError));
+          }
+
+          if ((produccionActual.cantidad_cajas || 0) < item.cantidad) {
+            throw new Error(`Stock insuficiente para envío. Disponible: ${produccionActual.cantidad_cajas || 0} cajas.`);
+          }
+
+          const { error: upProdError } = await supabase
+            .from("produccion")
+            .update({ destino: "camara_fria" })
+            .eq("id", item.produccion_id);
+
+          if (upProdError) throw new Error(buildRpcErrorMessage(upProdError));
+
+          const { data: camaraRow, error: camaraFetchError } = await supabase
+            .from("camara_fria")
+            .select("id, cantidad_disponible")
+            .eq("produccion_id", item.produccion_id)
+            .maybeSingle();
+
+          if (camaraFetchError) throw new Error(buildRpcErrorMessage(camaraFetchError));
+
+          let camaraId = camaraRow?.id;
+          let disponible = camaraRow?.cantidad_disponible || 0;
+
+          if (!camaraRow) {
+            const { data: inserted, error: insertCamaraError } = await supabase
+              .from("camara_fria")
+              .insert({
+                produccion_id: item.produccion_id,
+                cantidad_cajas: produccionActual.cantidad_cajas || item.cantidad,
+                cantidad_disponible: produccionActual.cantidad_cajas || item.cantidad,
+              })
+              .select("id, cantidad_disponible")
+              .single();
+
+            if (insertCamaraError || !inserted) throw new Error(buildRpcErrorMessage(insertCamaraError));
+            camaraId = inserted.id;
+            disponible = inserted.cantidad_disponible;
+          }
+
+          if (disponible < item.cantidad) {
+            throw new Error(`Stock insuficiente para envío. Disponible: ${disponible} cajas.`);
+          }
+
+          const { error: updateCamaraError } = await supabase
+            .from("camara_fria")
+            .update({ cantidad_disponible: disponible - item.cantidad })
+            .eq("id", camaraId);
+
+          if (updateCamaraError) throw new Error(buildRpcErrorMessage(updateCamaraError));
+
+          await safeInsertKardex({
+            lote_id: item.lote_id,
+            tipo_movimiento: "envio_cdmx",
+            cantidad: -item.cantidad,
+            ubicacion_origen: item.origen_inventario,
+            ubicacion_destino: "en_transito_cdmx",
+            usuario_id: authData.user.id,
+          });
+
+          const folio = `TR-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
+          const { data: transferencia, error: transferenciaError } = await supabase
+            .from("transferencias_bodega")
+            .insert({
+              folio,
+              origen: "michoacan",
+              destino: "cdmx",
+              estado: "en_transito",
+              chofer: datos.chofer.trim(),
+              placas: datos.placas.trim() || null,
+              notas_salida: referenciaViaje,
+            })
+            .select("id")
+            .single();
+
+          if (transferenciaError || !transferencia) throw new Error(buildRpcErrorMessage(transferenciaError));
+
+          const { error: detalleError } = await supabase.from("transferencia_detalles").insert({
+            transferencia_id: transferencia.id,
+            presentacion_id: produccionActual.presentacion_id || item.presentacion_id,
+            cantidad_enviada: item.cantidad,
+            precio_base: precioBaseCongelado,
+          });
+
+          if (detalleError) throw new Error(buildRpcErrorMessage(detalleError));
+        }
         if (error) throw error;
       }
 
