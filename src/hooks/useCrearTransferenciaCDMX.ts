@@ -11,6 +11,9 @@ export interface ItemTransferencia {
   cantidad: number;
   cantidad_disponible: number;
   peso_kg: number;
+  calibre: string;
+  calidad: string;
+  lote_numero: string;
   descripcion: string;
 }
 
@@ -59,7 +62,10 @@ export function useCrearTransferenciaCDMX() {
           presentacion_nombre: prod?.presentaciones?.nombre || "Sin presentación",
           cantidad_disponible: item.cantidad_disponible,
           peso_kg: prod?.peso_total_kg || 0,
-          descripcion: `${prod?.calidad || ""} ${prod?.calibre || ""} - Lote: ${prod?.lotes?.numero_lote || "N/A"}`.trim(),
+          calibre: prod?.calibre || "",
+          calidad: prod?.calidad || "",
+          lote_numero: prod?.lotes?.numero_lote || "N/A",
+          descripcion: `Lote: ${prod?.lotes?.numero_lote || "N/A"}`,
         };
       });
     },

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
+import { CalibreBadge } from "@/components/ui/calibre-badge";
 
 const pasillos = ["A", "B", "C"];
 const posiciones = ["01", "02", "03", "04"];
@@ -49,9 +50,14 @@ export default function CamaraFria() {
           ? `${pasillos[pasilloIndex]}-${posiciones[posicionIndex]}`
           : null;
 
+        const calibre = item.produccion?.calibre || "S/C";
+        const calidad = item.produccion?.calidad || "Sin calidad";
+
         return {
           id: item.produccion?.lotes?.numero_lote || item.id.slice(0, 8),
-          producto: `${item.produccion?.calidad || "Sin calidad"} ${item.produccion?.calibre || "S/C"}`.trim(),
+          producto: calibre,
+          calidad,
+          calibre,
           ubicacion,
           dias,
           estado,
@@ -232,10 +238,9 @@ export default function CamaraFria() {
 
                             {loteEnPosicion ? (
                               <>
-                                <Package className="h-6 w-6 mb-1 opacity-80" />
-                                <span className="text-xs font-bold leading-tight line-clamp-2">
-                                  {loteEnPosicion.producto}
-                                </span>
+                                <Package className="h-5 w-5 mb-1 opacity-80" />
+                                <CalibreBadge calibre={loteEnPosicion.calibre} size="sm" />
+                                <span className="text-[10px] text-muted-foreground mt-0.5">{loteEnPosicion.calidad}</span>
                                 <Badge
                                   variant="secondary"
                                   className="mt-1 text-[9px] h-4 px-1 bg-white/50 backdrop-blur-sm"
@@ -353,7 +358,10 @@ export default function CamaraFria() {
                           {idx + 1}
                         </div>
                         <div>
-                          <p className="font-medium text-slate-700">{item.producto}</p>
+                          <div className="flex items-center gap-2">
+                            <CalibreBadge calibre={item.calibre} size="sm" />
+                            <span className="text-xs text-muted-foreground">{item.calidad}</span>
+                          </div>
                           <p className="text-xs text-muted-foreground">{item.id} • {item.ubicacion}</p>
                         </div>
                       </div>

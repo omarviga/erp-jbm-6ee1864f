@@ -28,6 +28,7 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CalibreBadge } from "@/components/ui/calibre-badge";
 import { useCrearTransferenciaCDMX, type ItemTransferencia } from "@/hooks/useCrearTransferenciaCDMX";
 
 interface Props {
@@ -114,6 +115,9 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
           cantidad: qty,
           cantidad_disponible: stock.cantidad_disponible,
           peso_kg: stock.peso_kg,
+          calibre: stock.calibre,
+          calidad: stock.calidad,
+          lote_numero: stock.lote_numero,
           descripcion: stock.descripcion,
         });
       }
@@ -196,9 +200,11 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
                             checked={isSelected}
                             className="pointer-events-none"
                           />
+                          <CalibreBadge calibre={item.calibre} size="sm" />
                           <div>
                             <p className="font-medium text-sm">{item.descripcion}</p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Badge variant="outline" className="text-[10px] h-4 px-1">{item.calidad}</Badge>
                               <Snowflake className="h-3 w-3 text-sky-500" />
                               <span>{item.presentacion_nombre}</span>
                               <span>•</span>
