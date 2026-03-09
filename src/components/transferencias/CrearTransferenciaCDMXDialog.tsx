@@ -200,9 +200,11 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
                             checked={isSelected}
                             className="pointer-events-none"
                           />
+                          <CalibreBadge calibre={item.calibre} size="sm" />
                           <div>
                             <p className="font-medium text-sm">{item.descripcion}</p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Badge variant="outline" className="text-[10px] h-4 px-1">{item.calidad}</Badge>
                               <Snowflake className="h-3 w-3 text-sky-500" />
                               <span>{item.presentacion_nombre}</span>
                               <span>•</span>
