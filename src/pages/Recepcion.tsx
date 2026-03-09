@@ -120,12 +120,6 @@ export default function Recepcion() {
     return productoresDB.find(p => p.id === productorId);
   }, [productorId, productoresDB]);
 
-  // DEBUG: Verificar datos cargados
-  useEffect(() => {
-    console.log("DEBUG useEffect - Productores:", productoresDB);
-    console.log("DEBUG useEffect - Productor seleccionado:", productorSeleccionado);
-    console.log("DEBUG useEffect - Total productores:", productoresDB?.length || 0);
-  }, [productoresDB, productorSeleccionado]);
 
 
   const handleOrigenChange = (value: string) => {
