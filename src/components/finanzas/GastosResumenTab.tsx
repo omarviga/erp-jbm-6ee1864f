@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, Receipt as ReceiptIcon } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Receipt as ReceiptIcon, Download } from "lucide-react";
 import { useGastos } from "@/hooks/useGastos";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,8 @@ import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 import { Link } from "react-router-dom";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { ResumenFinancieroPDF } from "@/components/pdf/ResumenFinancieroPDF";
 
 const CATEGORIAS_LABEL: Record<string, string> = {
   mantenimiento: "Mantenimiento",
@@ -97,6 +99,29 @@ export function GastosResumenTab() {
     }));
   }, [gastosFiltrados]);
 
+  // Period label for PDF
+  const periodoLabel = useMemo(() => {
+    const labels: Record<string, string> = {
+      mes_actual: format(now, "MMMM yyyy", { locale: es }),
+      mes_anterior: format(subMonths(now, 1), "MMMM yyyy", { locale: es }),
+      "3_meses": `${format(subMonths(now, 2), "MMM", { locale: es })} - ${format(now, "MMM yyyy", { locale: es })}`,
+      "6_meses": `${format(subMonths(now, 5), "MMM", { locale: es })} - ${format(now, "MMM yyyy", { locale: es })}`,
+    };
+    return labels[periodo] || periodo;
+  }, [periodo, now]);
+
+  // Formatted gastos for PDF
+  const gastosPDFData = useMemo(() => {
+    return gastosFiltrados.map((g) => ({
+      id: g.id,
+      fecha: format(new Date(g.fecha), "dd MMM yy", { locale: es }),
+      concepto: g.concepto,
+      categoria: g.categoria,
+      proveedor: g.proveedor,
+      monto: g.monto,
+    }));
+  }, [gastosFiltrados]);
+
   // Monthly bar chart data
   const barData = useMemo(() => {
     const months: Record<string, { mes: string; ingresos: number; liquidaciones: number; gastos: number }> = {};
@@ -118,8 +143,8 @@ export function GastosResumenTab() {
 
   return (
     <div className="space-y-6">
-      {/* Period filter */}
-      <div className="flex items-center justify-between">
+      {/* Period filter + actions */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <Select value={periodo} onValueChange={setPeriodo}>
           <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -129,9 +154,32 @@ export function GastosResumenTab() {
             <SelectItem value="6_meses">Últimos 6 meses</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" asChild>
-          <Link to="/gastos"><ReceiptIcon className="w-4 h-4 mr-2" />Ir a Gastos</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <PDFDownloadLink
+            document={
+              <ResumenFinancieroPDF
+                periodo={periodoLabel}
+                totalIngresos={totalIngresos}
+                totalLiquidaciones={totalLiquidaciones}
+                totalGastos={totalGastos}
+                utilidadBruta={utilidadBruta}
+                gastosPorCategoria={gastosPorCategoria}
+                gastosFiltrados={gastosPDFData}
+              />
+            }
+            fileName={`resumen-financiero-${periodo}.pdf`}
+          >
+            {({ loading }) => (
+              <Button variant="default" disabled={loading} size="sm">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
+                Exportar PDF
+              </Button>
+            )}
+          </PDFDownloadLink>
+          <Button variant="outline" asChild size="sm">
+            <Link to="/gastos"><ReceiptIcon className="w-4 h-4 mr-2" />Ir a Gastos</Link>
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
