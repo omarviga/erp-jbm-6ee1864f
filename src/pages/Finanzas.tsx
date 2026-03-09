@@ -411,52 +411,6 @@ export default function Finanzas() {
     return Math.abs(montoRetiro - montoPago) < 1;
   };
 
-  // --- LÓGICA COBRANZA ---
-  const handleCobrarCliente = async (clienteId: string, clienteNombre: string) => {
-    try {
-      // Buscar el cliente en la lista de morosos
-      const clienteMoroso = clientesMorosos.find(c => c.id === clienteId);
-      if (!clienteMoroso) return;
-
-      // Aquí implementarías la lógica para registrar un pago del cliente
-      const { error } = await supabase
-        .from('pagos_clientes')
-        .insert({
-          cliente_id: clienteId,
-          monto: clienteMoroso.saldo,
-          forma_pago: 'transferencia',
-          referencia: `PAGO-${Date.now()}`
-        });
-
-      if (error) throw error;
-
-      // Actualizar saldo del cliente
-      const { error: errorUpdate } = await supabase
-        .from('clientes')
-        .update({ saldo_deudor: 0 })
-        .eq('id', clienteId);
-
-      if (errorUpdate) throw errorUpdate;
-
-      toast({
-        title: "💰 Pago Registrado",
-        description: `Se ha registrado el pago de ${clienteNombre}`,
-        className: "bg-blue-600 text-white border-none"
-      });
-
-      // Actualizar lista de clientes morosos
-      setClientesMorosos(prev => prev.filter(c => c.id !== clienteId));
-
-    } catch (error) {
-      console.error('Error al registrar pago:', error);
-      toast({
-        title: "❌ Error",
-        description: "No se pudo registrar el pago",
-        variant: "destructive"
-      });
-    }
-  };
-
   return (
     <MainLayout title="Control de Pagos" subtitle="Liquidaciones Semanales">
 
