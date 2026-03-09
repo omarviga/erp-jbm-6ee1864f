@@ -25,7 +25,6 @@ import {
   LogOut,
   Shield,
   Cog,
-  Cog,
   Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
