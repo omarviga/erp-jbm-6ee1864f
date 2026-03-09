@@ -32,23 +32,6 @@ import {
 export default function DashboardTab() {
   const { isAdmin } = useAuth();
 
-  // SECURITY: Double-check admin access
-  if (!isAdmin) {
-    return (
-      <div className="h-full flex items-center justify-center bg-background">
-        <Card className="max-w-md">
-          <CardContent className="p-8 text-center">
-            <ShieldAlert className="h-16 w-16 mx-auto text-red-500 mb-4" />
-            <h2 className="text-xl font-bold text-foreground mb-2">Acceso Restringido</h2>
-            <p className="text-muted-foreground">
-              Esta sección solo está disponible para administradores.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   const now = new Date();
   const mesInicio = startOfMonth(now).toISOString();
   const mesFin = endOfMonth(now).toISOString();
@@ -72,6 +55,7 @@ export default function DashboardTab() {
       if (error) throw error;
       return data;
     },
+    enabled: isAdmin,
   });
 
   // Fetch gastos CDMX del mes
@@ -88,6 +72,7 @@ export default function DashboardTab() {
       if (error) throw error;
       return data;
     },
+    enabled: isAdmin,
   });
 
   // Fetch auditoría de inventario para calcular costo de ventas
@@ -108,6 +93,7 @@ export default function DashboardTab() {
       if (error) throw error;
       return data;
     },
+    enabled: isAdmin,
   });
 
   // Calculate metrics
