@@ -115,6 +115,9 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
           cantidad: qty,
           cantidad_disponible: stock.cantidad_disponible,
           peso_kg: stock.peso_kg,
+          calibre: stock.calibre,
+          calidad: stock.calidad,
+          lote_numero: stock.lote_numero,
           descripcion: stock.descripcion,
         });
       }
