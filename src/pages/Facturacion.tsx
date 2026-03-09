@@ -1107,12 +1107,15 @@ export default function Facturacion() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-          <TabsList className="grid w-full md:w-auto grid-cols-4">
+          <TabsList className="grid w-full md:w-auto grid-cols-5">
             <TabsTrigger value="crear" className="flex items-center gap-2">
               <FileSignature className="h-4 w-4" /> Crear
             </TabsTrigger>
             <TabsTrigger value="lista" className="flex items-center gap-2">
               <FileText className="h-4 w-4" /> Todas las Facturas
+            </TabsTrigger>
+            <TabsTrigger value="cobranza" className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" /> Cobranza
             </TabsTrigger>
             <TabsTrigger value="clientes" className="flex items-center gap-2">
               <Users className="h-4 w-4" /> Clientes
@@ -1121,6 +1124,11 @@ export default function Facturacion() {
               <Package className="h-4 w-4" /> Productos
             </TabsTrigger>
           </TabsList>
+
+          {/* TAB COBRANZA */}
+          <TabsContent value="cobranza" className="mt-6">
+            <CobranzaTab />
+          </TabsContent>
 
           <TabsContent value="crear" className="mt-6">
             <ProductSelectorModal
