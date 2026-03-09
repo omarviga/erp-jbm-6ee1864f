@@ -892,8 +892,7 @@ export default function Recepcion() {
                           </p>
                         )}
                       </div>
-
-
+                      <div className="space-y-1">
                         <div className="flex justify-between text-sm">
                           <Label htmlFor={fieldIds.defectos} className="text-rose-600 font-bold">
                             Defectos (%)
