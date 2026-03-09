@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Loader2, TrendingUp, TrendingDown, DollarSign, Receipt as ReceiptIcon } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Receipt as ReceiptIcon, Download } from "lucide-react";
 import { useGastos } from "@/hooks/useGastos";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,8 @@ import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 import { Link } from "react-router-dom";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { ResumenFinancieroPDF } from "@/components/pdf/ResumenFinancieroPDF";
 
 const CATEGORIAS_LABEL: Record<string, string> = {
   mantenimiento: "Mantenimiento",
