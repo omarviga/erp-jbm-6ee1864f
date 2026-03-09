@@ -113,6 +113,39 @@ export const useCamaraFria = () => {
         }
     });
 
+
+    const envioTransporteDirectoMutation = useMutation({
+        mutationFn: async ({ produccionId, loteId, cantidad, precioBaseCongelado, referenciaViaje, usuarioId }: {
+            produccionId: string;
+            loteId: string;
+            cantidad: number;
+            precioBaseCongelado: number;
+            referenciaViaje: string;
+            usuarioId: string;
+        }) => {
+            const { error } = await supabase.rpc('registrar_envio_cdmx_transporte_directo', {
+                p_produccion_id: produccionId,
+                p_lote_id: loteId,
+                p_cantidad_enviar: cantidad,
+                p_precio_base_congelado: precioBaseCongelado,
+                p_referencia_viaje: referenciaViaje,
+                p_usuario_id: usuarioId,
+            });
+
+            if (error) {
+                console.error("Error running registrar_envio_cdmx_transporte_directo RPC:", error);
+                throw error;
+            }
+
+            return true;
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ['inventario_transporte_directo'] });
+            await queryClient.invalidateQueries({ queryKey: ['camara_fria'] });
+            await queryClient.invalidateQueries({ queryKey: ['transferencias-bodega'] });
+        }
+    });
+
     const registrarMermaMutation = useMutation({
         mutationFn: async ({ idCamara, idLote, cantidad, motivo, idUsuario }: {
             idCamara: string;
@@ -150,6 +183,8 @@ export const useCamaraFria = () => {
         isTrasladandoInterno: trasladoInternoMutation.isPending,
         registrarMerma: registrarMermaMutation.mutateAsync,
         isRegistrandoMerma: registrarMermaMutation.isPending,
+        enviarTransporteDirectoACdmx: envioTransporteDirectoMutation.mutateAsync,
+        isEnviandoTransporteDirecto: envioTransporteDirectoMutation.isPending,
         isLoading: isLoadingInventario || isLoadingTemps || isLoadingPiso || isLoadingTransporte
     };
 };

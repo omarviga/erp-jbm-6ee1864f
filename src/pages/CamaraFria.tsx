@@ -71,6 +71,8 @@ export default function CamaraFria() {
     isTrasladandoInterno,
     registrarMerma,
     isRegistrandoMerma,
+    enviarTransporteDirectoACdmx,
+    isEnviandoTransporteDirecto,
     isLoading,
   } = useCamaraFria();
   const { user } = useAuth();
@@ -129,10 +131,12 @@ export default function CamaraFria() {
   const transporteItems = useMemo(() => {
     return transporteDirecto.map((item) => ({
       id: item.id,
+      lote_id: item.lote_id,
       lote: item.lotes?.numero_lote || item.id.slice(0, 8),
       calibre: item.calibre,
       calidad: item.calidad,
       cajas: item.cantidad_cajas,
+      peso_total_kg: item.peso_total_kg || 0,
       created_at: item.created_at,
       origen: item.lotes?.origen || "Sin origen capturado",
     }));
@@ -197,6 +201,7 @@ export default function CamaraFria() {
         description: `Se trasladaron ${pisoEmpaqueItems.length} registros de Piso Empaque a Cámara Fría.`,
       });
     } catch (error) {
+      const message = error instanceof Error ? error.message : (typeof error === "object" && error && "message" in error ? String((error as { message?: string }).message) : "Error desconocido");
       const message = error instanceof Error ? error.message : "Error desconocido";
       toast.error("No se pudo completar el traslado interno", { description: message });
     }
@@ -225,6 +230,67 @@ export default function CamaraFria() {
       toast.error("La cantidad de merma debe ser mayor a 0.");
       return;
     }
+
+    if (cantidad > loteMermaSeleccionado.cajas) {
+      toast.error("La merma no puede ser mayor al stock disponible.");
+      return;
+    }
+
+    if (!mermaMotivo.trim()) {
+      toast.error("Debes capturar el motivo de la merma.");
+      return;
+    }
+
+    try {
+      await registrarMerma({
+        idCamara: loteMermaSeleccionado.id,
+        idLote: loteMermaSeleccionado.lote_id,
+        cantidad,
+        motivo: mermaMotivo.trim(),
+        idUsuario: user.id,
+      });
+
+      toast.success("Merma registrada correctamente");
+      setIsMermaDialogOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : (typeof error === "object" && error && "message" in error ? String((error as { message?: string }).message) : "Error desconocido");
+      toast.error("No se pudo registrar la merma", { description: message });
+    }
+  };
+
+  const onEnviarDirectoACdmx = async (item: { id: string; lote_id: string; lote: string; cajas: number; peso_total_kg: number }) => {
+    if (!user?.id) {
+      toast.error("No se pudo identificar al usuario actual.");
+      return;
+    }
+
+    if (!item.lote_id) {
+      toast.error("El lote no tiene referencia de origen para enviar a CDMX.");
+      return;
+    }
+
+    const referenciaViaje = `Directo a transporte · Lote ${item.lote}`;
+    const precioBaseCongelado = item.cajas > 0 ? Math.round((item.peso_total_kg / item.cajas) * item.cajas * 100) / 100 : 0;
+
+    try {
+      await enviarTransporteDirectoACdmx({
+        produccionId: item.id,
+        loteId: item.lote_id,
+        cantidad: item.cajas,
+        precioBaseCongelado,
+        referenciaViaje,
+        usuarioId: user.id,
+      });
+
+      toast.success("Lote enviado a CDMX", {
+        description: `${item.lote} se vinculó correctamente a una transferencia en tránsito.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : (typeof error === "object" && error && "message" in error ? String((error as { message?: string }).message) : "Error desconocido");
+      toast.error("No se pudo enviar el lote a CDMX", { description: message });
+    }
+  };
+
 
     if (cantidad > loteMermaSeleccionado.cajas) {
       toast.error("La merma no puede ser mayor al stock disponible.");
@@ -469,6 +535,17 @@ export default function CamaraFria() {
                       <p className="font-semibold">{item.lote}</p>
                       <p className="text-xs text-muted-foreground">{item.calidad} · Origen: {item.origen}</p>
                     </div>
+                    <div className="text-right space-y-2">
+                      <Badge variant="secondary">{item.cajas} cajas</Badge>
+                      <p className="text-xs text-muted-foreground">{format(new Date(item.created_at), "dd MMM HH:mm", { locale: es })}</p>
+                      <Button
+                        size="sm"
+                        onClick={() => onEnviarDirectoACdmx(item)}
+                        disabled={isEnviandoTransporteDirecto}
+                      >
+                        {isEnviandoTransporteDirecto ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Truck className="mr-2 h-3 w-3" />}
+                        Enviar a CDMX
+                      </Button>
                     <div className="text-right">
                       <Badge variant="secondary">{item.cajas} cajas</Badge>
                       <p className="text-xs text-muted-foreground mt-1">{format(new Date(item.created_at), "dd MMM HH:mm", { locale: es })}</p>

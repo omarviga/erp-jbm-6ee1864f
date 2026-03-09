@@ -1630,6 +1630,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      registrar_envio_cdmx_transporte_directo: {
+        Args: {
+          p_cantidad_enviar: number
+          p_lote_id: string
+          p_precio_base_congelado: number
+          p_produccion_id: string
+          p_referencia_viaje: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
