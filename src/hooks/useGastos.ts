@@ -73,8 +73,14 @@ export function useGastos() {
       toast({ title: "Error al subir imagen", description: error.message, variant: "destructive" });
       return null;
     }
-    const { data: urlData } = supabase.storage.from("gastos-tickets").getPublicUrl(fileName);
-    return urlData.publicUrl;
+    const { data: signedUrlData, error: signedError } = await supabase.storage
+      .from("gastos-tickets")
+      .createSignedUrl(fileName, 3600);
+    if (signedError) {
+      toast({ title: "Error al obtener URL", description: signedError.message, variant: "destructive" });
+      return null;
+    }
+    return signedUrlData.signedUrl;
   };
 
   const processOCR = async (file: File) => {

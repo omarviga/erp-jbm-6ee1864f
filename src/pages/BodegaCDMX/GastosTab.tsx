@@ -124,8 +124,8 @@ export default function GastosTab() {
         if (uploadError) {
           console.error("Error uploading file:", uploadError);
         } else {
-          const { data: urlData } = supabase.storage.from('gastos-tickets').getPublicUrl(path);
-          imagen_url = urlData.publicUrl;
+          const { data: signedData } = await supabase.storage.from('gastos-tickets').createSignedUrl(path, 3600);
+          imagen_url = signedData?.signedUrl || null;
         }
       }
 
