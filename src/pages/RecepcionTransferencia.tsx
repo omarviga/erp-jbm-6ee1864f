@@ -63,23 +63,24 @@ export default function RecepcionTransferencia() {
     }));
   };
 
-  const inicializarDetalles = () => {
-    if (!detalles) return;
-    
-    const nuevosDetalles: Record<string, DetalleRecepcion> = {};
-    detalles.forEach(d => {
-      nuevosDetalles[d.presentacion_id] = {
-        presentacion_id: d.presentacion_id,
-        presentacion_nombre: d.presentacion?.nombre || 'Producto',
-        cantidad_enviada: d.cantidad_enviada,
-        cantidad_recibida: d.cantidad_enviada, // Por defecto, asumir que se recibe todo
-        precio_base: d.precio_base,
-        precio_venta: d.precio_base, // Por defecto, mismo que precio base
-        notas_diferencia: '',
-      };
-    });
-    setDetallesRecepcion(nuevosDetalles);
-  };
+  // Inicializar detalles automáticamente cuando cambien los datos
+  useEffect(() => {
+    if (detalles && detalles.length > 0 && Object.keys(detallesRecepcion).length === 0) {
+      const nuevosDetalles: Record<string, DetalleRecepcion> = {};
+      detalles.forEach(d => {
+        nuevosDetalles[d.presentacion_id] = {
+          presentacion_id: d.presentacion_id,
+          presentacion_nombre: d.presentacion?.nombre || 'Producto',
+          cantidad_enviada: d.cantidad_enviada,
+          cantidad_recibida: d.cantidad_enviada, // Por defecto, asumir que se recibe todo
+          precio_base: d.precio_base,
+          precio_venta: d.precio_base, // Por defecto, mismo que precio base
+          notas_diferencia: '',
+        };
+      });
+      setDetallesRecepcion(nuevosDetalles);
+    }
+  }, [detalles, detallesRecepcion]);
 
   const procesarRecepcionClick = async () => {
     if (!transferenciaSeleccionada) return;
