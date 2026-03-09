@@ -434,6 +434,8 @@ export default function Produccion() {
       await queryClient.invalidateQueries({ queryKey: ['produccion-por-lote'] });
       await queryClient.invalidateQueries({ queryKey: ['lotes-activos'] });
       await queryClient.invalidateQueries({ queryKey: ['camara_fria'] });
+      await queryClient.invalidateQueries({ queryKey: ['insumos'] });
+      await queryClient.invalidateQueries({ queryKey: ['insumo_movimientos'] });
 
     } catch (error: unknown) {
       console.error('Error registrando producción:', error);
