@@ -62,11 +62,60 @@ interface KPIData {
 }
 
 // --- CONSTANTES ---
-const colores = [
-  { value: "verde", label: "Verde", color: "bg-green-500" },
-  { value: "alimonado", label: "Alimonado", color: "bg-lime-400" },
-  { value: "amarillo", label: "Amarillo", color: "bg-yellow-400" },
+// Nuevo sistema de calibres que combina color + tamaño
+const CALIBRES_POR_COLOR = {
+  verde: [
+    { value: "V-4", label: "V-4", orden: 1 },
+    { value: "V-5", label: "V-5", orden: 2 },
+    { value: "V-X", label: "V-X", orden: 3 },
+    { value: "V-XX", label: "V-XX", orden: 4 },
+    { value: "V-XXX", label: "V-XXX", orden: 5 },
+    { value: "V-EXT", label: "V-EXT", orden: 6 },
+  ],
+  alimonado: [
+    { value: "AL-4", label: "AL-4", orden: 7 },
+    { value: "AL-5", label: "AL-5", orden: 8 },
+    { value: "AL-X", label: "AL-X", orden: 9 },
+    { value: "AL-XX", label: "AL-XX", orden: 10 },
+    { value: "AL-XXX", label: "AL-XXX", orden: 11 },
+    { value: "AL-EXT", label: "AL-EXT", orden: 12 },
+  ],
+  amarillo: [
+    { value: "AM-X", label: "AM-X", orden: 13 },
+    { value: "AM-XX", label: "AM-XX", orden: 14 },
+    { value: "AM-XXX", label: "AM-XXX", orden: 15 },
+    { value: "AM-EXT", label: "AM-EXT", orden: 16 },
+  ],
+};
+
+const TODOS_CALIBRES = [
+  ...CALIBRES_POR_COLOR.verde,
+  ...CALIBRES_POR_COLOR.alimonado,
+  ...CALIBRES_POR_COLOR.amarillo,
 ];
+
+// Derivar color a partir del prefijo del calibre
+function getColorFromCalibre(cal: string): string {
+  if (cal.startsWith("V-")) return "verde";
+  if (cal.startsWith("AL-")) return "alimonado";
+  if (cal.startsWith("AM-")) return "amarillo";
+  return "";
+}
+
+// Color visual para badges
+function getCalibreColorClass(cal: string): string {
+  if (cal.startsWith("V-")) return "bg-green-100 text-green-800 border-green-300";
+  if (cal.startsWith("AL-")) return "bg-lime-100 text-lime-800 border-lime-300";
+  if (cal.startsWith("AM-")) return "bg-yellow-100 text-yellow-800 border-yellow-300";
+  return "bg-slate-100 text-slate-700 border-slate-200";
+}
+
+function getColorGroupLabel(cal: string): { label: string; emoji: string } {
+  if (cal.startsWith("V-")) return { label: "Verde", emoji: "🟢" };
+  if (cal.startsWith("AL-")) return { label: "Alimonado", emoji: "🟡" };
+  if (cal.startsWith("AM-")) return { label: "Amarillo", emoji: "🟠" };
+  return { label: "", emoji: "" };
+}
 
 interface EtiquetaData {
   numeroLote: string;
