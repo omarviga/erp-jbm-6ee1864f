@@ -47,6 +47,11 @@ const mainNavItems: NavItem[] = [
   { title: "Cámara Fría", href: "/camara-fria", icon: Snowflake },
   { title: "Logística", href: "/logistica", icon: Truck },
   {
+    title: "Recepción Bodega",
+    href: "/recepcion-transferencia",
+    icon: Package,
+  },
+  {
     title: "Punto de Venta Limón",
     href: "/ventas",
     icon: Citrus, // Cambiado de ShoppingCart a Citrus

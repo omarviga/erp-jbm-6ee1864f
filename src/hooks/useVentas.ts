@@ -7,7 +7,8 @@ export interface Producto {
     nombre: string;
     peso_kg: number;
     tipo: string;
-    precio_sugerido?: number; // In memory or from a future column
+    precio_sugerido?: number;
+    inventario_id?: string;
 }
 
 export interface CartItem extends Producto {
@@ -75,30 +76,45 @@ export function useVentas() {
 
     const cargarStock = async () => {
         try {
-            // Query to sum available quantity per presentation from camara_fria
+            // Query CDMX inventory instead of camara_fria
             const { data, error } = await supabase
-                .from("camara_fria")
+                .from("inventario_bodega_cdmx")
                 .select(`
-          cantidad_disponible,
-          produccion:produccion_id (
-            presentacion_id
-          )
-        `);
+                    id,
+                    cantidad_disponible,
+                    precio_venta,
+                    presentacion_id
+                `)
+                .gt("cantidad_disponible", 0);
 
             if (error) throw error;
 
-            // Aggregate stock by presentacion_id
+            // Aggregate stock and map IDs
             const stockMap: Record<string, number> = {};
+            // Also update products with their real precio_venta from CDMX inventory
+            const preciosMap: Record<string, number> = {};
+            
             data?.forEach((item: any) => {
-                const pId = item.produccion?.presentacion_id;
+                const pId = item.presentacion_id;
                 if (pId) {
                     stockMap[pId] = (stockMap[pId] || 0) + (item.cantidad_disponible || 0);
+                    // Use the first valid precio_venta found for this presentation
+                    if (!preciosMap[pId] && item.precio_venta) {
+                        preciosMap[pId] = item.precio_venta;
+                    }
                 }
             });
 
             setStock(stockMap);
+            
+            // Update product prices if we have them
+            setProductos(prev => prev.map(p => ({
+                ...p,
+                precio_sugerido: preciosMap[p.id] || p.precio_sugerido,
+                inventario_id: data?.find(i => i.presentacion_id === p.id)?.id // Store one valid inventory ID for the sale payload
+            })));
         } catch (error) {
-            console.error("Error cargando stock:", error);
+            console.error("Error cargando stock CDMX:", error);
         }
     };
 
@@ -157,15 +173,20 @@ export function useVentas() {
         try {
             const montoTotal = carrito.reduce((sum, item) => sum + (item.cantidad * item.precio_venta), 0);
 
-            const itemsPayload = carrito.map(item => ({
-                presentacion_id: item.id,
-                cantidad: item.cantidad,
-                precio: item.precio_venta
-            }));
+            const itemsPayload = carrito.map(item => {
+                // Find a valid inventory ID for this product
+                const inventario_id = (item as any).inventario_id;
+                if (!inventario_id) throw new Error(`No hay inventario registrado para ${item.nombre}`);
+                
+                return {
+                    inventario_id: inventario_id,
+                    cantidad: item.cantidad,
+                    precio_venta: item.precio_venta
+                };
+            });
 
-            // Call RPC function
-            const { data: ventaId, error } = await supabase.rpc('process_sale_with_inventory', {
-                p_cliente_id: clienteId,
+            // Call RPC function for CDMX sales
+            const { data, error } = await supabase.rpc('procesar_venta_cdmx', {
                 p_monto_total: montoTotal,
                 p_metodo_pago: metodoPago,
                 p_items: itemsPayload
@@ -173,11 +194,16 @@ export function useVentas() {
 
             if (error) throw error;
 
+            const rpcResult = Array.isArray(data) ? data[0] : null;
+            if (!rpcResult?.success || !rpcResult?.venta_id) {
+                throw new Error(rpcResult?.mensaje || "No se pudo procesar la venta");
+            }
+
             // Fetch the created sale to return it (for the ticket)
             const { data: ventaData } = await supabase
                 .from('ventas')
                 .select('*')
-                .eq('id', ventaId)
+                .eq('id', rpcResult.venta_id)
                 .single();
 
             toast.success("Venta registrada correctamente", {
