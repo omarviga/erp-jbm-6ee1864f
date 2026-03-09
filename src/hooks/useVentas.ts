@@ -172,11 +172,17 @@ export function useVentas() {
         try {
             const montoTotal = carrito.reduce((sum, item) => sum + (item.cantidad * item.precio_venta), 0);
 
-            const itemsPayload = carrito.map(item => ({
-                presentacion_id: item.id,
-                cantidad: item.cantidad,
-                precio: item.precio_venta
-            }));
+            const itemsPayload = carrito.map(item => {
+                // Find a valid inventory ID for this product
+                const inventario_id = (item as any).inventario_id;
+                if (!inventario_id) throw new Error(`No hay inventario registrado para ${item.nombre}`);
+                
+                return {
+                    inventario_id: inventario_id,
+                    cantidad: item.cantidad,
+                    precio_venta: item.precio_venta
+                };
+            });
 
             // Call RPC function for CDMX sales
             const { data: ventaId, error } = await supabase.rpc('procesar_venta_cdmx', {
