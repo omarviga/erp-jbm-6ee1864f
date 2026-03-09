@@ -6,11 +6,13 @@ import { format } from "date-fns";
 export interface ItemTransferencia {
   id: string; // camara_fria.id
   produccion_id: string;
+  lote_id: string;
   presentacion_id: string;
   presentacion_nombre: string;
   cantidad: number;
   cantidad_disponible: number;
   peso_kg: number;
+  cajas_produccion: number;
   calibre: string;
   calidad: string;
   lote_numero: string;
@@ -24,10 +26,15 @@ export interface DatosTransferencia {
   items: ItemTransferencia[];
 }
 
+const calcularPrecioBaseCongelado = (item: ItemTransferencia) => {
+  if (item.cantidad <= 0 || item.cajas_produccion <= 0 || item.peso_kg <= 0) return 0;
+  const costoPorCaja = item.peso_kg / item.cajas_produccion;
+  return Math.round(costoPorCaja * item.cantidad * 100) / 100;
+};
+
 export function useCrearTransferenciaCDMX() {
   const queryClient = useQueryClient();
 
-  // Stock disponible en cámara fría con presentación
   const { data: stockDisponible = [], isLoading: loadingStock } = useQuery({
     queryKey: ["stock-para-transferencia"],
     queryFn: async () => {
@@ -39,6 +46,7 @@ export function useCrearTransferenciaCDMX() {
           produccion_id,
           produccion (
             id,
+            lote_id,
             calibre,
             calidad,
             color,
@@ -54,14 +62,27 @@ export function useCrearTransferenciaCDMX() {
       if (error) throw error;
 
       return (data || []).map((item) => {
-        const prod = item.produccion as any;
+        const prod = item.produccion as {
+          id?: string;
+          lote_id?: string;
+          calibre?: string;
+          calidad?: string;
+          cantidad_cajas?: number;
+          peso_total_kg?: number;
+          presentacion_id?: string;
+          lotes?: { numero_lote?: string };
+          presentaciones?: { id?: string; nombre?: string };
+        };
+
         return {
           id: item.id,
           produccion_id: item.produccion_id,
+          lote_id: prod?.lote_id || "",
           presentacion_id: prod?.presentaciones?.id || prod?.presentacion_id || "",
           presentacion_nombre: prod?.presentaciones?.nombre || "Sin presentación",
           cantidad_disponible: item.cantidad_disponible,
           peso_kg: prod?.peso_total_kg || 0,
+          cajas_produccion: prod?.cantidad_cajas || 0,
           calibre: prod?.calibre || "",
           calidad: prod?.calidad || "",
           lote_numero: prod?.lotes?.numero_lote || "N/A",
@@ -71,7 +92,6 @@ export function useCrearTransferenciaCDMX() {
     },
   });
 
-  // Stock en molino
   const { data: stockMolino = [], isLoading: loadingMolino } = useQuery({
     queryKey: ["stock-molino-transferencia"],
     queryFn: async () => {
@@ -90,60 +110,41 @@ export function useCrearTransferenciaCDMX() {
       if (datos.items.length === 0) throw new Error("Selecciona al menos un producto");
       if (!datos.chofer.trim()) throw new Error("Ingresa el nombre del chofer");
 
-      const folio = `TR-${format(new Date(), "yyMMdd")}-${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`;
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user?.id) throw new Error("No se pudo identificar al usuario actual");
 
-      // 1. Create transfer header
-      const { data: transferencia, error: errorTrans } = await supabase
-        .from("transferencias_bodega")
-        .insert({
-          folio,
-          origen: "michoacan",
-          destino: "cdmx",
-          estado: "en_transito",
-          chofer: datos.chofer,
-          placas: datos.placas || null,
-          notas_salida: datos.notas || null,
-        })
-        .select()
-        .single();
+      const referenciaViaje = [
+        `Chofer: ${datos.chofer.trim()}`,
+        datos.placas.trim() ? `Placas: ${datos.placas.trim()}` : "",
+        datos.notas.trim() ? `Notas: ${datos.notas.trim()}` : "",
+      ].filter(Boolean).join(" / ");
 
-      if (errorTrans) throw errorTrans;
-
-      // 2. Group items by presentacion_id and create details
-      const detalles = datos.items.map((item) => ({
-        transferencia_id: transferencia.id,
-        presentacion_id: item.presentacion_id,
-        cantidad_enviada: item.cantidad,
-        precio_base: item.peso_kg > 0 ? Math.round((item.peso_kg / item.cantidad_disponible) * item.cantidad * 100) / 100 : 0,
-      }));
-
-      const { error: errorDet } = await supabase
-        .from("transferencia_detalles")
-        .insert(detalles);
-
-      if (errorDet) throw errorDet;
-
-      // 3. Discount from camara_fria
       for (const item of datos.items) {
-        const { error: errorUpdate } = await supabase
-          .from("camara_fria")
-          .update({
-            cantidad_disponible: item.cantidad_disponible - item.cantidad,
-          })
-          .eq("id", item.id);
+        const precioBaseCongelado = calcularPrecioBaseCongelado(item);
 
-        if (errorUpdate) throw errorUpdate;
+        const { error } = await supabase.rpc("registrar_envio_cdmx", {
+          p_registro_camara_id: item.id,
+          p_lote_id: item.lote_id,
+          p_cantidad_enviar: item.cantidad,
+          p_precio_base_congelado: precioBaseCongelado,
+          p_referencia_viaje: referenciaViaje,
+          p_usuario_id: authData.user.id,
+        });
+
+        if (error) throw error;
       }
 
-      return { folio, id: transferencia.id };
+      const folio = `TR-${format(new Date(), "yyMMdd")}`;
+      return { folio, cantidadMovimientos: datos.items.length };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["stock-para-transferencia"] });
       queryClient.invalidateQueries({ queryKey: ["camara_fria"] });
       queryClient.invalidateQueries({ queryKey: ["inventario_logistica"] });
       queryClient.invalidateQueries({ queryKey: ["transferencias-bodega"] });
-      toast.success(`Transferencia ${data.folio} creada`, {
-        description: "El envío a CDMX ha sido registrado exitosamente.",
+      queryClient.invalidateQueries({ queryKey: ["transferencias_cdmx"] });
+      toast.success("Envío a CDMX registrado", {
+        description: `${data.cantidadMovimientos} lote(s) se movieron a en tránsito con precio base congelado.`,
       });
     },
     onError: (error: Error) => {

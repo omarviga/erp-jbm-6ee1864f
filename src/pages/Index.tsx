@@ -28,7 +28,7 @@ const Dashboard = () => {
           trend={{ value: 12.5, isPositive: true }}
         />
         <KPICard
-          title="Stock Cámara Fría"
+          title="Stock Inventarios"
           value={4280}
           unit="cajas"
           icon={Snowflake}
