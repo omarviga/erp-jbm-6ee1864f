@@ -954,6 +954,45 @@ export type Database = {
           },
         ]
       }
+      notificaciones: {
+        Row: {
+          categoria: Database["public"]["Enums"]["notification_category"]
+          created_at: string
+          id: string
+          leida: boolean
+          mensaje: string
+          referencia_id: string | null
+          referencia_tipo: string | null
+          tipo: Database["public"]["Enums"]["notification_type"]
+          titulo: string
+          user_id: string | null
+        }
+        Insert: {
+          categoria?: Database["public"]["Enums"]["notification_category"]
+          created_at?: string
+          id?: string
+          leida?: boolean
+          mensaje: string
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          tipo?: Database["public"]["Enums"]["notification_type"]
+          titulo: string
+          user_id?: string | null
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["notification_category"]
+          created_at?: string
+          id?: string
+          leida?: boolean
+          mensaje?: string
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          tipo?: Database["public"]["Enums"]["notification_type"]
+          titulo?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ordenes_maquila: {
         Row: {
           cajas_empacadas: number | null
@@ -1646,6 +1685,14 @@ export type Database = {
       estado_liquidacion: "BORRADOR" | "AUTORIZADA" | "PAGADA"
       estado_lote: "pendiente" | "en_proceso" | "liquidado"
       forma_pago: "efectivo" | "cheque" | "transferencia"
+      notification_category:
+        | "inventario"
+        | "transferencia"
+        | "venta"
+        | "corte_caja"
+        | "produccion"
+        | "sistema"
+      notification_type: "info" | "warning" | "success" | "error" | "alert"
       tipo_cliente: "nacional" | "mayorista" | "exportacion_usa"
       tipo_insumo:
         | "caja_plastica"
@@ -1823,6 +1870,15 @@ export const Constants = {
       estado_liquidacion: ["BORRADOR", "AUTORIZADA", "PAGADA"],
       estado_lote: ["pendiente", "en_proceso", "liquidado"],
       forma_pago: ["efectivo", "cheque", "transferencia"],
+      notification_category: [
+        "inventario",
+        "transferencia",
+        "venta",
+        "corte_caja",
+        "produccion",
+        "sistema",
+      ],
+      notification_type: ["info", "warning", "success", "error", "alert"],
       tipo_cliente: ["nacional", "mayorista", "exportacion_usa"],
       tipo_insumo: [
         "caja_plastica",
