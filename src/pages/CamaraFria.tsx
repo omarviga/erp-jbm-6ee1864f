@@ -18,9 +18,11 @@ import {
   Package,
   Search,
   ArrowRightLeft,
-  Filter
+  Filter,
+  Truck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
 import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
 
 const pasillos = ["A", "B", "C"];

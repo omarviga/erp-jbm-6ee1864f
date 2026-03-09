@@ -488,6 +488,14 @@ export default function Produccion() {
             <h2 className="text-2xl font-bold text-slate-900">Clasificación de Producción</h2>
           </div>
           <div className="flex items-center gap-3">
+            <CrearTransferenciaCDMXDialog
+              trigger={
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Truck className="h-4 w-4" />
+                  Enviar a CDMX
+                </Button>
+              }
+            />
             <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700"><span className="mr-2 h-2 w-2 rounded-full bg-emerald-500" />En línea</Badge>
             <Bell className="h-5 w-5 text-slate-500" />
           </div>
