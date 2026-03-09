@@ -34,7 +34,6 @@ export default function Recepcion() {
   const [cortadoresLote, setCortadoresLote] = useState<{ id: string; nombre: string; cajas: number }[]>([]);
   const [origen, setOrigen] = useState("terceros");
   const [paso, setPaso] = useState(1);
-  const [pesoBascula, setPesoBascula] = useState(0);
   const [calidad, setCalidad] = useState({ defectos: 0 });
   const [searchTerm, setSearchTerm] = useState("");
   const [formData, setFormData] = useState({
@@ -120,6 +119,9 @@ export default function Recepcion() {
     return productoresDB.find(p => p.id === productorId);
   }, [productorId, productoresDB]);
 
+  const pesoBrutoNum = parseFloat(pesoBruto) || 0;
+  const canContinuarPropia = Boolean(productorId) && Boolean(huertoId) && pesoBrutoNum > 0;
+
 
 
   const handleOrigenChange = (value: string) => {
@@ -152,9 +154,23 @@ export default function Recepcion() {
   };
 
   const handleGuardar = async () => {
-    if (!productorId || !pesoBruto) {
+    if (!pesoBruto) {
       toast.error("Faltan datos obligatorios", {
-        description: "Selecciona un productor e ingresa el peso bruto",
+        description: "Ingresa el peso bruto",
+      });
+      return;
+    }
+
+    if (!productorId) {
+      toast.error("Faltan datos obligatorios", {
+        description: origen === "propia" ? "Selecciona el productor responsable de la cosecha" : "Selecciona un productor",
+      });
+      return;
+    }
+
+    if (origen === "propia" && !huertoId) {
+      toast.error("Faltan datos obligatorios", {
+        description: "Selecciona el huerto de origen",
       });
       return;
     }
@@ -740,6 +756,22 @@ export default function Recepcion() {
                   <CardContent className="pt-6 space-y-6">
                     {/* Huerto */}
                     <div className="space-y-2">
+                      <Label className="text-base font-semibold">Productor responsable *</Label>
+                      <Select value={productorId} onValueChange={setProductorId}>
+                        <SelectTrigger className="h-14 text-base">
+                          <SelectValue placeholder="Seleccionar productor..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {productoresDB?.map((p) => (
+                            <SelectItem key={p.id} value={p.id} className="text-base py-3">
+                              {p.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
                       <Label htmlFor={fieldIds.huerto} className="text-base font-semibold">
                         Huerto
                       </Label>
@@ -755,6 +787,31 @@ export default function Recepcion() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-base font-semibold">Peso Bruto (kg) *</Label>
+                        <Input
+                          type="number"
+                          value={pesoBruto}
+                          onChange={(e) => setPesoBruto(e.target.value)}
+                          placeholder="0.00"
+                          className="h-14 text-xl font-mono text-center"
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-base font-semibold">Tara (kg)</Label>
+                        <Input
+                          type="number"
+                          value={tara}
+                          onChange={(e) => setTara(e.target.value)}
+                          placeholder="0.00"
+                          className="h-14 text-xl font-mono text-center"
+                          step="0.01"
+                        />
+                      </div>
                     </div>
 
                     {/* Cortadores */}
@@ -895,17 +952,15 @@ export default function Recepcion() {
                         </span>
                       </div>
 
-                      {paso === 2 && (
-                        <Button
-                          type="button"
-                          className="w-full"
-                          disabled={pesoBascula === 0}
-                          onClick={() => setPaso(3)}
-                          aria-label="Confirmar y finalizar recepción"
-                        >
-                          Confirmar y Finalizar
-                        </Button>
-                      )}
+                      <Button
+                        type="button"
+                        className="w-full"
+                        disabled={!canContinuarPropia}
+                        onClick={() => setPaso(3)}
+                        aria-label="Continuar al resumen de recepción propia"
+                      >
+                        Confirmar y Finalizar
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

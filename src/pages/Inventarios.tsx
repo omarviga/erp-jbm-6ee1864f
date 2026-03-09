@@ -13,6 +13,7 @@ import {
   Thermometer,
   Truck,
   Warehouse,
+  Eye,
 } from "lucide-react";
 
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -35,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCamaraFria } from "@/hooks/useCamaraFria";
+import { HistorialLoteModal } from "@/components/inventarios/HistorialLoteModal";
 import { cn } from "@/lib/utils";
 
 const pasillos = ["A", "B", "C"];
@@ -82,6 +84,9 @@ export default function Inventarios() {
   const [mermaCantidad, setMermaCantidad] = useState("1");
   const [mermaMotivo, setMermaMotivo] = useState("");
   const [loteMermaSeleccionado, setLoteMermaSeleccionado] = useState<InventarioItem | null>(null);
+  const [isHistorialOpen, setIsHistorialOpen] = useState(false);
+  const [historialLoteId, setHistorialLoteId] = useState<string | null>(null);
+  const [historialLoteLabel, setHistorialLoteLabel] = useState<string | null>(null);
 
   const inventarioCamara = useMemo<InventarioItem[]>(() => {
     return [...inventario]
@@ -271,6 +276,16 @@ export default function Inventarios() {
     }
   };
 
+
+  const abrirHistorialLote = (loteId: string, loteLabel: string) => {
+    if (!loteId) {
+      toast.error("El lote seleccionado no tiene identificador para consultar historial.");
+      return;
+    }
+    setHistorialLoteId(loteId);
+    setHistorialLoteLabel(loteLabel);
+    setIsHistorialOpen(true);
+  };
   return (
     <>
       <MainLayout title="📦 Inventarios" subtitle="Cámara Fría, Piso Empaque, Directo a Transporte y Transferencias CDMX">
@@ -404,6 +419,14 @@ export default function Inventarios() {
                           <p className="font-semibold">{item.lote}</p>
                           <p>{item.dias} días • {item.cajas} cajas</p>
                           <p className="text-muted-foreground">Origen: {item.origen}</p>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="mt-1 h-7 px-2"
+                            onClick={() => abrirHistorialLote(item.lote_id, item.lote)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" /> Ver historial
+                          </Button>
                         </div>
                       ))}
                   </CardContent>
@@ -435,6 +458,14 @@ export default function Inventarios() {
                         <CalibreBadge calibre={item.calibre} size="sm" />
                         <p className="text-xs mt-1">{item.cajas} cajas</p>
                         <p className="text-xs text-muted-foreground">{format(new Date(item.created_at), "dd MMM HH:mm", { locale: es })}</p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="mt-1 h-7 px-2"
+                          onClick={() => abrirHistorialLote(item.lote_id, item.lote)}
+                        >
+                          <Eye className="h-3 w-3 mr-1" /> Ver historial
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -462,6 +493,14 @@ export default function Inventarios() {
                       <Button size="sm" onClick={() => onEnviarDirectoACdmx(item)} disabled={isEnviandoTransporteDirecto}>
                         {isEnviandoTransporteDirecto ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Truck className="mr-2 h-3 w-3" />}
                         Enviar a CDMX
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2"
+                        onClick={() => abrirHistorialLote(item.lote_id, item.lote)}
+                      >
+                        <Eye className="h-3 w-3 mr-1" /> Ver historial
                       </Button>
                     </div>
                   </div>
@@ -498,6 +537,14 @@ export default function Inventarios() {
           </div>
         )}
       </MainLayout>
+
+
+      <HistorialLoteModal
+        open={isHistorialOpen}
+        onOpenChange={setIsHistorialOpen}
+        loteId={historialLoteId}
+        loteLabel={historialLoteLabel}
+      />
 
       <Dialog open={isMermaDialogOpen} onOpenChange={setIsMermaDialogOpen}>
         <DialogContent>
