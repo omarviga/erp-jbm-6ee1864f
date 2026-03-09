@@ -416,9 +416,6 @@ export default function Recepcion() {
                         step="0.01"
                         aria-describedby="peso-bruto-desc"
                       />
-                      <p id="peso-bruto-desc" className="text-xs text-muted-foreground">
-                        Peso total incluyendo empaque
-                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor={fieldIds.tara} className="text-base font-semibold">
