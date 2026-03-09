@@ -99,7 +99,7 @@ export default function Maquila() {
   const pendientesFacturar = ordenes.filter((o) => o.status === "completada" && !o.facturado).length;
 
   return (
-    <MainLayout>
+    <MainLayout title="Maquila" subtitle="Servicio de procesamiento para clientes externos">
       <div className="space-y-6">
         <PageHeader title="Maquila" description="Servicio de procesamiento de fruta para clientes externos" icon={Factory} />
 
