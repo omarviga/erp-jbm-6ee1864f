@@ -1275,18 +1275,22 @@ export type Database = {
     Enums: {
       app_role: "admin" | "produccion" | "finanzas" | "ventas" | "almacen"
       calibre_limon:
-        | "200"
-        | "300"
-        | "400"
-        | "500"
-        | "600"
-        | "extras"
-        | "4"
-        | "X"
-        | "XX"
-        | "XXX"
-        | "EXTRA"
-        | "SUPER"
+        | "V-4"
+        | "V-5"
+        | "V-X"
+        | "V-XX"
+        | "V-XXX"
+        | "V-EXT"
+        | "AL-4"
+        | "AL-5"
+        | "AL-X"
+        | "AL-XX"
+        | "AL-XXX"
+        | "AL-EXT"
+        | "AM-X"
+        | "AM-XX"
+        | "AM-XXX"
+        | "AM-EXT"
       calidad_fruta: "exportacion" | "nacional" | "industria" | "desecho"
       calidad_limon: "primera" | "segunda" | "industria"
       color_limon: "verde" | "alimonado" | "amarillo"
@@ -1436,18 +1440,22 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "produccion", "finanzas", "ventas", "almacen"],
       calibre_limon: [
-        "200",
-        "300",
-        "400",
-        "500",
-        "600",
-        "extras",
-        "4",
-        "X",
-        "XX",
-        "XXX",
-        "EXTRA",
-        "SUPER",
+        "V-4",
+        "V-5",
+        "V-X",
+        "V-XX",
+        "V-XXX",
+        "V-EXT",
+        "AL-4",
+        "AL-5",
+        "AL-X",
+        "AL-XX",
+        "AL-XXX",
+        "AL-EXT",
+        "AM-X",
+        "AM-XX",
+        "AM-XXX",
+        "AM-EXT",
       ],
       calidad_fruta: ["exportacion", "nacional", "industria", "desecho"],
       calidad_limon: ["primera", "segunda", "industria"],
