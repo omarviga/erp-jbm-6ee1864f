@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   ShoppingCart, Truck, Package, Calculator, Receipt, BarChart3,
-  ChevronLeft, ChevronRight, User, LogOut, Building2
+  ChevronLeft, ChevronRight, User, LogOut, ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -36,6 +37,7 @@ const TABS: TabConfig[] = [
 ];
 
 export default function BodegaCDMX() {
+  const navigate = useNavigate();
   const { user, isAdmin, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>("pos");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -86,6 +88,20 @@ export default function BodegaCDMX() {
             </div>
           )}
         </div>
+        {/* Admin: Back to main ERP */}
+        {isAdmin && (
+          <div className="px-2 pb-2 border-b border-gray-100">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/")}
+              className="w-full justify-start text-xs text-gray-500 hover:text-[#1E5128] hover:bg-[#2ECC71]/10 gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {!sidebarCollapsed && <span>Volver al ERP</span>}
+            </Button>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
