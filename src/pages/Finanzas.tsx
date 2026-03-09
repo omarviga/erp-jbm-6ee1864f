@@ -121,7 +121,6 @@ export default function Finanzas() {
   const [lotesPendientes, setLotesPendientes] = useState<Lote[]>([]);
   const [liquidacionesPasadas, setLiquidacionesPasadas] = useState<LiquidacionPasada[]>([]);
   const [loadingLotes, setLoadingLotes] = useState(false);
-  const [loadingLotes, setLoadingLotes] = useState(false);
   const [guardandoLiquidacion, setGuardandoLiquidacion] = useState(false);
 
   // Cargar productores desde Supabase - CORREGIDO
