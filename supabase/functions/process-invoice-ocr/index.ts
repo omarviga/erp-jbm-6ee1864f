@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +13,47 @@ serve(async (req) => {
   }
 
   try {
+    // --- AUTH & ROLE CHECK ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "No autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: "No autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+
+    // Check role: only admin or almacen
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+
+    const allowedRoles = ["admin", "almacen"];
+    if (!roles?.some((r: { role: string }) => allowedRoles.includes(r.role))) {
+      return new Response(
+        JSON.stringify({ error: "No autorizado: requiere rol admin o almacen" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // --- BUSINESS LOGIC ---
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -22,6 +64,14 @@ serve(async (req) => {
     if (!imageBase64) {
       return new Response(
         JSON.stringify({ error: "Se requiere la imagen de la factura" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Payload size guard: ~5MB base64 limit
+    if (typeof imageBase64 === "string" && imageBase64.length > 5_000_000) {
+      return new Response(
+        JSON.stringify({ error: "La imagen excede el tamaño máximo permitido (5MB)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -96,8 +146,7 @@ Responde SOLO con el JSON, sin explicaciones adicionales.`
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("AI gateway error:", response.status);
       throw new Error(`Error del servicio de IA: ${response.status}`);
     }
 
@@ -111,11 +160,10 @@ Responde SOLO con el JSON, sin explicaciones adicionales.`
     // Parse the JSON response from AI
     let invoiceData;
     try {
-      // Clean up the response in case it has markdown code blocks
       const cleanContent = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       invoiceData = JSON.parse(cleanContent);
-    } catch (parseError) {
-      console.error("Error parsing AI response:", content);
+    } catch (_parseError) {
+      console.error("Error parsing AI response");
       throw new Error("No se pudo interpretar la respuesta del análisis");
     }
 
@@ -128,7 +176,7 @@ Responde SOLO con el JSON, sin explicaciones adicionales.`
     );
 
   } catch (error) {
-    console.error("OCR processing error:", error);
+    console.error("OCR processing error:", error instanceof Error ? error.message : "Unknown");
     const errorMessage = error instanceof Error ? error.message : "Error desconocido";
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
