@@ -50,9 +50,14 @@ export default function CamaraFria() {
           ? `${pasillos[pasilloIndex]}-${posiciones[posicionIndex]}`
           : null;
 
+        const calibre = item.produccion?.calibre || "S/C";
+        const calidad = item.produccion?.calidad || "Sin calidad";
+
         return {
           id: item.produccion?.lotes?.numero_lote || item.id.slice(0, 8),
-          producto: `${item.produccion?.calidad || "Sin calidad"} ${item.produccion?.calibre || "S/C"}`.trim(),
+          producto: calibre,
+          calidad,
+          calibre,
           ubicacion,
           dias,
           estado,
