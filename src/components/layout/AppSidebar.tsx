@@ -48,20 +48,14 @@ const mainNavItems: NavItem[] = [
   { title: "Cámara Fría", href: "/camara-fria", icon: Snowflake },
   { title: "Logística", href: "/logistica", icon: Truck },
   {
-    title: "Recepción Bodega",
-    href: "/recepcion-transferencia",
-    icon: Package,
-  },
-  {
-    title: "Punto de Venta Limón",
-    href: "/ventas",
-    icon: Citrus, // Cambiado de ShoppingCart a Citrus
+    title: "Bodega CDMX",
+    href: "/bodega-cdmx",
+    icon: ShoppingCart,
   },
   { title: "Facturación", href: "/facturacion", icon: FileText },
   { title: "Finanzas", href: "/finanzas", icon: Wallet },
   { title: "Maquila", href: "/maquila", icon: Cog },
   { title: "Gastos", href: "/gastos", icon: Receipt },
-  { title: "Corte de Caja", href: "/corte-caja", icon: Calculator },
   { title: "Insumos", href: "/insumos", icon: Package },
   { title: "Reportes", href: "/reportes", icon: BarChart3 },
 ];
