@@ -477,9 +477,6 @@ export default function Recepcion() {
                         Siguiente
                       </Button>
                     </div>
-                    <p id="precio-desc" className="text-xs text-muted-foreground">
-                      Precio acordado por kilogramo de fruta
-                    </p>
                   </div>
 
                   {/* Costo de Báscula */}
