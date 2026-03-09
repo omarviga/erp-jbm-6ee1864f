@@ -194,12 +194,23 @@ export default function CamaraFria() {
           usuarioId: user.id,
         });
       }
+      await Promise.all(
+        pisoEmpaqueItems.map((item) =>
+          trasladoInterno({
+            produccionId: item.id,
+            loteId: item.lote_id,
+            cantidad: item.cajas,
+            usuarioId: user.id,
+          })
+        )
+      );
 
       toast.success("Traslado interno completado", {
         description: `Se trasladaron ${pisoEmpaqueItems.length} registros de Piso Empaque a Cámara Fría.`,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : (typeof error === "object" && error && "message" in error ? String((error as { message?: string }).message) : "Error desconocido");
+      const message = error instanceof Error ? error.message : "Error desconocido";
       toast.error("No se pudo completar el traslado interno", { description: message });
     }
   };
@@ -285,6 +296,35 @@ export default function CamaraFria() {
     } catch (error) {
       const message = error instanceof Error ? error.message : (typeof error === "object" && error && "message" in error ? String((error as { message?: string }).message) : "Error desconocido");
       toast.error("No se pudo enviar el lote a CDMX", { description: message });
+    }
+  };
+
+
+
+    if (cantidad > loteMermaSeleccionado.cajas) {
+      toast.error("La merma no puede ser mayor al stock disponible.");
+      return;
+    }
+
+    if (!mermaMotivo.trim()) {
+      toast.error("Debes capturar el motivo de la merma.");
+      return;
+    }
+
+    try {
+      await registrarMerma({
+        idCamara: loteMermaSeleccionado.id,
+        idLote: loteMermaSeleccionado.lote_id,
+        cantidad,
+        motivo: mermaMotivo.trim(),
+        idUsuario: user.id,
+      });
+
+      toast.success("Merma registrada correctamente");
+      setIsMermaDialogOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error desconocido";
+      toast.error("No se pudo registrar la merma", { description: message });
     }
   };
 
@@ -515,6 +555,9 @@ export default function CamaraFria() {
                         {isEnviandoTransporteDirecto ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Truck className="mr-2 h-3 w-3" />}
                         Enviar a CDMX
                       </Button>
+                    <div className="text-right">
+                      <Badge variant="secondary">{item.cajas} cajas</Badge>
+                      <p className="text-xs text-muted-foreground mt-1">{format(new Date(item.created_at), "dd MMM HH:mm", { locale: es })}</p>
                     </div>
                   </div>
                 ))}

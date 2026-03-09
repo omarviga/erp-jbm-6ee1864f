@@ -190,6 +190,14 @@ export const useCamaraFria = () => {
                 usuario_id: usuarioId,
             });
 
+            if (error) {
+                const msg = buildRpcErrorMessage(error);
+                console.error("Error running trasladar_a_camara_fria RPC:", msg, error);
+                throw new Error(msg);
+                console.error("Error running trasladar_a_camara_fria RPC:", error);
+                throw error;
+            }
+
             return true;
         },
         onSuccess: async () => {
@@ -329,6 +337,12 @@ export const useCamaraFria = () => {
 
             if (detalleError) {
                 throw new Error(buildRpcErrorMessage(detalleError));
+            if (error) {
+                const msg = buildRpcErrorMessage(error);
+                console.error("Error running registrar_envio_cdmx_transporte_directo RPC:", msg, error);
+                throw new Error(msg);
+                console.error("Error running registrar_envio_cdmx_transporte_directo RPC:", error);
+                throw error;
             }
 
             return true;
@@ -360,6 +374,8 @@ export const useCamaraFria = () => {
                 const msg = buildRpcErrorMessage(error);
                 console.error("Error running registrar_baja_merma RPC:", msg, error);
                 throw new Error(msg);
+                console.error("Error running registrar_baja_merma RPC:", error);
+                throw error;
             }
 
             return true;
