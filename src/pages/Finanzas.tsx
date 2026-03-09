@@ -997,7 +997,12 @@ export default function Finanzas() {
           </div>
         </TabsContent>
 
-        {/* --- PESTAÑA 3: COMPRAS --- */}
+        {/* --- PESTAÑA: RESUMEN INGRESOS VS EGRESOS --- */}
+        <TabsContent value="resumen" className="space-y-6">
+          <GastosResumenTab />
+        </TabsContent>
+
+        {/* --- PESTAÑA: COMPRAS --- */}
         <TabsContent value="compras" className="space-y-6">
           <ComprasTab />
         </TabsContent>
