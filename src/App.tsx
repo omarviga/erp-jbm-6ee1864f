@@ -14,8 +14,7 @@ import Recepcion from "./pages/Recepcion";
 import Produccion from "./pages/Produccion";
 import CamaraFria from "./pages/CamaraFria";
 import Logistica from "./pages/Logistica";
-import Ventas from "./pages/Ventas";
-import RecepcionTransferencia from "./pages/RecepcionTransferencia";
+import BodegaCDMX from "./pages/BodegaCDMX";
 import Facturacion from "./pages/Facturacion";
 import Finanzas from "./pages/Finanzas";
 import Insumos from "./pages/Insumos";
@@ -25,7 +24,6 @@ import Configuracion from "./pages/Configuracion";
 import LoteExpediente from "./components/trazabilidad/LoteExpediente";
 import Maquila from "./pages/Maquila";
 import Gastos from "./pages/Gastos";
-import CorteCajaCDMX from "./pages/CorteCajaCDMX";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotFound from "./pages/NotFound";
 import { useSupabase } from '@/hooks/useSupabase';
@@ -85,16 +83,14 @@ const App = () => (
                   <Logistica />
                 </ProtectedRoute>
               } />
-              <Route path="/ventas" element={
+              
+              {/* BODEGA CDMX - Full module with sub-tabs */}
+              <Route path="/bodega-cdmx" element={
                 <ProtectedRoute>
-                  <Ventas />
+                  <BodegaCDMX />
                 </ProtectedRoute>
               } />
-              <Route path="/recepcion-transferencia" element={
-                <ProtectedRoute>
-                  <RecepcionTransferencia />
-                </ProtectedRoute>
-              } />
+
               <Route path="/facturacion" element={
                 <ProtectedRoute>
                   <Facturacion />
@@ -138,11 +134,6 @@ const App = () => (
               <Route path="/gastos" element={
                 <ProtectedRoute>
                   <Gastos />
-                </ProtectedRoute>
-              } />
-              <Route path="/corte-caja" element={
-                <ProtectedRoute>
-                  <CorteCajaCDMX />
                 </ProtectedRoute>
               } />
 
