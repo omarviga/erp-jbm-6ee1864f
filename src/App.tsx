@@ -25,6 +25,7 @@ import Configuracion from "./pages/Configuracion";
 import LoteExpediente from "./components/trazabilidad/LoteExpediente";
 import Maquila from "./pages/Maquila";
 import Gastos from "./pages/Gastos";
+import CorteCajaCDMX from "./pages/CorteCajaCDMX";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotFound from "./pages/NotFound";
 import { useSupabase } from '@/hooks/useSupabase';
