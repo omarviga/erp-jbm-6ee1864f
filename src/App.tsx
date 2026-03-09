@@ -122,6 +122,11 @@ const App = () => (
                   <LoteExpediente />
                 </ProtectedRoute>
               } />
+              <Route path="/maquila" element={
+                <ProtectedRoute>
+                  <Maquila />
+                </ProtectedRoute>
+              } />
 
               {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />
