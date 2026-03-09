@@ -544,9 +544,6 @@ export default function Recepcion() {
                       className="min-h-[100px]"
                       aria-describedby="notas-desc"
                     />
-                    <p id="notas-desc" className="text-xs text-muted-foreground">
-                      Observaciones adicionales sobre el lote
-                    </p>
                   </div>
 
                   {/* Total Estimado */}
