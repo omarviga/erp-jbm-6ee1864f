@@ -535,15 +535,15 @@ export default function Finanzas() {
       </div>
 
       <Tabs defaultValue="liquidaciones" className="space-y-6">
-        <TabsList className="grid w-full max-w-lg grid-cols-3 h-12 bg-slate-100 p-1">
-          <TabsTrigger value="liquidaciones" className="text-base font-medium bg-white shadow-sm">
+        <TabsList className="grid w-full max-w-lg grid-cols-3 h-12 bg-muted p-1">
+          <TabsTrigger value="liquidaciones" className="text-base font-medium">
             <Calculator className="h-4 w-4 mr-2" /> Liquidaciones
           </TabsTrigger>
-          <TabsTrigger value="conciliacion" className="text-base font-medium bg-white shadow-sm">
+          <TabsTrigger value="conciliacion" className="text-base font-medium">
             <Wallet className="h-4 w-4 mr-2" /> Conciliación
           </TabsTrigger>
-          <TabsTrigger value="cobranza" className="text-base font-medium bg-white shadow-sm">
-            <Users className="h-4 w-4 mr-2" /> Cobranza
+          <TabsTrigger value="compras" className="text-base font-medium">
+            <ShoppingCart className="h-4 w-4 mr-2" /> Compras
           </TabsTrigger>
         </TabsList>
 
