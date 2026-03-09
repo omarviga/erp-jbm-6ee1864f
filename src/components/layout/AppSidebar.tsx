@@ -24,7 +24,7 @@ import {
   Settings,
   LogOut,
   Shield,
-  Citrus,
+  Cog,
   Cog,
   Receipt,
 } from "lucide-react";
