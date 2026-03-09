@@ -7,7 +7,8 @@ export interface Producto {
     nombre: string;
     peso_kg: number;
     tipo: string;
-    precio_sugerido?: number; // In memory or from a future column
+    precio_sugerido?: number;
+    inventario_id?: string;
 }
 
 export interface CartItem extends Producto {
