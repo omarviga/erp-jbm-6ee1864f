@@ -288,7 +288,7 @@ export default function Recepcion() {
                       className="mt-2 bg-white text-lg font-mono font-bold border-slate-400"
                       autoFocus
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Digita el número rojo impreso en el papel</p>
+                    
                   </div>
 
                   {/* Búsqueda y Selección de Productor */}
