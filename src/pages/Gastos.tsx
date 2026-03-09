@@ -133,7 +133,7 @@ export default function Gastos() {
   const totalGastos = gastosFiltrados.reduce((sum, g) => sum + g.monto, 0);
 
   return (
-    <MainLayout header="Gastos">
+    <MainLayout title="Gastos">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <PageHeader title="Control de Gastos" icon={Receipt} description="Registra y controla los gastos del empaque" />
