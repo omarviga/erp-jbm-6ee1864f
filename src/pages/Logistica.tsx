@@ -33,6 +33,7 @@ import { es } from "date-fns/locale";
 import { debounce } from "lodash";
 import { useLogistica } from "@/hooks/useLogistica";
 import { useFacturacion } from "@/hooks/useFacturacion";
+import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
 
 // --- TYPES ---
 type TipoCliente = "nacional" | "exportacion_usa" | "exportacion_otros";
