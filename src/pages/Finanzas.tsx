@@ -34,6 +34,7 @@ import { EstadoCuentaDocument } from '@/components/pdf/EstadoCuentaDocument';
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { ComprasTab } from "@/components/finanzas/ComprasTab";
+import { GastosResumenTab } from "@/components/finanzas/GastosResumenTab";
 
 // Tipos basados en el esquema Supabase
 type Lote = Database['public']['Tables']['lotes']['Row'];
