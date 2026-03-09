@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Plus, Minus, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, AlertTriangle, Loader2, Lock } from "lucide-react";
 import { useVentas } from "@/hooks/useVentas";
 import { toast } from "sonner";
 
@@ -18,9 +18,19 @@ export default function Ventas() {
     [carrito]
   );
 
+  // STRICT: Block if ANY item has precio_venta < precio_base (precio_sugerido)
+  const precioInvalido = carrito.some(item => item.precio_venta < (item.precio_sugerido || 0));
+
   const onCobrar = async () => {
     if (carrito.length === 0) {
       toast.error("El carrito está vacío");
+      return;
+    }
+
+    if (precioInvalido) {
+      toast.error("Precio por debajo del costo", {
+        description: "No puedes vender por debajo del precio base. Contacta al administrador para autorización."
+      });
       return;
     }
 
@@ -51,7 +61,10 @@ export default function Ventas() {
                         </div>
                         <div className="flex items-center justify-between">
                           <Badge variant="outline">Stock: {existencia}</Badge>
-                          <p className="font-mono text-sm text-foreground">${(p.precio_sugerido || 0).toFixed(2)}</p>
+                          <div className="text-right">
+                            <p className="font-mono text-sm text-foreground">${(p.precio_sugerido || 0).toFixed(2)}</p>
+                            <p className="text-[10px] text-muted-foreground">Precio base</p>
+                          </div>
                         </div>
                         <Button className="w-full" onClick={() => agregarAlCarrito(p)} disabled={existencia <= 0}>
                           <Plus className="w-4 h-4 mr-2" /> Agregar
@@ -76,48 +89,52 @@ export default function Ventas() {
               {carrito.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Sin productos en carrito</p>
               ) : (
-                carrito.map((item) => (
-                  <div key={item.id} className="border border-border rounded-md p-3 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium text-sm leading-tight">{item.nombre}</p>
-                      <Button variant="ghost" size="icon" onClick={() => eliminarDelCarrito(item.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                carrito.map((item) => {
+                  const porDebajoBase = item.precio_venta < (item.precio_sugerido || 0);
+                  return (
+                    <div key={item.id} className={`border rounded-md p-3 space-y-2 ${porDebajoBase ? 'border-destructive bg-destructive/5' : 'border-border'}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-medium text-sm leading-tight">{item.nombre}</p>
+                        <Button variant="ghost" size="icon" onClick={() => eliminarDelCarrito(item.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Cantidad</p>
-                        <div className="flex items-center gap-1">
-                          <Button variant="outline" size="icon" onClick={() => actualizarItem(item.id, { cantidad: Math.max(1, item.cantidad - 1) })}>
-                            <Minus className="w-3 h-3" />
-                          </Button>
-                          <span className="w-10 text-center text-sm font-semibold">{item.cantidad}</span>
-                          <Button variant="outline" size="icon" onClick={() => actualizarItem(item.id, { cantidad: item.cantidad + 1 })}>
-                            <Plus className="w-3 h-3" />
-                          </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Cantidad</p>
+                          <div className="flex items-center gap-1">
+                            <Button variant="outline" size="icon" onClick={() => actualizarItem(item.id, { cantidad: Math.max(1, item.cantidad - 1) })}>
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <span className="w-10 text-center text-sm font-semibold">{item.cantidad}</span>
+                            <Button variant="outline" size="icon" onClick={() => actualizarItem(item.id, { cantidad: item.cantidad + 1 })}>
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Precio venta</p>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={item.precio_venta}
+                            onChange={(e) => actualizarItem(item.id, { precio_venta: parseFloat(e.target.value) || 0 })}
+                            className={porDebajoBase ? 'border-destructive' : ''}
+                          />
                         </div>
                       </div>
 
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Precio venta</p>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={item.precio_venta}
-                          onChange={(e) => actualizarItem(item.id, { precio_venta: parseFloat(e.target.value) || 0 })}
-                        />
-                      </div>
+                      {porDebajoBase && (
+                        <div className="flex items-center gap-2 text-xs text-destructive font-semibold bg-destructive/10 rounded p-2">
+                          <Lock className="w-3 h-3" />
+                          BLOQUEADO: Precio mínimo ${(item.precio_sugerido || 0).toFixed(2)}
+                        </div>
+                      )}
                     </div>
-
-                    {item.precio_venta < (item.precio_sugerido || 0) && (
-                      <div className="flex items-center gap-2 text-xs text-destructive">
-                        <AlertTriangle className="w-3 h-3" />
-                        Precio por debajo del precio base
-                      </div>
-                    )}
-                  </div>
-                ))
+                  );
+                })
               )}
 
               <Separator />
@@ -143,9 +160,31 @@ export default function Ventas() {
                 <span className="font-mono">${total.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
               </div>
 
-              <Button className="w-full" onClick={onCobrar} disabled={loading || carrito.length === 0}>
-                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Cobrar
+              {/* STRICT: Button is DISABLED when price is below base */}
+              <Button
+                className="w-full"
+                onClick={onCobrar}
+                disabled={loading || carrito.length === 0 || precioInvalido}
+              >
+                {precioInvalido ? (
+                  <>
+                    <Lock className="w-4 h-4 mr-2" />
+                    Precio Inválido — Contactar Admin
+                  </>
+                ) : loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Procesando...
+                  </>
+                ) : (
+                  'Cobrar'
+                )}
               </Button>
+
+              {precioInvalido && (
+                <p className="text-xs text-center text-destructive">
+                  Para vender por debajo del precio base se requiere autorización del administrador.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
