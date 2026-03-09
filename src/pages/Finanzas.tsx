@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useProductores } from "@/hooks/useProductores";
 import { Checkbox } from "@/components/ui/checkbox";
-// ICONOS COMPLETOS
 import {
   Wallet,
   Users,
@@ -25,7 +24,8 @@ import {
   Upload,
   CheckCircle,
   Download,
-  Loader
+  Loader,
+  ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,7 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import { EstadoCuentaDocument } from '@/components/pdf/EstadoCuentaDocument';
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { ComprasTab } from "@/components/finanzas/ComprasTab";
 
 // Tipos basados en el esquema Supabase
 type Lote = Database['public']['Tables']['lotes']['Row'];
