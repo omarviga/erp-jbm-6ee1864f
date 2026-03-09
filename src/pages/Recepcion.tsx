@@ -250,12 +250,8 @@ export default function Recepcion() {
   };
 
   return (
-    <MainLayout title="Recepción con Cálculos y Precio" subtitle="Gestión de entrada de materia prima con liquidación automática por peso neto.">
+     <MainLayout title="Recepción" subtitle="Gestión de entrada de materia prima">
       <div className="space-y-6">
-        <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700/80">Recepción terceros actualizada</p>
-          <p className="mt-1 text-sm text-muted-foreground">Interfaz optimizada para captura rápida en báscula, control de calidad y liquidación final.</p>
-        </div>
 
         <div className="grid lg:grid-cols-12 gap-6">
         {/* --- COLUMNA IZQUIERDA: FLUJO (8 Cols) --- */}
