@@ -43,7 +43,7 @@ const mainNavItems: NavItem[] = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
   { title: "Recepción", href: "/recepcion", icon: Scale },
   { title: "Producción", href: "/produccion", icon: Factory },
-  { title: "Inventarios", href: "/camara-fria", icon: Snowflake },
+  { title: "📦 Inventarios", href: "/inventarios", icon: Snowflake },
   { title: "Logística", href: "/logistica", icon: Truck },
   {
     title: "Bodega CDMX",
