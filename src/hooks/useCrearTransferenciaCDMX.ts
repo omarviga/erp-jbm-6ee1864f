@@ -11,6 +11,9 @@ export interface ItemTransferencia {
   cantidad: number;
   cantidad_disponible: number;
   peso_kg: number;
+  calibre: string;
+  calidad: string;
+  lote_numero: string;
   descripcion: string;
 }
 
