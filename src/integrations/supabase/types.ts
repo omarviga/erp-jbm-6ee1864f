@@ -1622,7 +1622,9 @@ export type Database = {
       registrar_envio_cdmx: {
         Args: {
           p_cantidad_enviar: number
+          p_chofer: string
           p_lote_id: string
+          p_placas: string
           p_precio_base_congelado: number
           p_referencia_viaje: string
           p_registro_camara_id: string
@@ -1633,7 +1635,9 @@ export type Database = {
       registrar_envio_cdmx_transporte_directo: {
         Args: {
           p_cantidad_enviar: number
+          p_chofer: string
           p_lote_id: string
+          p_placas: string
           p_precio_base_congelado: number
           p_produccion_id: string
           p_referencia_viaje: string
