@@ -22,6 +22,7 @@ import Reportes from "./pages/Reportes";
 import Productores from "./pages/Productores";
 import Configuracion from "./pages/Configuracion";
 import LoteExpediente from "./components/trazabilidad/LoteExpediente";
+import Maquila from "./pages/Maquila";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotFound from "./pages/NotFound";
 import { useSupabase } from '@/hooks/useSupabase';
@@ -119,6 +120,11 @@ const App = () => (
               <Route path="/lotes/:loteId" element={
                 <ProtectedRoute>
                   <LoteExpediente />
+                </ProtectedRoute>
+              } />
+              <Route path="/maquila" element={
+                <ProtectedRoute>
+                  <Maquila />
                 </ProtectedRoute>
               } />
 

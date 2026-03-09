@@ -24,7 +24,8 @@ import {
   Settings,
   LogOut,
   Shield,
-  Citrus, // Agregar icono de limón
+  Citrus,
+  Cog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,6 +52,7 @@ const mainNavItems: NavItem[] = [
   },
   { title: "Facturación", href: "/facturacion", icon: FileText },
   { title: "Finanzas", href: "/finanzas", icon: Wallet },
+  { title: "Maquila", href: "/maquila", icon: Cog },
   { title: "Insumos", href: "/insumos", icon: Package },
   { title: "Reportes", href: "/reportes", icon: BarChart3 },
 ];
