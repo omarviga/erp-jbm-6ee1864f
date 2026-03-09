@@ -120,7 +120,6 @@ export default function Gastos() {
       notas: form.notas || null,
       imagen_url,
       usuario_id: user?.id || null,
-      updated_at: new Date().toISOString(),
     });
 
     resetForm();
