@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useProductores } from "@/hooks/useProductores";
 import { Checkbox } from "@/components/ui/checkbox";
-// ICONOS COMPLETOS
 import {
   Wallet,
   Users,
@@ -25,7 +24,8 @@ import {
   Upload,
   CheckCircle,
   Download,
-  Loader
+  Loader,
+  ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,7 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import { EstadoCuentaDocument } from '@/components/pdf/EstadoCuentaDocument';
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { ComprasTab } from "@/components/finanzas/ComprasTab";
 
 // Tipos basados en el esquema Supabase
 type Lote = Database['public']['Tables']['lotes']['Row'];
@@ -41,13 +42,6 @@ type Liquidacion = Database['public']['Tables']['liquidaciones']['Row'];
 type Cliente = Database['public']['Tables']['clientes']['Row'];
 
 // Tipos para los datos transformados
-interface ClienteMoroso {
-  id: string;
-  nombre: string;
-  saldo: number;
-  diasVencido: number;
-  limite: number;
-}
 
 interface LiquidacionPasada {
   id: string;
@@ -126,7 +120,6 @@ export default function Finanzas() {
   const [productores, setProductores] = useState<Productor[]>([]);
   const [lotesPendientes, setLotesPendientes] = useState<Lote[]>([]);
   const [liquidacionesPasadas, setLiquidacionesPasadas] = useState<LiquidacionPasada[]>([]);
-  const [clientesMorosos, setClientesMorosos] = useState<ClienteMoroso[]>([]);
   const [loadingLotes, setLoadingLotes] = useState(false);
   const [guardandoLiquidacion, setGuardandoLiquidacion] = useState(false);
 
@@ -252,41 +245,6 @@ export default function Finanzas() {
     };
 
     cargarLiquidacionesPasadas();
-  }, []);
-
-  // Cargar clientes morosos
-  useEffect(() => {
-    const cargarClientesMorosos = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('clientes')
-          .select(`
-            *,
-            clientes_sensible (
-              limite_credito
-            )
-          `)
-          .gt('saldo_deudor', 0)
-          .order('saldo_deudor', { ascending: false });
-
-        if (error) throw error;
-
-        // Transformamos los datos para mantener compatibilidad
-        const clientesTransformados: ClienteMoroso[] = (data || []).map(c => ({
-          id: c.id,
-          nombre: c.nombre,
-          saldo: c.saldo_deudor,
-          diasVencido: Math.floor(Math.random() * 60) + 1,
-          limite: c.clientes_sensible?.limite_credito || 0
-        }));
-
-        setClientesMorosos(clientesTransformados);
-      } catch (error) {
-        console.error('Error cargando clientes morosos:', error);
-      }
-    };
-
-    cargarClientesMorosos();
   }, []);
 
   const productorSeleccionado = productores.find(p => p.id === productorId);
@@ -453,52 +411,6 @@ export default function Finanzas() {
     return Math.abs(montoRetiro - montoPago) < 1;
   };
 
-  // --- LÓGICA COBRANZA ---
-  const handleCobrarCliente = async (clienteId: string, clienteNombre: string) => {
-    try {
-      // Buscar el cliente en la lista de morosos
-      const clienteMoroso = clientesMorosos.find(c => c.id === clienteId);
-      if (!clienteMoroso) return;
-
-      // Aquí implementarías la lógica para registrar un pago del cliente
-      const { error } = await supabase
-        .from('pagos_clientes')
-        .insert({
-          cliente_id: clienteId,
-          monto: clienteMoroso.saldo,
-          forma_pago: 'transferencia',
-          referencia: `PAGO-${Date.now()}`
-        });
-
-      if (error) throw error;
-
-      // Actualizar saldo del cliente
-      const { error: errorUpdate } = await supabase
-        .from('clientes')
-        .update({ saldo_deudor: 0 })
-        .eq('id', clienteId);
-
-      if (errorUpdate) throw errorUpdate;
-
-      toast({
-        title: "💰 Pago Registrado",
-        description: `Se ha registrado el pago de ${clienteNombre}`,
-        className: "bg-blue-600 text-white border-none"
-      });
-
-      // Actualizar lista de clientes morosos
-      setClientesMorosos(prev => prev.filter(c => c.id !== clienteId));
-
-    } catch (error) {
-      console.error('Error al registrar pago:', error);
-      toast({
-        title: "❌ Error",
-        description: "No se pudo registrar el pago",
-        variant: "destructive"
-      });
-    }
-  };
-
   return (
     <MainLayout title="Control de Pagos" subtitle="Liquidaciones Semanales">
 
@@ -534,15 +446,15 @@ export default function Finanzas() {
       </div>
 
       <Tabs defaultValue="liquidaciones" className="space-y-6">
-        <TabsList className="grid w-full max-w-lg grid-cols-3 h-12 bg-slate-100 p-1">
-          <TabsTrigger value="liquidaciones" className="text-base font-medium bg-white shadow-sm">
+        <TabsList className="grid w-full max-w-lg grid-cols-3 h-12 bg-muted p-1">
+          <TabsTrigger value="liquidaciones" className="text-base font-medium">
             <Calculator className="h-4 w-4 mr-2" /> Liquidaciones
           </TabsTrigger>
-          <TabsTrigger value="conciliacion" className="text-base font-medium bg-white shadow-sm">
+          <TabsTrigger value="conciliacion" className="text-base font-medium">
             <Wallet className="h-4 w-4 mr-2" /> Conciliación
           </TabsTrigger>
-          <TabsTrigger value="cobranza" className="text-base font-medium bg-white shadow-sm">
-            <Users className="h-4 w-4 mr-2" /> Cobranza
+          <TabsTrigger value="compras" className="text-base font-medium">
+            <ShoppingCart className="h-4 w-4 mr-2" /> Compras
           </TabsTrigger>
         </TabsList>
 
@@ -1081,70 +993,9 @@ export default function Finanzas() {
           </div>
         </TabsContent>
 
-        {/* --- PESTAÑA 3: COBRANZA --- */}
-        <TabsContent value="cobranza" className="space-y-6">
-          <Card className="module-card">
-            <CardHeader className="pb-4 border-b">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-orange-500" />
-                    Antigüedad de Saldos
-                  </CardTitle>
-                  <CardDescription>Clientes con facturas vencidas o por vencer</CardDescription>
-                </div>
-                <div className="flex gap-2 text-xs">
-                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Moroso (+30d)</Badge>
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Vencido (+15d)</Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-3">
-                {clientesMorosos.map((cliente) => {
-                  const dias = cliente.diasVencido;
-                  const borderClass = dias > 30 ? "border-l-red-500" : dias > 15 ? "border-l-amber-500" : "border-l-slate-200";
-
-                  return (
-                    <div
-                      key={cliente.id}
-                      className={cn("p-4 rounded-r-lg border border-l-4 bg-white shadow-sm hover:shadow-md transition-shadow", borderClass)}
-                    >
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-lg text-slate-800">{cliente.nombre}</span>
-                            {dias > 30 && <Badge variant="destructive" className="animate-pulse">ACCIÓN LEGAL REQUERIDA</Badge>}
-                          </div>
-                          <div className="flex gap-6 mt-2 text-sm text-slate-500">
-                            <span className="flex items-center gap-1"><Receipt className="h-3 w-3" /> Límite: ${cliente.limite.toLocaleString()}</span>
-                            <span className={cn("font-bold flex items-center gap-1", dias > 15 ? "text-red-600" : "text-slate-600")}>
-                              <AlertTriangle className="h-3 w-3" /> {dias} días vencido
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-6">
-                          <div className="text-right">
-                            <p className="text-xs text-muted-foreground uppercase">Deuda Total</p>
-                            <p className={cn("text-2xl font-black", dias > 30 ? "text-red-600" : "text-slate-700")}>
-                              ${cliente.saldo.toLocaleString()}
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={() => handleCobrarCliente(cliente.id, cliente.nombre)}
-                          >
-                            Registrar Pago <ArrowRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+        {/* --- PESTAÑA 3: COMPRAS --- */}
+        <TabsContent value="compras" className="space-y-6">
+          <ComprasTab />
         </TabsContent>
       </Tabs>
     </MainLayout>
