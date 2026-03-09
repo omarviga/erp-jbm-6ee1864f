@@ -342,15 +342,7 @@ export default function Produccion() {
   const tieneKilosSuficientes = kilosDisponibles > 0 && !sobrepasaKilosDisponibles;
   const diferenciaKilos = kilosSolicitados - kilosDisponibles;
 
-  // Filtrar calibres para limón
-  const calibresLimon = useMemo(() => {
-    if (!clasificacionesDB || clasificacionesDB.length === 0) return [];
-
-    return clasificacionesDB.filter(c => {
-      const nombre = c.nombre_producto?.toLowerCase() || '';
-      return nombre.includes('limón') || nombre.includes('limon');
-    });
-  }, [clasificacionesDB]);
+  // Already using TODOS_CALIBRES / CALIBRES_POR_COLOR constants
 
   // Función para calcular el peso total
   const pesoTotal = useMemo(() => {
