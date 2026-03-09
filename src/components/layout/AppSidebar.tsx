@@ -27,6 +27,7 @@ import {
   Citrus,
   Cog,
   Receipt,
+  Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,6 +61,7 @@ const mainNavItems: NavItem[] = [
   { title: "Finanzas", href: "/finanzas", icon: Wallet },
   { title: "Maquila", href: "/maquila", icon: Cog },
   { title: "Gastos", href: "/gastos", icon: Receipt },
+  { title: "Corte de Caja", href: "/corte-caja", icon: Calculator },
   { title: "Insumos", href: "/insumos", icon: Package },
   { title: "Reportes", href: "/reportes", icon: BarChart3 },
 ];

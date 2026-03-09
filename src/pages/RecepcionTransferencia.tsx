@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useTransferenciasCDMX } from "@/hooks/useTransferenciasCDMX";
-import { Truck, PackageCheck, AlertTriangle, CheckCircle, Eye, Loader2 } from "lucide-react";
+import { Truck, PackageCheck, AlertTriangle, CheckCircle, Eye, Loader2, Camera, ImageIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -24,17 +25,22 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 
 interface DetalleRecepcion {
   presentacion_id: string;
   presentacion_nombre: string;
-  cantidad_enviada: number;
+  cantidad_enviada: number; // Kept internally for DB, but HIDDEN from UI
   cantidad_recibida: number;
   precio_base: number;
   precio_venta: number;
   notas_diferencia: string;
+}
+
+interface FotoEvidencia {
+  presentacion_id: string;
+  file: File;
+  preview: string;
 }
 
 export default function RecepcionTransferencia() {
@@ -42,6 +48,9 @@ export default function RecepcionTransferencia() {
   const [transferenciaSeleccionada, setTransferenciaSeleccionada] = useState<string | null>(null);
   const [detallesRecepcion, setDetallesRecepcion] = useState<Record<string, DetalleRecepcion>>({});
   const [mostrarDialog, setMostrarDialog] = useState(false);
+  const [fotos, setFotos] = useState<FotoEvidencia[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fotoParaProducto, setFotoParaProducto] = useState<string | null>(null);
 
   const { data: detalles, isLoading: loadingDetalles } = useDetallesTransferencia(transferenciaSeleccionada || undefined);
 
@@ -50,6 +59,7 @@ export default function RecepcionTransferencia() {
   const seleccionarTransferencia = (id: string) => {
     setTransferenciaSeleccionada(id);
     setDetallesRecepcion({});
+    setFotos([]);
     setMostrarDialog(true);
   };
 
@@ -63,7 +73,7 @@ export default function RecepcionTransferencia() {
     }));
   };
 
-  // Inicializar detalles automáticamente cuando cambien los datos
+  // Initialize details - cantidad_enviada is stored internally but NOT shown
   useEffect(() => {
     if (detalles && detalles.length > 0 && Object.keys(detallesRecepcion).length === 0) {
       const nuevosDetalles: Record<string, DetalleRecepcion> = {};
@@ -71,10 +81,10 @@ export default function RecepcionTransferencia() {
         nuevosDetalles[d.presentacion_id] = {
           presentacion_id: d.presentacion_id,
           presentacion_nombre: d.presentacion?.nombre || 'Producto',
-          cantidad_enviada: d.cantidad_enviada,
-          cantidad_recibida: d.cantidad_enviada, // Por defecto, asumir que se recibe todo
+          cantidad_enviada: d.cantidad_enviada, // Internal only
+          cantidad_recibida: 0, // Operator must count from scratch
           precio_base: d.precio_base,
-          precio_venta: d.precio_base, // Por defecto, mismo que precio base
+          precio_venta: d.precio_base,
           notas_diferencia: '',
         };
       });
@@ -82,8 +92,59 @@ export default function RecepcionTransferencia() {
     }
   }, [detalles, detallesRecepcion]);
 
+  const handleFotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !fotoParaProducto) return;
+
+    const preview = URL.createObjectURL(file);
+    setFotos(prev => [...prev, { presentacion_id: fotoParaProducto, file, preview }]);
+    setFotoParaProducto(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const eliminarFoto = (index: number) => {
+    setFotos(prev => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const abrirCamara = (presentacionId: string) => {
+    setFotoParaProducto(presentacionId);
+    fileInputRef.current?.click();
+  };
+
   const procesarRecepcionClick = async () => {
     if (!transferenciaSeleccionada) return;
+
+    // Check if any discrepancy exists without photo evidence
+    const hayDiscrepanciaSinFoto = Object.values(detallesRecepcion).some(d => {
+      const diferencia = d.cantidad_recibida - d.cantidad_enviada;
+      if (diferencia === 0) return false;
+      const tieneFoto = fotos.some(f => f.presentacion_id === d.presentacion_id);
+      return !tieneFoto;
+    });
+
+    if (hayDiscrepanciaSinFoto) {
+      toast.error("Evidencia requerida", {
+        description: "Debes subir una foto para cada producto con discrepancia."
+      });
+      return;
+    }
+
+    // Upload photos to storage if any
+    for (const foto of fotos) {
+      const ext = foto.file.name.split('.').pop();
+      const path = `transferencias/${transferenciaSeleccionada}/${foto.presentacion_id}_${Date.now()}.${ext}`;
+      
+      const { error } = await supabase.storage
+        .from('gastos-tickets') // Reusing existing bucket
+        .upload(path, foto.file);
+
+      if (error) {
+        console.error("Error uploading photo:", error);
+      }
+    }
 
     const detallesArray = Object.values(detallesRecepcion).map(d => ({
       presentacion_id: d.presentacion_id,
@@ -97,9 +158,12 @@ export default function RecepcionTransferencia() {
       detalles: detallesArray,
     });
 
+    // Cleanup
+    fotos.forEach(f => URL.revokeObjectURL(f.preview));
     setMostrarDialog(false);
     setTransferenciaSeleccionada(null);
     setDetallesRecepcion({});
+    setFotos([]);
   };
 
   const calcularDiferencia = (presentacionId: string) => {
@@ -114,6 +178,10 @@ export default function RecepcionTransferencia() {
 
   const validarPrecios = () => {
     return Object.values(detallesRecepcion).every(d => d.precio_venta >= d.precio_base);
+  };
+
+  const todosContados = () => {
+    return Object.values(detallesRecepcion).every(d => d.cantidad_recibida > 0);
   };
 
   if (isLoading) {
@@ -131,6 +199,16 @@ export default function RecepcionTransferencia() {
       title="Recepción de Transferencias" 
       subtitle="Cotejo ciego de mercancía desde Michoacán"
     >
+      {/* Hidden file input for camera/gallery */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFotoUpload}
+      />
+
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
@@ -150,14 +228,14 @@ export default function RecepcionTransferencia() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase">Recibidas Hoy</p>
-                <p className="text-3xl font-black text-green-600">
+                <p className="text-3xl font-black text-success">
                   {transferencias?.filter(t => 
                     t.estado === 'recibido' && 
                     new Date(t.fecha_recepcion || '').toDateString() === new Date().toDateString()
                   ).length || 0}
                 </p>
               </div>
-              <PackageCheck className="h-8 w-8 text-green-600" />
+              <PackageCheck className="h-8 w-8 text-success" />
             </div>
           </CardContent>
         </Card>
@@ -167,17 +245,17 @@ export default function RecepcionTransferencia() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase">Con Discrepancia</p>
-                <p className="text-3xl font-black text-red-600">
+                <p className="text-3xl font-black text-destructive">
                   {transferencias?.filter(t => t.estado === 'con_discrepancia').length || 0}
                 </p>
               </div>
-              <AlertTriangle className="h-8 w-8 text-red-600" />
+              <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Lista de transferencias en tránsito */}
+      {/* Transfer list */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -212,10 +290,7 @@ export default function RecepcionTransferencia() {
                     <TableCell className="font-mono">{t.placas || '—'}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{t.notas_salida || '—'}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        onClick={() => seleccionarTransferencia(t.id)}
-                      >
+                      <Button size="sm" onClick={() => seleccionarTransferencia(t.id)}>
                         <Eye className="w-4 h-4 mr-2" />
                         Recepcionar
                       </Button>
@@ -228,16 +303,16 @@ export default function RecepcionTransferencia() {
         </CardContent>
       </Card>
 
-      {/* Dialog de Recepción */}
+      {/* Reception Dialog - BLIND: no cantidad_enviada column */}
       <Dialog open={mostrarDialog} onOpenChange={setMostrarDialog}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PackageCheck className="h-5 w-5" />
-              Cotejo de Transferencia
+              Cotejo Ciego de Transferencia
             </DialogTitle>
             <DialogDescription>
-              Verifica la mercancía recibida vs. enviada. Los precios de venta deben ser iguales o mayores al precio base.
+              Cuenta físicamente cada producto y registra la cantidad recibida. <strong>No verás cuánto se envió.</strong>
             </DialogDescription>
           </DialogHeader>
 
@@ -247,31 +322,27 @@ export default function RecepcionTransferencia() {
             </div>
           ) : detalles && detalles.length > 0 ? (
             <div className="space-y-4">
-              {/* Los detalles se inicializan automáticamente con useEffect */}
-
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Producto</TableHead>
-                    <TableHead className="text-center">Enviado</TableHead>
-                    <TableHead className="text-center">Recibido</TableHead>
-                    <TableHead className="text-center">Diferencia</TableHead>
+                    {/* NO "Enviado" column - BLIND matching */}
+                    <TableHead className="text-center">Cantidad Recibida</TableHead>
                     <TableHead className="text-right">Precio Base</TableHead>
                     <TableHead className="text-right">Precio Venta</TableHead>
-                    <TableHead>Notas</TableHead>
+                    <TableHead>Notas / Evidencia</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {detalles.map((d) => {
-                    const diferencia = calcularDiferencia(d.presentacion_id);
                     const precioVentaValido = (detallesRecepcion[d.presentacion_id]?.precio_venta || d.precio_base) >= d.precio_base;
+                    const fotosProducto = fotos.filter(f => f.presentacion_id === d.presentacion_id);
 
                     return (
                       <TableRow 
                         key={d.id}
                         className={cn(
-                          diferencia !== 0 && "bg-red-50 dark:bg-red-950/20",
-                          !precioVentaValido && "bg-yellow-50 dark:bg-yellow-950/20"
+                          !precioVentaValido && "bg-warning/10"
                         )}
                       >
                         <TableCell className="font-medium">
@@ -280,28 +351,15 @@ export default function RecepcionTransferencia() {
                             {d.presentacion?.peso_kg} kg • {d.presentacion?.tipo}
                           </div>
                         </TableCell>
-                        <TableCell className="text-center font-bold">{d.cantidad_enviada}</TableCell>
                         <TableCell className="text-center">
                           <Input
                             type="number"
                             min="0"
-                            className="w-20 text-center"
-                            value={detallesRecepcion[d.presentacion_id]?.cantidad_recibida || d.cantidad_enviada}
+                            placeholder="Contar..."
+                            className="w-24 text-center text-lg font-bold mx-auto"
+                            value={detallesRecepcion[d.presentacion_id]?.cantidad_recibida ?? ''}
                             onChange={(e) => actualizarDetalle(d.presentacion_id, 'cantidad_recibida', parseInt(e.target.value) || 0)}
                           />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {diferencia !== 0 && (
-                            <Badge variant={diferencia > 0 ? "default" : "destructive"}>
-                              {diferencia > 0 ? '+' : ''}{diferencia}
-                            </Badge>
-                          )}
-                          {diferencia === 0 && (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              OK
-                            </Badge>
-                          )}
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           ${d.precio_base.toFixed(2)}
@@ -313,24 +371,48 @@ export default function RecepcionTransferencia() {
                             min={d.precio_base}
                             className={cn(
                               "w-28 text-right font-mono",
-                              !precioVentaValido && "border-yellow-500 focus:border-yellow-600"
+                              !precioVentaValido && "border-destructive focus:border-destructive"
                             )}
                             value={detallesRecepcion[d.presentacion_id]?.precio_venta || d.precio_base}
                             onChange={(e) => actualizarDetalle(d.presentacion_id, 'precio_venta', parseFloat(e.target.value) || d.precio_base)}
                           />
                           {!precioVentaValido && (
-                            <p className="text-xs text-yellow-600 mt-1">Debe ser ≥ precio base</p>
+                            <p className="text-xs text-destructive mt-1">Debe ser ≥ precio base</p>
                           )}
                         </TableCell>
                         <TableCell>
-                          {diferencia !== 0 && (
+                          <div className="space-y-2">
                             <Textarea
-                              placeholder="Explicar diferencia..."
-                              className="min-h-[60px] text-sm"
+                              placeholder="Notas (opcional)..."
+                              className="min-h-[50px] text-sm"
                               value={detallesRecepcion[d.presentacion_id]?.notas_diferencia || ''}
                               onChange={(e) => actualizarDetalle(d.presentacion_id, 'notas_diferencia', e.target.value)}
                             />
-                          )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => abrirCamara(d.presentacion_id)}
+                            >
+                              <Camera className="w-4 h-4 mr-2" />
+                              Foto evidencia
+                            </Button>
+                            {fotosProducto.length > 0 && (
+                              <div className="flex gap-2 flex-wrap">
+                                {fotosProducto.map((foto, i) => (
+                                  <div key={i} className="relative w-16 h-16 rounded border border-border overflow-hidden">
+                                    <img src={foto.preview} alt="Evidencia" className="w-full h-full object-cover" />
+                                    <button
+                                      onClick={() => eliminarFoto(fotos.indexOf(foto))}
+                                      className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl p-0.5"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -341,13 +423,13 @@ export default function RecepcionTransferencia() {
               <Separator />
 
               {tieneDiferencias() && (
-                <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 rounded-lg p-4">
+                <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                    <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
                     <div>
-                      <h4 className="font-semibold text-yellow-900 dark:text-yellow-100">Discrepancias Detectadas</h4>
-                      <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                        Se detectaron diferencias entre lo enviado y recibido. La transferencia se marcará como "Con Discrepancia" y se notificará al administrador.
+                      <h4 className="font-semibold text-destructive">⚠️ Se detectarán discrepancias</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Al confirmar, el sistema cruzará tus números con los de Michoacán. Si hay diferencias, se marcará como "Con Discrepancia" y se notificará al dueño con la evidencia fotográfica.
                       </p>
                     </div>
                   </div>
@@ -358,19 +440,21 @@ export default function RecepcionTransferencia() {
                 <Button
                   variant="outline"
                   onClick={() => {
+                    fotos.forEach(f => URL.revokeObjectURL(f.preview));
                     setMostrarDialog(false);
                     setTransferenciaSeleccionada(null);
                     setDetallesRecepcion({});
+                    setFotos([]);
                   }}
                 >
                   Cancelar
                 </Button>
                 <Button
                   onClick={procesarRecepcionClick}
-                  disabled={!validarPrecios() || procesarRecepcion.isPending}
+                  disabled={!validarPrecios() || !todosContados() || procesarRecepcion.isPending}
                 >
                   {procesarRecepcion.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {tieneDiferencias() ? 'Recepcionar con Discrepancia' : 'Confirmar Recepción'}
+                  Confirmar Recepción
                 </Button>
               </div>
             </div>
