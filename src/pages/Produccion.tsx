@@ -141,7 +141,8 @@ export default function Produccion() {
   // --- ESTADOS ---
   const [loteId, setLoteId] = useState("");
   const [calibre, setCalibre] = useState("");
-  const [color, setColor] = useState("");
+  // Color se deriva automáticamente del calibre seleccionado
+  const color = useMemo(() => getColorFromCalibre(calibre), [calibre]);
   const [presentacionId, setPresentacionId] = useState("");
   const [cantidadCajas, setCantidadCajas] = useState("");
   const [pesoIndustria, setPesoIndustria] = useState("");
