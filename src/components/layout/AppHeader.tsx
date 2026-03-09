@@ -50,32 +50,7 @@ export function AppHeader({ title, subtitle }: AppHeaderProps) {
           </div>
 
           {/* Notifications */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-destructive text-destructive-foreground text-xs">
-                  3
-                </Badge>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuLabel>Alertas</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
-                <span className="font-medium text-destructive">🔴 Lotes por Vencer</span>
-                <span className="text-sm text-muted-foreground">5 lotes con más de 15 días en cámara</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
-                <span className="font-medium text-warning-foreground">⚠️ Stock Bajo</span>
-                <span className="text-sm text-muted-foreground">Cajas plásticas por debajo del mínimo</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3">
-                <span className="font-medium">📄 Documentación Pendiente</span>
-                <span className="text-sm text-muted-foreground">2 embarques USA sin FDA Prior Notice</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <NotificationCenter />
 
           {/* User Menu */}
           <DropdownMenu>
