@@ -37,6 +37,7 @@ const TABS: TabConfig[] = [
 ];
 
 export default function BodegaCDMX() {
+  const navigate = useNavigate();
   const { user, isAdmin, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>("pos");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
