@@ -1619,6 +1619,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      registrar_envio_cdmx: {
+        Args: {
+          p_cantidad_enviar: number
+          p_lote_id: string
+          p_precio_base_congelado: number
+          p_referencia_viaje: string
+          p_registro_camara_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
