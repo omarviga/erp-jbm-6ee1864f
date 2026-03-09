@@ -94,23 +94,12 @@ export function AppSidebar() {
                   isActive={location.pathname === item.href}
                   className={cn(
                     "h-12 text-base font-medium hover:bg-green-600/20 transition-colors",
-                    "data-[active=true]:bg-[#65a30d] data-[active=true]:text-white",
-                    // Color especial para el botón de ventas de limón
-                    item.href === "/ventas" && "hover:bg-green-500/30"
+                    "data-[active=true]:bg-[#65a30d] data-[active=true]:text-white"
                   )}
                 >
                   <Link to={item.href} className="flex items-center gap-3">
-                    <item.icon className={cn(
-                      "w-5 h-5",
-                      // Icono más grande y color especial para limón
-                      item.href === "/ventas" && "text-green-600"
-                    )} />
+                    <item.icon className="w-5 h-5" />
                     <span>{item.title}</span>
-                    {item.href === "/ventas" && (
-                      <span className="ml-auto text-xs font-normal bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                        Nuevo
-                      </span>
-                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
