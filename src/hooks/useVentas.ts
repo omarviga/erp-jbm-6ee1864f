@@ -186,20 +186,24 @@ export function useVentas() {
             });
 
             // Call RPC function for CDMX sales
-            const { data: ventaId, error } = await supabase.rpc('procesar_venta_cdmx', {
+            const { data, error } = await supabase.rpc('procesar_venta_cdmx', {
                 p_monto_total: montoTotal,
                 p_metodo_pago: metodoPago,
                 p_items: itemsPayload
             });
 
             if (error) throw error;
-            if (!ventaId) throw new Error("No se pudo procesar la venta");
+
+            const rpcResult = Array.isArray(data) ? data[0] : null;
+            if (!rpcResult?.success || !rpcResult?.venta_id) {
+                throw new Error(rpcResult?.mensaje || "No se pudo procesar la venta");
+            }
 
             // Fetch the created sale to return it (for the ticket)
             const { data: ventaData } = await supabase
                 .from('ventas')
                 .select('*')
-                .eq('id', ventaId)
+                .eq('id', rpcResult.venta_id)
                 .single();
 
             toast.success("Venta registrada correctamente", {
