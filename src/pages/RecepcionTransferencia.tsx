@@ -247,8 +247,7 @@ export default function RecepcionTransferencia() {
             </div>
           ) : detalles && detalles.length > 0 ? (
             <div className="space-y-4">
-              {/* Inicializar detalles si aún no están cargados */}
-              {Object.keys(detallesRecepcion).length === 0 && inicializarDetalles()}
+              {/* Los detalles se inicializan automáticamente con useEffect */}
 
               <Table>
                 <TableHeader>
