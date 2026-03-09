@@ -1081,9 +1081,6 @@ export default function Recepcion() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                La liquidación final se calcula con base en Peso Neto (Bruto - Tara), merma de calidad y cargos adicionales.
-              </div>
             </CardContent>
           </Card>
         </div>
