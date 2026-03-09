@@ -95,6 +95,19 @@ export function useCrearTransferenciaCDMX() {
           presentaciones?: { id?: string; nombre?: string };
         };
 
+      return (data || []).map((item) => {
+        const prod = item.produccion as {
+          id?: string;
+          lote_id?: string;
+          calibre?: string;
+          calidad?: string;
+          cantidad_cajas?: number;
+          peso_total_kg?: number;
+          presentacion_id?: string;
+          lotes?: { numero_lote?: string };
+          presentaciones?: { id?: string; nombre?: string };
+        };
+
         return {
           id: item.id,
           origen_inventario: "camara_fria" as const,
@@ -177,6 +190,8 @@ export function useCrearTransferenciaCDMX() {
 
         const { error } = await supabase.rpc("registrar_envio_cdmx_transporte_directo", {
           p_produccion_id: item.produccion_id,
+        const { error } = await supabase.rpc("registrar_envio_cdmx", {
+          p_registro_camara_id: item.id,
           p_lote_id: item.lote_id,
           p_cantidad_enviar: item.cantidad,
           p_precio_base_congelado: precioBaseCongelado,
