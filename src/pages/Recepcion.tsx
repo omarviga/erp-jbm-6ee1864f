@@ -520,12 +520,6 @@ export default function Recepcion() {
                             </div>
                           </div>
 
-                          <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded-lg flex items-start gap-2">
-                            <DollarSign className="h-4 w-4 mt-0.5 shrink-0" />
-                            <p>
-                              Puedes ajustar manualmente el costo del servicio de báscula (ej. $0 para cortesía o montos simbólicos).
-                            </p>
-                          </div>
                         </div>
                       )}
                     </CardContent>
