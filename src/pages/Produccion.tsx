@@ -461,7 +461,6 @@ export default function Produccion() {
       setCantidadCajas("");
       setPesoIndustria("");
       setCalibre("");
-      setColor("");
       setPresentacionId("");
       setDestinoManual("");
 
