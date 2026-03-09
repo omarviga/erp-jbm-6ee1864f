@@ -52,6 +52,56 @@ export type Database = {
           },
         ]
       }
+      auditoria_inventario_cdmx: {
+        Row: {
+          cantidad: number
+          cantidad_antes: number
+          cantidad_despues: number
+          created_at: string
+          id: string
+          inventario_id: string
+          motivo: string | null
+          referencia_id: string | null
+          referencia_tipo: string | null
+          tipo_movimiento: string
+          usuario_id: string | null
+        }
+        Insert: {
+          cantidad: number
+          cantidad_antes: number
+          cantidad_despues: number
+          created_at?: string
+          id?: string
+          inventario_id: string
+          motivo?: string | null
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          tipo_movimiento: string
+          usuario_id?: string | null
+        }
+        Update: {
+          cantidad?: number
+          cantidad_antes?: number
+          cantidad_despues?: number
+          created_at?: string
+          id?: string
+          inventario_id?: string
+          motivo?: string | null
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          tipo_movimiento?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_inventario_cdmx_inventario_id_fkey"
+            columns: ["inventario_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_bodega_cdmx"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       camara_fria: {
         Row: {
           cantidad_cajas: number
@@ -221,6 +271,66 @@ export type Database = {
           id?: string
           nombre?: string
           telefono?: string | null
+        }
+        Relationships: []
+      }
+      cortes_caja_bodega: {
+        Row: {
+          cerrado_por: string | null
+          created_at: string
+          diferencia: number | null
+          efectivo_fisico: number | null
+          efectivo_teorico: number
+          estado: string
+          fecha_corte: string
+          fecha_fin: string
+          fecha_inicio: string
+          folio: string
+          id: string
+          notas: string | null
+          total_efectivo: number
+          total_tarjeta: number
+          total_transferencia: number
+          total_ventas: number
+          updated_at: string
+        }
+        Insert: {
+          cerrado_por?: string | null
+          created_at?: string
+          diferencia?: number | null
+          efectivo_fisico?: number | null
+          efectivo_teorico?: number
+          estado?: string
+          fecha_corte?: string
+          fecha_fin: string
+          fecha_inicio: string
+          folio: string
+          id?: string
+          notas?: string | null
+          total_efectivo?: number
+          total_tarjeta?: number
+          total_transferencia?: number
+          total_ventas?: number
+          updated_at?: string
+        }
+        Update: {
+          cerrado_por?: string | null
+          created_at?: string
+          diferencia?: number | null
+          efectivo_fisico?: number | null
+          efectivo_teorico?: number
+          estado?: string
+          fecha_corte?: string
+          fecha_fin?: string
+          fecha_inicio?: string
+          folio?: string
+          id?: string
+          notas?: string | null
+          total_efectivo?: number
+          total_tarjeta?: number
+          total_transferencia?: number
+          total_ventas?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -528,6 +638,57 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      inventario_bodega_cdmx: {
+        Row: {
+          cantidad_disponible: number
+          created_at: string
+          fecha_ingreso: string
+          id: string
+          precio_base: number
+          precio_venta: number
+          presentacion_id: string
+          transferencia_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cantidad_disponible?: number
+          created_at?: string
+          fecha_ingreso?: string
+          id?: string
+          precio_base: number
+          precio_venta: number
+          presentacion_id: string
+          transferencia_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cantidad_disponible?: number
+          created_at?: string
+          fecha_ingreso?: string
+          id?: string
+          precio_base?: number
+          precio_venta?: number
+          presentacion_id?: string
+          transferencia_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_bodega_cdmx_presentacion_id_fkey"
+            columns: ["presentacion_id"]
+            isOneToOne: false
+            referencedRelation: "presentaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_bodega_cdmx_transferencia_id_fkey"
+            columns: ["transferencia_id"]
+            isOneToOne: false
+            referencedRelation: "transferencias_bodega"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       liquidacion_lotes: {
         Row: {
@@ -1102,6 +1263,111 @@ export type Database = {
           },
         ]
       }
+      transferencia_detalles: {
+        Row: {
+          cantidad_enviada: number
+          cantidad_recibida: number | null
+          created_at: string
+          diferencia: number | null
+          id: string
+          notas_diferencia: string | null
+          precio_base: number
+          precio_venta: number | null
+          presentacion_id: string
+          transferencia_id: string
+        }
+        Insert: {
+          cantidad_enviada: number
+          cantidad_recibida?: number | null
+          created_at?: string
+          diferencia?: number | null
+          id?: string
+          notas_diferencia?: string | null
+          precio_base: number
+          precio_venta?: number | null
+          presentacion_id: string
+          transferencia_id: string
+        }
+        Update: {
+          cantidad_enviada?: number
+          cantidad_recibida?: number | null
+          created_at?: string
+          diferencia?: number | null
+          id?: string
+          notas_diferencia?: string | null
+          precio_base?: number
+          precio_venta?: number | null
+          presentacion_id?: string
+          transferencia_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transferencia_detalles_presentacion_id_fkey"
+            columns: ["presentacion_id"]
+            isOneToOne: false
+            referencedRelation: "presentaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transferencia_detalles_transferencia_id_fkey"
+            columns: ["transferencia_id"]
+            isOneToOne: false
+            referencedRelation: "transferencias_bodega"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transferencias_bodega: {
+        Row: {
+          chofer: string | null
+          created_at: string
+          destino: string
+          estado: string
+          fecha_recepcion: string | null
+          fecha_salida: string
+          folio: string
+          id: string
+          notas_recepcion: string | null
+          notas_salida: string | null
+          origen: string
+          placas: string | null
+          recibido_por: string | null
+          updated_at: string
+        }
+        Insert: {
+          chofer?: string | null
+          created_at?: string
+          destino?: string
+          estado?: string
+          fecha_recepcion?: string | null
+          fecha_salida?: string
+          folio: string
+          id?: string
+          notas_recepcion?: string | null
+          notas_salida?: string | null
+          origen?: string
+          placas?: string | null
+          recibido_por?: string | null
+          updated_at?: string
+        }
+        Update: {
+          chofer?: string | null
+          created_at?: string
+          destino?: string
+          estado?: string
+          fecha_recepcion?: string | null
+          fecha_salida?: string
+          folio?: string
+          id?: string
+          notas_recepcion?: string | null
+          notas_salida?: string | null
+          origen?: string
+          placas?: string | null
+          recibido_por?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1299,6 +1565,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calcular_efectivo_teorico_corte: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: number
+      }
       generate_lote_number: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -1306,6 +1576,26 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      procesar_recepcion_transferencia: {
+        Args: {
+          p_detalles: Json
+          p_recibido_por: string
+          p_transferencia_id: string
+        }
+        Returns: {
+          mensaje: string
+          success: boolean
+          tiene_discrepancias: boolean
+        }[]
+      }
+      procesar_venta_cdmx: {
+        Args: { p_items: Json; p_metodo_pago: string; p_monto_total: number }
+        Returns: {
+          mensaje: string
+          success: boolean
+          venta_id: string
+        }[]
       }
       process_sale_with_inventory: {
         Args: {
