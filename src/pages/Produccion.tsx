@@ -354,9 +354,9 @@ export default function Produccion() {
 
   // Datos de últimos registros
   const ultimosRegistros: RegistroProduccion[] = [
-    { calibre: 'SUPER', color: 'bg-green-700', qty: 10 },
-    { calibre: 'EXTRA', color: 'bg-green-500', qty: 25 },
-    { calibre: 'XXX', color: 'bg-green-400', qty: 40 },
+    { calibre: 'V-XX', color: 'bg-green-500', qty: 40 },
+    { calibre: 'AL-X', color: 'bg-lime-400', qty: 25 },
+    { calibre: 'V-XXX', color: 'bg-green-400', qty: 30 },
   ];
 
   // Función para registrar producción
