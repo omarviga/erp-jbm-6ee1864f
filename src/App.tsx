@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
@@ -12,7 +12,7 @@ import AccesoPendiente from "./pages/AccesoPendiente";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import Recepcion from "./pages/Recepcion";
 import Produccion from "./pages/Produccion";
-import CamaraFria from "./pages/CamaraFria";
+import Inventarios from "./pages/Inventarios";
 import Logistica from "./pages/Logistica";
 import BodegaCDMX from "./pages/BodegaCDMX";
 import Facturacion from "./pages/Facturacion";
@@ -73,11 +73,12 @@ const App = () => (
                   <Produccion />
                 </ProtectedRoute>
               } />
-              <Route path="/camara-fria" element={
+              <Route path="/inventarios" element={
                 <ProtectedRoute>
-                  <CamaraFria />
+                  <Inventarios />
                 </ProtectedRoute>
               } />
+              <Route path="/camara-fria" element={<Navigate to="/inventarios" replace />} />
               <Route path="/logistica" element={
                 <ProtectedRoute>
                   <Logistica />
