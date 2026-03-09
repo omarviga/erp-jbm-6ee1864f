@@ -38,7 +38,8 @@ import {
   X,
   Check,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +54,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { CobranzaTab } from "@/components/facturacion/CobranzaTab";
 
 // --- TYPES ---
 type InvoiceStatus = "borrador" | "enviada" | "pagada" | "vencida" | "cancelada";
