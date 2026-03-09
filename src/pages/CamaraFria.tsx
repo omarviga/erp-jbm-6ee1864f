@@ -1,115 +1,299 @@
-import { useState, useMemo } from "react";
-import { useCamaraFria } from "@/hooks/useCamaraFria";
-import { differenceInDays } from "date-fns";
+import { useMemo, useState } from "react";
+import { differenceInDays, format } from "date-fns";
+import { es } from "date-fns/locale";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCamaraFria } from "@/hooks/useCamaraFria";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
-  Thermometer,
-  Droplets,
-  AlertTriangle,
-  Clock,
-  Loader2,
-  Snowflake,
-  Package,
-  Search,
-  ArrowRightLeft,
-  Filter,
-  Truck
-} from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
 import { CalibreBadge } from "@/components/ui/calibre-badge";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  AlertTriangle,
+  ArrowRightLeft,
+  Clock,
+  Droplets,
+  Loader2,
+  Search,
+  Snowflake,
+  Thermometer,
+  Truck,
+  Warehouse,
+} from "lucide-react";
 
 const pasillos = ["A", "B", "C"];
 const posiciones = ["01", "02", "03", "04"];
 
+type InventarioItem = {
+  id: string;
+  lote_id: string;
+  lote: string;
+  calibre: string;
+  calidad: string;
+  fechaIngreso: string;
+  dias: number;
+  estado: 1 | 2 | 3;
+  origen: string;
+  productor: string;
+  cajas: number;
+  kgs: number;
+  ubicacion: string | null;
+};
+
+const getSemaforo = (dias: number): 1 | 2 | 3 => {
+  if (dias > 7) return 3;
+  if (dias >= 4) return 2;
+  return 1;
+};
+
 export default function CamaraFria() {
-  const { inventario, temperaturas, isLoading } = useCamaraFria();
-  const [filtroEstado, setFiltroEstado] = useState<number | null>(null);
+  const {
+    inventario,
+    pisoEmpaque,
+    transporteDirecto,
+    temperaturas,
+    trasladoInterno,
+    isTrasladandoInterno,
+    registrarMerma,
+    isRegistrandoMerma,
+    enviarTransporteDirectoACdmx,
+    isEnviandoTransporteDirecto,
+    isLoading,
+  } = useCamaraFria();
+  const { user } = useAuth();
+
   const [searchTerm, setSearchTerm] = useState("");
+  const [tabValue, setTabValue] = useState("camara");
+  const [isMermaDialogOpen, setIsMermaDialogOpen] = useState(false);
+  const [mermaCantidad, setMermaCantidad] = useState("1");
+  const [mermaMotivo, setMermaMotivo] = useState("");
+  const [loteMermaSeleccionado, setLoteMermaSeleccionado] = useState<InventarioItem | null>(null);
 
   const capacidadTotal = pasillos.length * posiciones.length;
 
-  const items = useMemo(() => {
-    const base = [...inventario]
+  const inventarioCamara = useMemo<InventarioItem[]>(() => {
+    return [...inventario]
       .sort((a, b) => new Date(a.fecha_ingreso).getTime() - new Date(b.fecha_ingreso).getTime())
       .map((item, index) => {
         const dias = differenceInDays(new Date(), new Date(item.fecha_ingreso));
-        let estado = 1;
-        if (dias >= 10) estado = 3;
-        else if (dias >= 5) estado = 2;
-
         const pasilloIndex = Math.floor(index / posiciones.length);
         const posicionIndex = index % posiciones.length;
         const ubicacion = pasilloIndex < pasillos.length
           ? `${pasillos[pasilloIndex]}-${posiciones[posicionIndex]}`
           : null;
 
-        const calibre = item.produccion?.calibre || "S/C";
-        const calidad = item.produccion?.calidad || "Sin calidad";
-
         return {
-          id: item.produccion?.lotes?.numero_lote || item.id.slice(0, 8),
-          producto: calibre,
-          calidad,
-          calibre,
-          ubicacion,
+          id: item.id,
+          lote_id: item.produccion?.lote_id || "",
+          lote: item.produccion?.lotes?.numero_lote || item.id.slice(0, 8),
+          calibre: item.produccion?.calibre || "S/C",
+          calidad: item.produccion?.calidad || "Sin calidad",
+          fechaIngreso: item.fecha_ingreso,
           dias,
-          estado,
-          kgs: (item.cantidad_disponible * (item.produccion?.peso_total_kg || 0) / (item.produccion?.cantidad_cajas || 1)) || 0
+          estado: getSemaforo(dias),
+          origen: item.produccion?.lotes?.origen || "Sin origen capturado",
+          productor: item.produccion?.lotes?.productor_id || "Sin productor",
+          cajas: item.cantidad_disponible,
+          kgs: (item.cantidad_disponible * (item.produccion?.peso_total_kg || 0) / (item.produccion?.cantidad_cajas || 1)) || 0,
+          ubicacion,
         };
       });
-
-    return base;
   }, [inventario]);
 
-  const filteredItems = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    return items.filter((item) => {
-      const estadoOk = filtroEstado === null || item.estado === filtroEstado;
-      const searchOk = !term || item.id.toLowerCase().includes(term) || item.producto.toLowerCase().includes(term);
-      return estadoOk && searchOk;
-    });
-  }, [items, filtroEstado, searchTerm]);
+  const pisoEmpaqueItems = useMemo(() => {
+    return pisoEmpaque.map((item) => ({
+      id: item.id,
+      lote_id: item.lote_id,
+      lote: item.lotes?.numero_lote || item.id.slice(0, 8),
+      calibre: item.calibre,
+      calidad: item.calidad,
+      cajas: item.cantidad_cajas,
+      created_at: item.created_at,
+      origen: item.lotes?.origen || "Sin origen capturado",
+    }));
+  }, [pisoEmpaque]);
 
-  const gridItemsByLocation = useMemo(() => {
-    const map = new Map<string, (typeof filteredItems)[number]>();
-    filteredItems.forEach((item) => {
-      if (item.ubicacion && !map.has(item.ubicacion)) {
-        map.set(item.ubicacion, item);
-      }
+  const transporteItems = useMemo(() => {
+    return transporteDirecto.map((item) => ({
+      id: item.id,
+      lote_id: item.lote_id,
+      lote: item.lotes?.numero_lote || item.id.slice(0, 8),
+      calibre: item.calibre,
+      calidad: item.calidad,
+      cajas: item.cantidad_cajas,
+      peso_total_kg: item.peso_total_kg || 0,
+      created_at: item.created_at,
+      origen: item.lotes?.origen || "Sin origen capturado",
+    }));
+  }, [transporteDirecto]);
+
+  const filteredCamara = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return inventarioCamara.filter((item) => {
+      if (!term) return true;
+      return item.lote.toLowerCase().includes(term) || item.calibre.toLowerCase().includes(term);
+    });
+  }, [inventarioCamara, searchTerm]);
+
+  const ubicacionesCamara = useMemo(() => {
+    const map = new Map<string, InventarioItem>();
+    filteredCamara.forEach((item) => {
+      if (item.ubicacion && !map.has(item.ubicacion)) map.set(item.ubicacion, item);
     });
     return map;
-  }, [filteredItems]);
+  }, [filteredCamara]);
 
-  const overflowItems = filteredItems.filter((item) => !item.ubicacion);
+  const lotesRojos = inventarioCamara.filter((i) => i.estado === 3).length;
+  const ocupacion = Math.min(inventarioCamara.length, capacidadTotal);
 
-  // Estadísticas Rápidas
-  const ocupacion = Math.min(items.length, capacidadTotal);
-  const porcentajeOcupacion = (ocupacion / capacidadTotal) * 100;
-  const lotesUrgentes = items.filter(i => i.estado === 3).length;
-
-  // Función para obtener el color según el estado FIFO
-  const getStatusColor = (estado: number) => {
+  const statusClass = (estado: 1 | 2 | 3) => {
     switch (estado) {
-      case 1: return "bg-emerald-100 border-emerald-200 text-emerald-800 hover:bg-emerald-200"; // Fresco
-      case 2: return "bg-amber-100 border-amber-200 text-amber-800 hover:bg-amber-200"; // Advertencia
-      case 3: return "bg-rose-100 border-rose-200 text-rose-800 hover:bg-rose-200 animate-pulse"; // Crítico
-      default: return "bg-slate-50 border-slate-200 text-slate-500";
+      case 1:
+        return "bg-emerald-100 border-emerald-200 text-emerald-800";
+      case 2:
+        return "bg-amber-100 border-amber-200 text-amber-800";
+      case 3:
+        return "bg-rose-100 border-rose-200 text-rose-800 animate-pulse";
+      default:
+        return "bg-slate-50 border-slate-200 text-slate-500";
+    }
+  };
+
+  const onTrasladoInterno = async () => {
+    if (!user?.id) {
+      toast.error("No se pudo identificar al usuario actual.");
+      return;
+    }
+
+    if (pisoEmpaqueItems.length === 0) {
+      toast.info("No hay inventario pendiente en Piso Empaque.");
+      return;
+    }
+
+    try {
+      await Promise.all(
+        pisoEmpaqueItems.map((item) =>
+          trasladoInterno({
+            produccionId: item.id,
+            loteId: item.lote_id,
+            cantidad: item.cajas,
+            usuarioId: user.id,
+          })
+        )
+      );
+
+      toast.success("Traslado interno completado", {
+        description: `Se trasladaron ${pisoEmpaqueItems.length} registros de Piso Empaque a Cámara Fría.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : (typeof error === "object" && error && "message" in error ? String((error as { message?: string }).message) : "Error desconocido");
+      toast.error("No se pudo completar el traslado interno", { description: message });
+    }
+  };
+
+  const abrirMermaDialog = (item: InventarioItem) => {
+    setLoteMermaSeleccionado(item);
+    setMermaCantidad("1");
+    setMermaMotivo("");
+    setIsMermaDialogOpen(true);
+  };
+
+  const handleConfirmarMerma = async () => {
+    if (!user?.id) {
+      toast.error("No se pudo identificar al usuario actual.");
+      return;
+    }
+
+    if (!loteMermaSeleccionado) {
+      toast.error("Selecciona un lote para registrar la merma.");
+      return;
+    }
+
+    const cantidad = Number(mermaCantidad);
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      toast.error("La cantidad de merma debe ser mayor a 0.");
+      return;
+    }
+
+    if (cantidad > loteMermaSeleccionado.cajas) {
+      toast.error("La merma no puede ser mayor al stock disponible.");
+      return;
+    }
+
+    if (!mermaMotivo.trim()) {
+      toast.error("Debes capturar el motivo de la merma.");
+      return;
+    }
+
+    try {
+      await registrarMerma({
+        idCamara: loteMermaSeleccionado.id,
+        idLote: loteMermaSeleccionado.lote_id,
+        cantidad,
+        motivo: mermaMotivo.trim(),
+        idUsuario: user.id,
+      });
+
+      toast.success("Merma registrada correctamente");
+      setIsMermaDialogOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : (typeof error === "object" && error && "message" in error ? String((error as { message?: string }).message) : "Error desconocido");
+      toast.error("No se pudo registrar la merma", { description: message });
+    }
+  };
+
+  const onEnviarDirectoACdmx = async (item: { id: string; lote_id: string; lote: string; cajas: number; peso_total_kg: number }) => {
+    if (!user?.id) {
+      toast.error("No se pudo identificar al usuario actual.");
+      return;
+    }
+
+    if (!item.lote_id) {
+      toast.error("El lote no tiene referencia de origen para enviar a CDMX.");
+      return;
+    }
+
+    const referenciaViaje = `Directo a transporte · Lote ${item.lote}`;
+    const precioBaseCongelado = item.cajas > 0 ? Math.round((item.peso_total_kg / item.cajas) * item.cajas * 100) / 100 : 0;
+
+    try {
+      await enviarTransporteDirectoACdmx({
+        produccionId: item.id,
+        loteId: item.lote_id,
+        cantidad: item.cajas,
+        precioBaseCongelado,
+        referenciaViaje,
+        usuarioId: user.id,
+      });
+
+      toast.success("Lote enviado a CDMX", {
+        description: `${item.lote} se vinculó correctamente a una transferencia en tránsito.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : (typeof error === "object" && error && "message" in error ? String((error as { message?: string }).message) : "Error desconocido");
+      toast.error("No se pudo enviar el lote a CDMX", { description: message });
     }
   };
 
   return (
-    <MainLayout title="Cámara Fría 01" subtitle="Control de Inventario y Cadena de Frío">
-
-      {/* --- KPI DASHBOARD SUPERIOR --- */}
+    <>
+      <MainLayout title="Inventarios" subtitle="Cámara Fría, Piso Empaque y Directo a Transporte">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        {/* Sensor Temperatura */}
         <Card className="bg-blue-50/50 border-blue-100 shadow-sm">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
@@ -118,13 +302,10 @@ export default function CamaraFria() {
                 {temperaturas[0]?.temperatura?.toFixed(1) || "4.2"} <span className="text-sm">°C</span>
               </div>
             </div>
-            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-              <Thermometer className="h-5 w-5 text-blue-600" />
-            </div>
+            <Thermometer className="h-5 w-5 text-blue-600" />
           </CardContent>
         </Card>
 
-        {/* Sensor Humedad */}
         <Card className="bg-cyan-50/50 border-cyan-100 shadow-sm">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
@@ -133,255 +314,297 @@ export default function CamaraFria() {
                 88 <span className="text-sm">%</span>
               </div>
             </div>
-            <div className="h-10 w-10 rounded-full bg-cyan-100 flex items-center justify-center">
-              <Droplets className="h-5 w-5 text-cyan-600" />
-            </div>
+            <Droplets className="h-5 w-5 text-cyan-600" />
           </CardContent>
         </Card>
 
-        {/* Ocupación */}
-        <Card className="border-slate-100 shadow-sm">
+        <Card>
           <CardContent className="p-4">
-            <div className="flex justify-between items-center mb-2">
-              <p className="text-xs text-muted-foreground font-bold uppercase">Ocupación</p>
-              <span className="text-xs font-bold">{ocupacion}/{capacidadTotal} Posiciones</span>
-            </div>
-            <Progress value={porcentajeOcupacion} className="h-2" />
-            <p className="text-xs text-right mt-1 text-muted-foreground">{Math.round(porcentajeOcupacion)}% Lleno</p>
+            <p className="text-xs uppercase text-muted-foreground font-bold">Capacidad Cámara Fría</p>
+            <p className="text-xl font-bold mt-1">{ocupacion} / {capacidadTotal}</p>
+            <p className="text-xs text-muted-foreground">{Math.round((ocupacion / capacidadTotal) * 100)}% ocupación</p>
           </CardContent>
         </Card>
 
-        {/* Alertas FIFO */}
-        <Card className={cn("shadow-sm border-l-4", lotesUrgentes > 0 ? "border-l-rose-500 bg-rose-50/30" : "border-l-emerald-500")}>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", lotesUrgentes > 0 ? "bg-rose-100" : "bg-emerald-100")}>
-              {lotesUrgentes > 0 ? <AlertTriangle className="h-5 w-5 text-rose-600" /> : <Clock className="h-5 w-5 text-emerald-600" />}
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase text-muted-foreground">Estado FIFO</p>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              ) : lotesUrgentes > 0 ? (
-                <p className="text-sm font-bold text-rose-700">{lotesUrgentes} Lotes Críticos (&gt;10 días)</p>
-              ) : (
-                <p className="text-sm font-bold text-emerald-700">Rotación Saludable</p>
-              )}
-            </div>
+        <Card className={cn("border-l-4", lotesRojos > 0 ? "border-l-rose-500" : "border-l-emerald-500")}>
+          <CardContent className="p-4">
+            <p className="text-xs uppercase text-muted-foreground font-bold">Semáforo FIFO</p>
+            <p className={cn("text-lg font-bold", lotesRojos > 0 ? "text-rose-700" : "text-emerald-700")}>
+              {lotesRojos > 0 ? `${lotesRojos} lotes en rojo` : "Rotación saludable"}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* --- VISTA PRINCIPAL --- */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <Tabs value={tabValue} onValueChange={setTabValue}>
+        <TabsList className="w-full md:w-auto">
+          <TabsTrigger value="camara">❄️ Cámara Fría</TabsTrigger>
+          <TabsTrigger value="piso">🏭 Piso Empaque</TabsTrigger>
+          <TabsTrigger value="transporte">🚚 Directo a Transporte</TabsTrigger>
+        </TabsList>
 
-        {/* LADO IZQUIERDO: MAPA VISUAL (2 Col) */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="module-card">
-            <CardHeader className="border-b pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Snowflake className="h-5 w-5 text-blue-500" />
-                  Mapa de Almacén (Vista Superior)
-                </CardTitle>
-                <div className="flex gap-2">
-                  {/* Filtros rápidos visuales */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFiltroEstado(null)}
-                    className={cn("text-xs h-7", filtroEstado === null && "bg-slate-100 font-bold")}
-                  >
-                    Todos
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFiltroEstado(3)}
-                    className={cn("text-xs h-7 text-rose-600", filtroEstado === 3 && "bg-rose-100 font-bold")}
-                  >
-                    Críticos
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 bg-slate-50/50">
+        <TabsContent value="camara" className="mt-4">
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader className="border-b">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Snowflake className="h-4 w-4 text-blue-500" />
+                    Cuadrícula FIFO (Cámara Fría)
+                  </CardTitle>
+                  <CardDescription>
+                    Orden automático por primera entrada/primera salida. Si hay lotes viejos de la misma calidad, deben salir primero.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6 bg-slate-50/50">
+                  <div className="space-y-8">
+                    {pasillos.map((letraPasillo) => (
+                      <div key={letraPasillo} className="grid grid-cols-4 gap-4">
+                        {posiciones.map((numPos) => {
+                          const codigo = `${letraPasillo}-${numPos}`;
+                          const lote = ubicacionesCamara.get(codigo);
+                          return (
+                            <div key={codigo} className={cn("rounded-lg border-2 p-3 min-h-28", lote ? statusClass(lote.estado) : "border-dashed border-slate-200 bg-white/60")}>
+                              <p className="text-[10px] opacity-60 mb-2">{codigo}</p>
+                              {lote ? (
+                                <>
+                                  <CalibreBadge calibre={lote.calibre} size="sm" />
+                                  <p className="text-xs mt-1">{lote.calidad}</p>
+                                  <p className="text-xs font-semibold mt-1">{lote.lote}</p>
+                                  <p className="text-[11px]">{lote.dias} días en frío</p>
+                                </>
+                              ) : (
+                                <p className="text-xs text-slate-400">Vacío</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-              {/* RENDERIZADO DE PASILLOS */}
-              <div className="space-y-8">
-                {pasillos.map((letraPasillo) => (
-                  <div key={letraPasillo} className="relative">
-                    {/* Etiqueta del Pasillo */}
-                    <div className="absolute -left-8 top-1/2 -translate-y-1/2 flex flex-col items-center">
-                      <span className="text-xs font-bold text-muted-foreground rotate-[-90deg] whitespace-nowrap">PASILLO</span>
-                      <span className="text-2xl font-black text-slate-300">{letraPasillo}</span>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Acciones</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Label className="text-xs uppercase text-muted-foreground">Buscar lote</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" placeholder="Lote o calibre" />
+                  </div>
+
+                  <CrearTransferenciaCDMXDialog
+                    trigger={
+                      <Button className="w-full justify-start" variant="outline">
+                        <Truck className="mr-2 h-4 w-4" /> Envío a CDMX
+                      </Button>
+                    }
+                  />
+
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    onClick={() => {
+                      if (filteredCamara.length === 0) {
+                        toast.info("No hay lotes disponibles en Cámara Fría para mermar.");
+                        return;
+                      }
+                      abrirMermaDialog(filteredCamara[0]);
+                    }}
+                  >
+                    <AlertTriangle className="mr-2 h-4 w-4" /> Dar de baja por merma
+                  </Button>
+
+                  <Button className="w-full justify-start" variant="outline">
+                    <ArrowRightLeft className="mr-2 h-4 w-4" /> Reubicar tarima
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-rose-600 flex items-center gap-2">
+                    <Clock className="h-4 w-4" /> Prioridad de salida
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {[...filteredCamara].sort((a, b) => b.dias - a.dias).slice(0, 5).map((item) => (
+                    <div key={item.id} className="border rounded-md p-2 text-xs">
+                      <p className="font-semibold">{item.lote}</p>
+                      <p>{item.dias} días • {item.cajas} cajas</p>
+                      <p className="text-muted-foreground">Origen: {item.origen}</p>
                     </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
 
-                    {/* Grid de Posiciones */}
-                    <div className="grid grid-cols-4 gap-4 pl-4">
-                      {posiciones.map((numPos) => {
-                        const codigoUbicacion = `${letraPasillo}-${numPos}`;
-                        const loteEnPosicion = gridItemsByLocation.get(codigoUbicacion);
-
-                        return (
-                          <div
-                            key={codigoUbicacion}
-                            className={cn(
-                              "relative aspect-square rounded-lg border-2 flex flex-col items-center justify-center p-2 text-center transition-all cursor-pointer group",
-                              loteEnPosicion
-                                ? getStatusColor(loteEnPosicion.estado)
-                                : "border-dashed border-slate-200 bg-white/50 hover:border-blue-300"
-                            )}
-                          >
-                            <span className="absolute top-1 left-2 text-[10px] font-bold opacity-40">
-                              {codigoUbicacion}
-                            </span>
-
-                            {loteEnPosicion ? (
-                              <>
-                                <Package className="h-5 w-5 mb-1 opacity-80" />
-                                <CalibreBadge calibre={loteEnPosicion.calibre} size="sm" />
-                                <span className="text-[10px] text-muted-foreground mt-0.5">{loteEnPosicion.calidad}</span>
-                                <Badge
-                                  variant="secondary"
-                                  className="mt-1 text-[9px] h-4 px-1 bg-white/50 backdrop-blur-sm"
-                                >
-                                  {loteEnPosicion.dias} días
-                                </Badge>
-                                {/* Tooltip simulado al hover */}
-                                <div className="absolute inset-0 bg-black/80 text-white p-2 text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center items-center z-10 pointer-events-none">
-                                  <span className="font-bold">{loteEnPosicion.id}</span>
-                                  <span>{loteEnPosicion?.kgs?.toLocaleString()} kg</span>
-                                  <span className="text-amber-300 mt-1">Ver Detalle</span>
-                                </div>
-                              </>
-                            ) : (
-                              <span className="text-xs text-slate-300 font-medium">Vacío</span>
-                            )}
-                          </div>
-                        );
-                      })}
+        <TabsContent value="piso" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base"><Warehouse className="h-4 w-4" /> Inventario temporal en Piso Empaque</CardTitle>
+              <CardDescription>
+                Fruta ya empacada que aún no entra a frío. Puede salir a venta local sin simulaciones de entrada/salida.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-end mb-4">
+                <Button onClick={onTrasladoInterno} disabled={isTrasladandoInterno || pisoEmpaqueItems.length === 0}>
+                  {isTrasladandoInterno ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRightLeft className="mr-2 h-4 w-4" />}
+                  Traslado interno a Cámara Fría
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {pisoEmpaqueItems.slice(0, 25).map((item) => (
+                  <div key={item.id} className="border rounded-md p-3 text-sm flex justify-between">
+                    <div>
+                      <p className="font-semibold">{item.lote}</p>
+                      <p className="text-xs text-muted-foreground">{item.calidad} · Origen: {item.origen}</p>
+                    </div>
+                    <div className="text-right">
+                      <CalibreBadge calibre={item.calibre} size="sm" />
+                      <p className="text-xs mt-1">{item.cajas} cajas</p>
+                      <p className="text-xs text-muted-foreground">{format(new Date(item.created_at), "dd MMM HH:mm", { locale: es })}</p>
                     </div>
                   </div>
                 ))}
+                {pisoEmpaqueItems.length === 0 && <p className="text-sm text-muted-foreground">Sin inventario pendiente en Piso Empaque.</p>}
               </div>
-
-              {/* Leyenda */}
-              <div className="flex justify-center gap-4 mt-8 pt-4 border-t border-slate-200">
-                <div className="flex items-center gap-2 text-xs">
-                  <div className="w-3 h-3 bg-emerald-100 border border-emerald-300 rounded"></div>
-                  <span>Fresco (0-4 días)</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <div className="w-3 h-3 bg-amber-100 border border-amber-300 rounded"></div>
-                  <span>Medio (5-9 días)</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <div className="w-3 h-3 bg-rose-100 border border-rose-300 rounded"></div>
-                  <span>Crítico (10+ días)</span>
-                </div>
-              </div>
-
             </CardContent>
           </Card>
-        </div>
+        </TabsContent>
 
-        {/* LADO DERECHO: ACCIONES Y LISTA (1 Col) */}
-        <div className="space-y-6">
-
-          {/* Panel de Control */}
-          <Card className="module-card">
+        <TabsContent value="transporte" className="mt-4">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-sm font-semibold">Acciones Rápidas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <Label className="text-xs uppercase text-muted-foreground">Buscar lote</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Folio o producto..."
-                    className="pl-9"
-                  />
-                </div>
-              </div>
-              <CrearTransferenciaCDMXDialog
-                trigger={
-                  <Button className="w-full justify-start" variant="outline">
-                    <Truck className="mr-2 h-4 w-4" /> Enviar a Bodega CDMX
-                  </Button>
-                }
-              />
-              <Button className="w-full justify-start" variant="outline">
-                <ArrowRightLeft className="mr-2 h-4 w-4" /> Reubicar Tarima
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Filter className="mr-2 h-4 w-4" /> Auditoría de Inventario
-              </Button>
-            </CardContent>
-          </Card>
-
-          {overflowItems.length > 0 && (
-            <Card className="border-amber-200 bg-amber-50/40">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-amber-700">Capacidad excedida</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-amber-800">
-                  {overflowItems.length} lotes están fuera del mapa visual (sin posición física asignada).
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Lista de Próximos a Caducar */}
-          <Card className="module-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-rose-600 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                Prioridad de Salida (FIFO)
-              </CardTitle>
+              <CardTitle className="text-base">Cross-Docking: Directo a Transporte</CardTitle>
+              <CardDescription>
+                Flujo urgente: registra existencia para cuadrar producción y vincular rápido a Carta Porte/Transferencia CDMX.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {[...filteredItems]
-                  .sort((a, b) => b.dias - a.dias)
-                  .slice(0, 4)
-                  .map((item, idx) => (
-                    <div key={`${item.id}-${idx}`} className="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100 text-sm">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "h-6 w-6 rounded flex items-center justify-center font-bold text-xs text-white",
-                          item.dias > 9 ? "bg-rose-500" : "bg-amber-500"
-                        )}>
-                          {idx + 1}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <CalibreBadge calibre={item.calibre} size="sm" />
-                            <span className="text-xs text-muted-foreground">{item.calidad}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">{item.id} • {item.ubicacion}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-bold text-rose-600">{item.dias} días</span>
-                      </div>
-                    </div>
-                  ))}
-                {filteredItems.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">No hay lotes para el filtro actual.</p>
-                )}
+              <div className="flex justify-end mb-4">
+                <CrearTransferenciaCDMXDialog
+                  trigger={
+                    <Button>
+                      <Truck className="mr-2 h-4 w-4" /> Vincular envío a CDMX
+                    </Button>
+                  }
+                />
               </div>
-              <Button variant="link" className="w-full mt-2 h-auto p-0 text-xs text-muted-foreground">
-                Ver reporte completo
-              </Button>
+              <div className="space-y-2">
+                {transporteItems.slice(0, 25).map((item) => (
+                  <div key={item.id} className="border rounded-md p-3 text-sm flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{item.lote}</p>
+                      <p className="text-xs text-muted-foreground">{item.calidad} · Origen: {item.origen}</p>
+                    </div>
+                    <div className="text-right space-y-2">
+                      <Badge variant="secondary">{item.cajas} cajas</Badge>
+                      <p className="text-xs text-muted-foreground">{format(new Date(item.created_at), "dd MMM HH:mm", { locale: es })}</p>
+                      <Button
+                        size="sm"
+                        onClick={() => onEnviarDirectoACdmx(item)}
+                        disabled={isEnviandoTransporteDirecto}
+                      >
+                        {isEnviandoTransporteDirecto ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Truck className="mr-2 h-3 w-3" />}
+                        Enviar a CDMX
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {transporteItems.length === 0 && <p className="text-sm text-muted-foreground">Sin lotes en flujo de cross-docking.</p>}
+              </div>
             </CardContent>
           </Card>
+        </TabsContent>
+      </Tabs>
 
+      {isLoading && (
+        <div className="mt-4 text-sm text-muted-foreground flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" /> Actualizando inventarios...
         </div>
-      </div>
+      )}
+
+      <Card className="mt-6 border-dashed">
+        <CardHeader>
+          <CardTitle className="text-sm">Reglas de trazabilidad y kardex (operación obligatoria)</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground space-y-1">
+          <p>• Cada caja mantiene origen de lote/recepción para trazabilidad de calidad.</p>
+          <p>• No se editan números manualmente: toda variación se registra como movimiento de inventario.</p>
+          <p>• Salidas por venta, traslado CDMX y mermas deben dejar responsable y motivo.</p>
+        </CardContent>
+      </Card>
     </MainLayout>
+
+      <Dialog open={isMermaDialogOpen} onOpenChange={setIsMermaDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar baja por merma</DialogTitle>
+            <DialogDescription>
+              Descuenta inventario de Cámara Fría con trazabilidad de lote, usuario y motivo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Lote en Cámara Fría</Label>
+              <select
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={loteMermaSeleccionado?.id || ""}
+                onChange={(e) => {
+                  const selected = filteredCamara.find((item) => item.id === e.target.value) || null;
+                  setLoteMermaSeleccionado(selected);
+                }}
+              >
+                {filteredCamara.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.lote} · {item.cajas} cajas · {item.dias} días
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="merma-cantidad">Cantidad de cajas a mermar</Label>
+              <Input
+                id="merma-cantidad"
+                type="number"
+                min={1}
+                max={loteMermaSeleccionado?.cajas || 1}
+                value={mermaCantidad}
+                onChange={(e) => setMermaCantidad(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="merma-motivo">Motivo</Label>
+              <Textarea
+                id="merma-motivo"
+                placeholder="Ej. Cajas aplastadas en estiba"
+                value={mermaMotivo}
+                onChange={(e) => setMermaMotivo(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMermaDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleConfirmarMerma} disabled={isRegistrandoMerma}>
+              {isRegistrandoMerma ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />}
+              Confirmar merma
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

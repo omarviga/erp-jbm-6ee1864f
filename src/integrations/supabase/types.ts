@@ -1609,6 +1609,38 @@ export type Database = {
         Returns: number
       }
       generate_lote_number: { Args: never; Returns: string }
+      registrar_baja_merma: {
+        Args: {
+          p_cantidad_mermada: number
+          p_lote_id: string
+          p_motivo: string
+          p_registro_camara_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
+      registrar_envio_cdmx: {
+        Args: {
+          p_cantidad_enviar: number
+          p_lote_id: string
+          p_precio_base_congelado: number
+          p_referencia_viaje: string
+          p_registro_camara_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
+      registrar_envio_cdmx_transporte_directo: {
+        Args: {
+          p_cantidad_enviar: number
+          p_lote_id: string
+          p_precio_base_congelado: number
+          p_produccion_id: string
+          p_referencia_viaje: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1644,6 +1676,15 @@ export type Database = {
           p_monto_total: number
         }
         Returns: string
+      }
+      trasladar_a_camara_fria: {
+        Args: {
+          p_cantidad: number
+          p_lote_id: string
+          p_produccion_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
