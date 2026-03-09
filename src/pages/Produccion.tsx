@@ -405,7 +405,7 @@ export default function Produccion() {
         const exitosos = deducciones.filter(d => !d.error && d.cantidadDescontada > 0);
 
         if (exitosos.length > 0) {
-          const resumen = exitosos.map(d => `${d.insumoNombre}: -${d.cantidadDescontar ?? d.cantidadDescontada}`).join(', ');
+          const resumen = exitosos.map(d => `${d.insumoNombre}: -${d.cantidadDescontada}`).join(', ');
           toast.info("Insumos descontados automáticamente", {
             description: resumen
           });
