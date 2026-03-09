@@ -24,7 +24,8 @@ import {
   Settings,
   LogOut,
   Shield,
-  Citrus, // Agregar icono de limón
+  Citrus,
+  Cog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
