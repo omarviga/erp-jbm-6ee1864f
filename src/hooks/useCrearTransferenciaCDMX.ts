@@ -1,7 +1,35 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+const ALLOW_INVENTORY_FALLBACK = String(import.meta.env.VITE_ALLOW_INVENTORY_FALLBACK).toLowerCase() === "true";
+
+const buildRpcErrorMessage = (error: { message?: string; details?: string; hint?: string; code?: string } | null) => {
+  if (!error) return "Error desconocido";
+  const parts = [error.message, error.details, error.hint].filter(Boolean);
+  const base = parts.length > 0 ? parts.join(" | ") : "Error desconocido";
+  return error.code ? `${base} (code: ${error.code})` : base;
+};
+
+const isMissingFunctionError = (error: { code?: string; message?: string } | null) => {
+  if (!error) return false;
+  return error.code === "PGRST202" || (error.message || "").includes("Could not find the function");
+};
+
+const safeInsertKardex = async (payload: {
+  lote_id: string;
+  tipo_movimiento: "envio_cdmx";
+  cantidad: number;
+  ubicacion_origen: string;
+  ubicacion_destino: string;
+  usuario_id: string;
+}) => {
+  const { error } = await supabase.from("inventario_kardex").insert(payload);
+  if (error) {
+    console.warn("Kardex fallback insert skipped:", error.message);
+  }
+};
 
 export interface ItemTransferencia {
   id: string;
@@ -46,8 +74,6 @@ export function useCrearTransferenciaCDMX() {
           cantidad_disponible,
           produccion_id,
           produccion (
-            id,
-            destino,
             lote_id,
             calibre,
             calidad,
@@ -59,7 +85,6 @@ export function useCrearTransferenciaCDMX() {
           )
         `)
         .gt("cantidad_disponible", 0);
-
       if (errorCamara) throw errorCamara;
 
       const { data: stockTransicion, error: errorTransicion } = await supabase
@@ -78,26 +103,10 @@ export function useCrearTransferenciaCDMX() {
         `)
         .in("destino", ["piso_empaque", "transporte_directo"])
         .gt("cantidad_cajas", 0);
-
       if (errorTransicion) throw errorTransicion;
 
       const desdeCamara = (stockCamara || []).map((item) => {
         const prod = item.produccion as {
-          id?: string;
-          destino?: string;
-          lote_id?: string;
-          calibre?: string;
-          calidad?: string;
-          cantidad_cajas?: number;
-          peso_total_kg?: number;
-          presentacion_id?: string;
-          lotes?: { numero_lote?: string };
-          presentaciones?: { id?: string; nombre?: string };
-        };
-
-      return (data || []).map((item) => {
-        const prod = item.produccion as {
-          id?: string;
           lote_id?: string;
           calibre?: string;
           calidad?: string;
@@ -148,11 +157,7 @@ export function useCrearTransferenciaCDMX() {
   const { data: stockMolino = [], isLoading: loadingMolino } = useQuery({
     queryKey: ["stock-molino-transferencia"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stock_molino")
-        .select(`*, lotes (numero_lote)`)
-        .gt("peso_disponible", 0);
-
+      const { data, error } = await supabase.from("stock_molino").select(`*, lotes (numero_lote)`).gt("peso_disponible", 0);
       if (error) throw error;
       return data || [];
     },
@@ -170,7 +175,9 @@ export function useCrearTransferenciaCDMX() {
         `Chofer: ${datos.chofer.trim()}`,
         datos.placas.trim() ? `Placas: ${datos.placas.trim()}` : "",
         datos.notas.trim() ? `Notas: ${datos.notas.trim()}` : "",
-      ].filter(Boolean).join(" / ");
+      ]
+        .filter(Boolean)
+        .join(" / ");
 
       for (const item of datos.items) {
         const precioBaseCongelado = calcularPrecioBaseCongelado(item);
@@ -184,26 +191,90 @@ export function useCrearTransferenciaCDMX() {
             p_referencia_viaje: referenciaViaje,
             p_usuario_id: authData.user.id,
           });
-          if (error) throw error;
+
+          if (error) {
+            if (!isMissingFunctionError(error) || !ALLOW_INVENTORY_FALLBACK) {
+              throw new Error(
+                `${buildRpcErrorMessage(error)}${
+                  !ALLOW_INVENTORY_FALLBACK && isMissingFunctionError(error)
+                    ? " | El fallback está deshabilitado. Activa VITE_ALLOW_INVENTORY_FALLBACK=true para permitir operación de contingencia."
+                    : ""
+                }`
+              );
+            }
+
+            const { data: camaraActual, error: camaraError } = await supabase
+              .from("camara_fria")
+              .select("id, cantidad_disponible, produccion_id")
+              .eq("id", item.id)
+              .single();
+
+            if (camaraError || !camaraActual) {
+              throw new Error(buildRpcErrorMessage(camaraError));
+            }
+
+            if ((camaraActual.cantidad_disponible || 0) < item.cantidad) {
+              throw new Error(`Stock insuficiente para envío. Disponible: ${camaraActual.cantidad_disponible || 0} cajas.`);
+            }
+
+            const { error: updateCamaraError } = await supabase
+              .from("camara_fria")
+              .update({ cantidad_disponible: camaraActual.cantidad_disponible - item.cantidad })
+              .eq("id", camaraActual.id);
+
+            if (updateCamaraError) throw new Error(buildRpcErrorMessage(updateCamaraError));
+
+            await safeInsertKardex({
+              lote_id: item.lote_id,
+              tipo_movimiento: "envio_cdmx",
+              cantidad: -item.cantidad,
+              ubicacion_origen: "camara_fria",
+              ubicacion_destino: "en_transito_cdmx",
+              usuario_id: authData.user.id,
+            });
+
+            const folio = `TR-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`;
+            const { data: transferencia, error: transferenciaError } = await supabase
+              .from("transferencias_bodega")
+              .insert({
+                folio,
+                origen: "michoacan",
+                destino: "cdmx",
+                estado: "en_transito",
+                chofer: datos.chofer.trim(),
+                placas: datos.placas.trim() || null,
+                notas_salida: referenciaViaje,
+              })
+              .select("id")
+              .single();
+
+            if (transferenciaError || !transferencia) throw new Error(buildRpcErrorMessage(transferenciaError));
+
+            const { error: detalleError } = await supabase.from("transferencia_detalles").insert({
+              transferencia_id: transferencia.id,
+              presentacion_id: item.presentacion_id,
+              cantidad_enviada: item.cantidad,
+              precio_base: precioBaseCongelado,
+            });
+
+            if (detalleError) throw new Error(buildRpcErrorMessage(detalleError));
+          }
+
           continue;
         }
 
         const { error } = await supabase.rpc("registrar_envio_cdmx_transporte_directo", {
           p_produccion_id: item.produccion_id,
-        const { error } = await supabase.rpc("registrar_envio_cdmx", {
-          p_registro_camara_id: item.id,
           p_lote_id: item.lote_id,
           p_cantidad_enviar: item.cantidad,
           p_precio_base_congelado: precioBaseCongelado,
           p_referencia_viaje: referenciaViaje,
           p_usuario_id: authData.user.id,
         });
-
         if (error) throw error;
       }
 
-      const folio = `TR-${format(new Date(), "yyMMdd")}`;
-      return { folio, cantidadMovimientos: datos.items.length };
+      return { folio: `TR-${format(new Date(), "yyMMdd")}`, cantidadMovimientos: datos.items.length };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["stock-para-transferencia"] });
@@ -218,9 +289,7 @@ export function useCrearTransferenciaCDMX() {
       });
     },
     onError: (error: Error) => {
-      toast.error("Error al crear transferencia", {
-        description: error.message,
-      });
+      toast.error("Error al crear transferencia", { description: error.message });
     },
   });
 
