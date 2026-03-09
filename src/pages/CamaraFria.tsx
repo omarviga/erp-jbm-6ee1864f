@@ -358,7 +358,10 @@ export default function CamaraFria() {
                           {idx + 1}
                         </div>
                         <div>
-                          <p className="font-medium text-slate-700">{item.producto}</p>
+                          <div className="flex items-center gap-2">
+                            <CalibreBadge calibre={item.calibre} size="sm" />
+                            <span className="text-xs text-muted-foreground">{item.calidad}</span>
+                          </div>
                           <p className="text-xs text-muted-foreground">{item.id} • {item.ubicacion}</p>
                         </div>
                       </div>
