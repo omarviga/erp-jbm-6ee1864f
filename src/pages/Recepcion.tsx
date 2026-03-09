@@ -120,12 +120,6 @@ export default function Recepcion() {
     return productoresDB.find(p => p.id === productorId);
   }, [productorId, productoresDB]);
 
-  // DEBUG: Verificar datos cargados
-  useEffect(() => {
-    console.log("DEBUG useEffect - Productores:", productoresDB);
-    console.log("DEBUG useEffect - Productor seleccionado:", productorSeleccionado);
-    console.log("DEBUG useEffect - Total productores:", productoresDB?.length || 0);
-  }, [productoresDB, productorSeleccionado]);
 
 
   const handleOrigenChange = (value: string) => {
@@ -250,12 +244,8 @@ export default function Recepcion() {
   };
 
   return (
-    <MainLayout title="Recepción con Cálculos y Precio" subtitle="Gestión de entrada de materia prima con liquidación automática por peso neto.">
+     <MainLayout title="Recepción" subtitle="Gestión de entrada de materia prima">
       <div className="space-y-6">
-        <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700/80">Recepción terceros actualizada</p>
-          <p className="mt-1 text-sm text-muted-foreground">Interfaz optimizada para captura rápida en báscula, control de calidad y liquidación final.</p>
-        </div>
 
         <div className="grid lg:grid-cols-12 gap-6">
         {/* --- COLUMNA IZQUIERDA: FLUJO (8 Cols) --- */}
@@ -298,7 +288,7 @@ export default function Recepcion() {
                       className="mt-2 bg-white text-lg font-mono font-bold border-slate-400"
                       autoFocus
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Digita el número rojo impreso en el papel</p>
+                    
                   </div>
 
                   {/* Búsqueda y Selección de Productor */}
@@ -426,9 +416,6 @@ export default function Recepcion() {
                         step="0.01"
                         aria-describedby="peso-bruto-desc"
                       />
-                      <p id="peso-bruto-desc" className="text-xs text-muted-foreground">
-                        Peso total incluyendo empaque
-                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor={fieldIds.tara} className="text-base font-semibold">
@@ -445,9 +432,6 @@ export default function Recepcion() {
                         step="0.01"
                         aria-describedby="tara-desc"
                       />
-                      <p id="tara-desc" className="text-xs text-muted-foreground">
-                        Peso del empaque/vehículo
-                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-base font-semibold">Peso Neto Real</Label>
@@ -493,9 +477,6 @@ export default function Recepcion() {
                         Siguiente
                       </Button>
                     </div>
-                    <p id="precio-desc" className="text-xs text-muted-foreground">
-                      Precio acordado por kilogramo de fruta
-                    </p>
                   </div>
 
                   {/* Costo de Báscula */}
@@ -539,12 +520,6 @@ export default function Recepcion() {
                             </div>
                           </div>
 
-                          <div className="text-xs text-blue-600 bg-blue-50 p-3 rounded-lg flex items-start gap-2">
-                            <DollarSign className="h-4 w-4 mt-0.5 shrink-0" />
-                            <p>
-                              Puedes ajustar manualmente el costo del servicio de báscula (ej. $0 para cortesía o montos simbólicos).
-                            </p>
-                          </div>
                         </div>
                       )}
                     </CardContent>
@@ -563,9 +538,6 @@ export default function Recepcion() {
                       className="min-h-[100px]"
                       aria-describedby="notas-desc"
                     />
-                    <p id="notas-desc" className="text-xs text-muted-foreground">
-                      Observaciones adicionales sobre el lote
-                    </p>
                   </div>
 
                   {/* Total Estimado */}
@@ -1109,9 +1081,6 @@ export default function Recepcion() {
                   </div>
                 </div>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                La liquidación final se calcula con base en Peso Neto (Bruto - Tara), merma de calidad y cargos adicionales.
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -1190,9 +1159,6 @@ export default function Recepcion() {
             </div>
           </div>
 
-          <div className="mx-auto mt-4 max-w-2xl rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-800">
-            <span className="font-semibold">Nota de Impresión:</span> Optimizado para 80mm. Configure márgenes como "Ninguno" y escala "100%".
-          </div>
         </section>
 
      </div>
