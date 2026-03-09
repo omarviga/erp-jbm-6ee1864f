@@ -377,6 +377,7 @@ export function useCrearTransferenciaCDMX() {
 
           if (detalleError) throw new Error(buildRpcErrorMessage(detalleError));
         }
+        if (error) throw error;
       }
 
       return { folio: `TR-${format(new Date(), "yyMMdd")}`, cantidadMovimientos: datos.items.length };
