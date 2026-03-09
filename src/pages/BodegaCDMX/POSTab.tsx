@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useVentas } from "@/hooks/useVentas";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -12,13 +12,36 @@ import limonImg from "@/assets/limon-producto.png";
 type NumpadMode = "qty" | "precio" | "disc";
 
 export default function POSTab() {
-  const { productos, carrito, stock, loading, agregarAlCarrito, actualizarItem, eliminarDelCarrito, limpiarCarrito, cobrar } = useVentas();
+  const { productos, clientes, carrito, stock, loading, agregarAlCarrito, actualizarItem, eliminarDelCarrito, limpiarCarrito, cobrar } = useVentas();
   const { user } = useAuth();
   const [metodoPago, setMetodoPago] = useState<"efectivo" | "transferencia" | "cheque">("efectivo");
   const [busqueda, setBusqueda] = useState("");
   const [numpadMode, setNumpadMode] = useState<NumpadMode>("qty");
   const [numpadValue, setNumpadValue] = useState("");
   const [selectedCartItem, setSelectedCartItem] = useState<string | null>(null);
+
+  const [clienteIdSeleccionado, setClienteIdSeleccionado] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (clienteIdSeleccionado || clientes.length === 0) return;
+
+    const publicoGeneral = clientes.find((cliente) =>
+      cliente.nombre.trim().toLowerCase() === "público en general"
+      || cliente.nombre.trim().toLowerCase() === "publico en general"
+    );
+
+    if (publicoGeneral) {
+      setClienteIdSeleccionado(publicoGeneral.id);
+      return;
+    }
+
+    setClienteIdSeleccionado(clientes[0].id);
+  }, [clientes, clienteIdSeleccionado]);
+
+  const clienteSeleccionado = useMemo(() => {
+    if (!clienteIdSeleccionado) return null;
+    return clientes.find((cliente) => cliente.id === clienteIdSeleccionado) || null;
+  }, [clientes, clienteIdSeleccionado]);
 
   const total = useMemo(
     () => carrito.reduce((acc, item) => acc + item.cantidad * item.precio_venta, 0),
@@ -75,7 +98,7 @@ export default function POSTab() {
       });
       return;
     }
-    const venta = await cobrar(null, total, metodoPago);
+    const venta = await cobrar(clienteIdSeleccionado, total, metodoPago);
     if (venta) {
       toast.success("Venta registrada correctamente");
     }
@@ -294,7 +317,7 @@ export default function POSTab() {
             <div className="grid grid-cols-5 gap-2">
               <button className="col-span-2 flex items-center justify-center gap-1.5 py-3 bg-white rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">
                 <User className="h-3.5 w-3.5" />
-                Mostrador
+                {clienteSeleccionado?.nombre || "Público en general"}
               </button>
               <button
                 onClick={onCobrar}
