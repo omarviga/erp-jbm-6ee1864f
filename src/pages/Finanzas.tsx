@@ -34,6 +34,7 @@ import { EstadoCuentaDocument } from '@/components/pdf/EstadoCuentaDocument';
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { ComprasTab } from "@/components/finanzas/ComprasTab";
+import { GastosResumenTab } from "@/components/finanzas/GastosResumenTab";
 
 // Tipos basados en el esquema Supabase
 type Lote = Database['public']['Tables']['lotes']['Row'];
@@ -446,12 +447,15 @@ export default function Finanzas() {
       </div>
 
       <Tabs defaultValue="liquidaciones" className="space-y-6">
-        <TabsList className="grid w-full max-w-lg grid-cols-3 h-12 bg-muted p-1">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4 h-12 bg-muted p-1">
           <TabsTrigger value="liquidaciones" className="text-base font-medium">
             <Calculator className="h-4 w-4 mr-2" /> Liquidaciones
           </TabsTrigger>
+          <TabsTrigger value="resumen" className="text-base font-medium">
+            <Wallet className="h-4 w-4 mr-2" /> Resumen
+          </TabsTrigger>
           <TabsTrigger value="conciliacion" className="text-base font-medium">
-            <Wallet className="h-4 w-4 mr-2" /> Conciliación
+            <CreditCard className="h-4 w-4 mr-2" /> Conciliación
           </TabsTrigger>
           <TabsTrigger value="compras" className="text-base font-medium">
             <ShoppingCart className="h-4 w-4 mr-2" /> Compras
@@ -993,7 +997,12 @@ export default function Finanzas() {
           </div>
         </TabsContent>
 
-        {/* --- PESTAÑA 3: COMPRAS --- */}
+        {/* --- PESTAÑA: RESUMEN INGRESOS VS EGRESOS --- */}
+        <TabsContent value="resumen" className="space-y-6">
+          <GastosResumenTab />
+        </TabsContent>
+
+        {/* --- PESTAÑA: COMPRAS --- */}
         <TabsContent value="compras" className="space-y-6">
           <ComprasTab />
         </TabsContent>
