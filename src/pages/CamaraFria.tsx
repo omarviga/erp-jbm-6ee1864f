@@ -300,6 +300,13 @@ export default function CamaraFria() {
                   />
                 </div>
               </div>
+              <CrearTransferenciaCDMXDialog
+                trigger={
+                  <Button className="w-full justify-start" variant="outline">
+                    <Truck className="mr-2 h-4 w-4" /> Enviar a Bodega CDMX
+                  </Button>
+                }
+              />
               <Button className="w-full justify-start" variant="outline">
                 <ArrowRightLeft className="mr-2 h-4 w-4" /> Reubicar Tarima
               </Button>
