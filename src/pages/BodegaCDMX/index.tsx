@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   ShoppingCart, Truck, Package, Calculator, Receipt, BarChart3,
-  ChevronLeft, ChevronRight, User, LogOut, Building2
+  ChevronLeft, ChevronRight, User, LogOut, ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
