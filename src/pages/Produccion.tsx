@@ -360,6 +360,15 @@ export default function Produccion() {
     { calibre: 'V-XXX', color: 'bg-green-400', qty: 30 },
   ];
 
+  const reporteDescarte = [
+    { tipo: "Oleocelosis (Mancha de Aceite)", kg: 245, impacto: 3.4, tendencia: "Alza" },
+    { tipo: "Daño por Frío", kg: 112, impacto: 1.1, tendencia: "Baja" },
+    { tipo: "Fruta Sobre-madura", kg: 48, impacto: 0.4, tendencia: "Estable" },
+  ] as const;
+
+  const totalDescarteKg = reporteDescarte.reduce((acc, row) => acc + row.kg, 0);
+  const impactoPromedio = reporteDescarte.reduce((acc, row) => acc + row.impacto, 0) / reporteDescarte.length;
+
   // Función para registrar producción
   const registrarProduccion = useCallback(async () => {
     if (!loteSeleccionado) return;
@@ -1072,36 +1081,65 @@ export default function Produccion() {
 
 
 
-        <Card className="rounded-2xl border border-slate-200">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-xl">Reporte de Calidad y Descarte (Acumulado)</CardTitle>
-            <Button variant="link" className="text-emerald-700"><Download className="mr-2 h-4 w-4" />Descargar CSV</Button>
+        <Card className="rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-emerald-50/40 border-b space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <CardTitle className="text-xl">Reporte de Calidad y Descarte (Acumulado)</CardTitle>
+              <Button variant="outline" className="text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                <Download className="mr-2 h-4 w-4" /> Descargar CSV
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border bg-white px-4 py-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Total descarte</p>
+                <p className="text-2xl font-bold text-slate-800">{totalDescarteKg} kg</p>
+              </div>
+              <div className="rounded-xl border bg-white px-4 py-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Impacto promedio</p>
+                <p className="text-2xl font-bold text-amber-600">{impactoPromedio.toFixed(1)}%</p>
+              </div>
+              <div className="rounded-xl border bg-white px-4 py-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Foco principal</p>
+                <p className="text-lg font-semibold text-rose-600">{reporteDescarte[0].tipo}</p>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
+          <CardContent className="pt-6">
+            <div className="overflow-x-auto rounded-xl border">
               <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                   <tr className="border-b">
-                    <th className="pb-3">Tipo de descarte</th>
-                    <th className="pb-3">Frecuencia</th>
-                    <th className="pb-3">Impacto</th>
-                    <th className="pb-3">Tendencia</th>
-                    <th className="pb-3 text-right">Acciones</th>
+                    <th className="py-3 px-4">Tipo de descarte</th>
+                    <th className="py-3 px-4">Frecuencia</th>
+                    <th className="py-3 px-4">Impacto</th>
+                    <th className="py-3 px-4">Tendencia</th>
+                    <th className="py-3 px-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { tipo: "Oleocelosis (Mancha de Aceite)", kg: 245, impacto: 3.4, tendencia: "Alza" },
-                    { tipo: "Daño por Frío", kg: 112, impacto: 1.1, tendencia: "Baja" },
-                    { tipo: "Fruta Sobre-madura", kg: 48, impacto: 0.4, tendencia: "Estable" }
-                  ].map((row) => (
-                    <tr key={row.tipo} className="border-b last:border-0">
-                      <td className="py-4 font-medium">{row.tipo}</td>
-                      <td className="py-4">{row.kg} kg</td>
-                      <td className="py-4">{row.impacto}%</td>
-                      <td className="py-4">{row.tendencia}</td>
-                      <td className="py-4 text-right">
-                        <Button size="sm" variant="outline">Detalle</Button>
+                  {reporteDescarte.map((row) => (
+                    <tr key={row.tipo} className="border-b last:border-0 hover:bg-slate-50/70 transition-colors">
+                      <td className="py-4 px-4 font-medium">{row.tipo}</td>
+                      <td className="py-4 px-4">
+                        <span className="font-semibold text-slate-700">{row.kg} kg</span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <Badge variant="secondary" className="bg-amber-100 text-amber-800">{row.impacto}%</Badge>
+                      </td>
+                      <td className="py-4 px-4">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            row.tendencia === "Alza" && "border-rose-300 text-rose-700 bg-rose-50",
+                            row.tendencia === "Baja" && "border-emerald-300 text-emerald-700 bg-emerald-50",
+                            row.tendencia === "Estable" && "border-slate-300 text-slate-700 bg-slate-50"
+                          )}
+                        >
+                          {row.tendencia}
+                        </Badge>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <Button size="sm" variant="outline" className="hover:bg-slate-100">Detalle</Button>
                       </td>
                     </tr>
                   ))}
