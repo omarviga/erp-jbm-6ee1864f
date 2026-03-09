@@ -46,6 +46,12 @@ export function HistorialLoteModal({ open, onOpenChange, loteId, loteLabel }: Pr
           </div>
         )}
 
+        {error && (
+          <div className="text-sm text-rose-600 space-y-1">
+            <p>No se pudo cargar el historial del kardex.</p>
+            <p className="text-xs opacity-80">{error instanceof Error ? error.message : "Error desconocido"}</p>
+          </div>
+        )}
         {error && <p className="text-sm text-rose-600">No se pudo cargar el historial del kardex.</p>}
 
         {!isLoading && !error && (
