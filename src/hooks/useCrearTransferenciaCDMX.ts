@@ -182,6 +182,8 @@ export function useCrearTransferenciaCDMX() {
             p_cantidad_enviar: item.cantidad,
             p_precio_base_congelado: precioBaseCongelado,
             p_referencia_viaje: referenciaViaje,
+            p_chofer: datos.chofer.trim(),
+            p_placas: datos.placas.trim(),
             p_usuario_id: authData.user.id,
           });
           if (error) throw error;
@@ -190,12 +192,12 @@ export function useCrearTransferenciaCDMX() {
 
         const { error } = await supabase.rpc("registrar_envio_cdmx_transporte_directo", {
           p_produccion_id: item.produccion_id,
-        const { error } = await supabase.rpc("registrar_envio_cdmx", {
-          p_registro_camara_id: item.id,
           p_lote_id: item.lote_id,
           p_cantidad_enviar: item.cantidad,
           p_precio_base_congelado: precioBaseCongelado,
           p_referencia_viaje: referenciaViaje,
+          p_chofer: datos.chofer.trim(),
+          p_placas: datos.placas.trim(),
           p_usuario_id: authData.user.id,
         });
 

@@ -126,12 +126,14 @@ export const useCamaraFria = () => {
 
 
     const envioTransporteDirectoMutation = useMutation({
-        mutationFn: async ({ produccionId, loteId, cantidad, precioBaseCongelado, referenciaViaje, usuarioId }: {
+        mutationFn: async ({ produccionId, loteId, cantidad, precioBaseCongelado, referenciaViaje, chofer, placas, usuarioId }: {
             produccionId: string;
             loteId: string;
             cantidad: number;
             precioBaseCongelado: number;
             referenciaViaje: string;
+            chofer?: string;
+            placas?: string;
             usuarioId: string;
         }) => {
             const { error } = await supabase.rpc('registrar_envio_cdmx_transporte_directo', {
@@ -140,6 +142,8 @@ export const useCamaraFria = () => {
                 p_cantidad_enviar: cantidad,
                 p_precio_base_congelado: precioBaseCongelado,
                 p_referencia_viaje: referenciaViaje,
+                p_chofer: chofer ?? "",
+                p_placas: placas ?? "",
                 p_usuario_id: usuarioId,
             });
 

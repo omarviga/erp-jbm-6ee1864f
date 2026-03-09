@@ -1,4 +1,4 @@
-DROP FUNCTION IF EXISTS public.registrar_envio_cdmx(UUID, UUID, NUMERIC, NUMERIC, TEXT, UUID);
+DROP FUNCTION IF EXISTS public.registrar_envio_cdmx(UUID, UUID, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID);
 
 CREATE OR REPLACE FUNCTION public.registrar_envio_cdmx(
     p_registro_camara_id UUID,
@@ -6,6 +6,8 @@ CREATE OR REPLACE FUNCTION public.registrar_envio_cdmx(
     p_cantidad_enviar NUMERIC,
     p_precio_base_congelado NUMERIC,
     p_referencia_viaje TEXT,
+    p_chofer TEXT,
+    p_placas TEXT,
     p_usuario_id UUID
 ) RETURNS void
 LANGUAGE plpgsql
@@ -56,13 +58,15 @@ BEGIN
         destino,
         estado,
         chofer,
+        placas,
         notas_salida
     ) VALUES (
         v_folio,
         'michoacan',
         'cdmx',
         'en_transito',
-        'Pendiente',
+        NULLIF(trim(p_chofer), ''),
+        NULLIF(trim(p_placas), ''),
         p_referencia_viaje
     )
     RETURNING id INTO v_transferencia_id;
@@ -81,4 +85,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.registrar_envio_cdmx(UUID, UUID, NUMERIC, NUMERIC, TEXT, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.registrar_envio_cdmx(UUID, UUID, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID) TO authenticated;

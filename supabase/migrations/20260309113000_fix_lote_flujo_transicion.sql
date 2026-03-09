@@ -59,13 +59,15 @@ BEGIN
 END;
 $$;
 
-DROP FUNCTION IF EXISTS public.registrar_envio_cdmx_transporte_directo(UUID, UUID, NUMERIC, NUMERIC, TEXT, UUID);
+DROP FUNCTION IF EXISTS public.registrar_envio_cdmx_transporte_directo(UUID, UUID, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID);
 CREATE OR REPLACE FUNCTION public.registrar_envio_cdmx_transporte_directo(
   p_produccion_id UUID,
   p_lote_id UUID,
   p_cantidad_enviar NUMERIC,
   p_precio_base_congelado NUMERIC,
   p_referencia_viaje TEXT,
+  p_chofer TEXT,
+  p_placas TEXT,
   p_usuario_id UUID
 ) RETURNS void
 LANGUAGE plpgsql
@@ -75,6 +77,7 @@ AS $$
 DECLARE
   v_destino_actual destino_produccion;
   v_cantidad_cajas INTEGER;
+  v_lote_id UUID;
   v_presentacion_id UUID;
   v_transferencia_id UUID;
   v_folio TEXT;
@@ -82,8 +85,8 @@ DECLARE
   v_stock_actual NUMERIC;
   v_origen_kardex TEXT;
 BEGIN
-  SELECT destino, cantidad_cajas, presentacion_id
-  INTO v_destino_actual, v_cantidad_cajas, v_presentacion_id
+  SELECT destino, cantidad_cajas, lote_id, presentacion_id
+  INTO v_destino_actual, v_cantidad_cajas, v_lote_id, v_presentacion_id
   FROM public.produccion
   WHERE id = p_produccion_id
   FOR UPDATE;
@@ -133,15 +136,21 @@ BEGIN
   INSERT INTO public.inventario_kardex (
     lote_id, tipo_movimiento, cantidad, ubicacion_origen, ubicacion_destino, usuario_id
   ) VALUES (
-    p_lote_id, 'envio_cdmx', -p_cantidad_enviar, v_origen_kardex, 'en_transito_cdmx', p_usuario_id
+    v_lote_id, 'envio_cdmx', -p_cantidad_enviar, v_origen_kardex, 'en_transito_cdmx', p_usuario_id
   );
 
   v_folio := format('TR-%s-%s', to_char(now(), 'YYMMDD'), substr(replace(gen_random_uuid()::text, '-', ''), 1, 4));
 
   INSERT INTO public.transferencias_bodega (
-    folio, origen, destino, estado, chofer, notas_salida
+    folio, origen, destino, estado, chofer, placas, notas_salida
   ) VALUES (
-    v_folio, 'michoacan', 'cdmx', 'en_transito', 'Pendiente', p_referencia_viaje
+    v_folio,
+    'michoacan',
+    'cdmx',
+    'en_transito',
+    NULLIF(trim(p_chofer), ''),
+    NULLIF(trim(p_placas), ''),
+    p_referencia_viaje
   ) RETURNING id INTO v_transferencia_id;
 
   INSERT INTO public.transferencia_detalles (
@@ -153,4 +162,4 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.trasladar_a_camara_fria(UUID, UUID, NUMERIC, UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.registrar_envio_cdmx_transporte_directo(UUID, UUID, NUMERIC, NUMERIC, TEXT, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.registrar_envio_cdmx_transporte_directo(UUID, UUID, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID) TO authenticated;
