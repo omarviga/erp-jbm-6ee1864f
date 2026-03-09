@@ -15,6 +15,7 @@ import Produccion from "./pages/Produccion";
 import CamaraFria from "./pages/CamaraFria";
 import Logistica from "./pages/Logistica";
 import Ventas from "./pages/Ventas";
+import RecepcionTransferencia from "./pages/RecepcionTransferencia";
 import Facturacion from "./pages/Facturacion";
 import Finanzas from "./pages/Finanzas";
 import Insumos from "./pages/Insumos";
