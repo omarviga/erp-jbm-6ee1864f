@@ -11,26 +11,23 @@ export function CalibreBadge({
     className,
     size = "default"
 }: CalibreBadgeProps) {
-    // Normalize calibre string
-    const normCalibre = calibre?.toString().toUpperCase() || "";
+    const norm = calibre?.toString().toUpperCase() || "";
 
-    // Determine color based on calibre logic
-    let colorClass = "bg-slate-100 text-slate-700 border-slate-200"; // Default
+    let colorClass = "bg-slate-100 text-slate-700 border-slate-200";
 
-    if (["37", "40", "4"].includes(normCalibre)) colorClass = "bg-green-100 text-green-800 border-green-200";
-    else if (["110", "150", "X"].includes(normCalibre)) colorClass = "bg-blue-100 text-blue-800 border-blue-200";
-    else if (["175", "200", "XX"].includes(normCalibre)) colorClass = "bg-purple-100 text-purple-800 border-purple-200";
-    else if (["230", "250", "XXX"].includes(normCalibre)) colorClass = "bg-pink-100 text-pink-800 border-pink-200";
+    if (norm.startsWith("V-")) colorClass = "bg-green-100 text-green-800 border-green-200";
+    else if (norm.startsWith("AL-")) colorClass = "bg-lime-100 text-lime-800 border-lime-200";
+    else if (norm.startsWith("AM-")) colorClass = "bg-yellow-100 text-yellow-800 border-yellow-200";
 
     const sizes = {
-        default: "h-8 w-8 text-sm",
-        sm: "h-6 w-6 text-xs",
-        lg: "h-10 w-10 text-base",
+        default: "h-auto min-w-[2.5rem] px-2 py-1 text-xs",
+        sm: "h-auto min-w-[2rem] px-1.5 py-0.5 text-[10px]",
+        lg: "h-auto min-w-[3rem] px-3 py-1.5 text-sm",
     };
 
     return (
         <div className={cn(
-            "flex items-center justify-center rounded-full border font-bold shadow-sm",
+            "flex items-center justify-center rounded-full border font-bold shadow-sm whitespace-nowrap",
             colorClass,
             sizes[size],
             className
