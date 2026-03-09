@@ -1082,70 +1082,9 @@ export default function Finanzas() {
           </div>
         </TabsContent>
 
-        {/* --- PESTAÑA 3: COBRANZA --- */}
-        <TabsContent value="cobranza" className="space-y-6">
-          <Card className="module-card">
-            <CardHeader className="pb-4 border-b">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-orange-500" />
-                    Antigüedad de Saldos
-                  </CardTitle>
-                  <CardDescription>Clientes con facturas vencidas o por vencer</CardDescription>
-                </div>
-                <div className="flex gap-2 text-xs">
-                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Moroso (+30d)</Badge>
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Vencido (+15d)</Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-3">
-                {clientesMorosos.map((cliente) => {
-                  const dias = cliente.diasVencido;
-                  const borderClass = dias > 30 ? "border-l-red-500" : dias > 15 ? "border-l-amber-500" : "border-l-slate-200";
-
-                  return (
-                    <div
-                      key={cliente.id}
-                      className={cn("p-4 rounded-r-lg border border-l-4 bg-white shadow-sm hover:shadow-md transition-shadow", borderClass)}
-                    >
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-lg text-slate-800">{cliente.nombre}</span>
-                            {dias > 30 && <Badge variant="destructive" className="animate-pulse">ACCIÓN LEGAL REQUERIDA</Badge>}
-                          </div>
-                          <div className="flex gap-6 mt-2 text-sm text-slate-500">
-                            <span className="flex items-center gap-1"><Receipt className="h-3 w-3" /> Límite: ${cliente.limite.toLocaleString()}</span>
-                            <span className={cn("font-bold flex items-center gap-1", dias > 15 ? "text-red-600" : "text-slate-600")}>
-                              <AlertTriangle className="h-3 w-3" /> {dias} días vencido
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-6">
-                          <div className="text-right">
-                            <p className="text-xs text-muted-foreground uppercase">Deuda Total</p>
-                            <p className={cn("text-2xl font-black", dias > 30 ? "text-red-600" : "text-slate-700")}>
-                              ${cliente.saldo.toLocaleString()}
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={() => handleCobrarCliente(cliente.id, cliente.nombre)}
-                          >
-                            Registrar Pago <ArrowRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+        {/* --- PESTAÑA 3: COMPRAS --- */}
+        <TabsContent value="compras" className="space-y-6">
+          <ComprasTab />
         </TabsContent>
       </Tabs>
     </MainLayout>
