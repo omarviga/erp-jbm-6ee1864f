@@ -17,6 +17,7 @@ import {
   AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, Filter, Plus, Bell, TrendingUp, Download,
   Warehouse, Snowflake, Truck
 } from "lucide-react";
+import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
 import { descontarInsumosPorProduccion } from "@/services/insumoDeductionService";
 
 // --- TIPOS ---
