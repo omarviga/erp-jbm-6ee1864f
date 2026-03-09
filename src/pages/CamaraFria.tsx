@@ -238,10 +238,9 @@ export default function CamaraFria() {
 
                             {loteEnPosicion ? (
                               <>
-                                <Package className="h-6 w-6 mb-1 opacity-80" />
-                                <span className="text-xs font-bold leading-tight line-clamp-2">
-                                  {loteEnPosicion.producto}
-                                </span>
+                                <Package className="h-5 w-5 mb-1 opacity-80" />
+                                <CalibreBadge calibre={loteEnPosicion.calibre} size="sm" />
+                                <span className="text-[10px] text-muted-foreground mt-0.5">{loteEnPosicion.calidad}</span>
                                 <Badge
                                   variant="secondary"
                                   className="mt-1 text-[9px] h-4 px-1 bg-white/50 backdrop-blur-sm"
