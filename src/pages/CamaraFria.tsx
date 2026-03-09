@@ -186,6 +186,14 @@ export default function CamaraFria() {
     }
 
     try {
+      for (const item of pisoEmpaqueItems) {
+        await trasladoInterno({
+          produccionId: item.id,
+          loteId: item.lote_id,
+          cantidad: item.cajas,
+          usuarioId: user.id,
+        });
+      }
       await Promise.all(
         pisoEmpaqueItems.map((item) =>
           trasladoInterno({
@@ -290,6 +298,7 @@ export default function CamaraFria() {
       toast.error("No se pudo enviar el lote a CDMX", { description: message });
     }
   };
+
 
 
     if (cantidad > loteMermaSeleccionado.cajas) {

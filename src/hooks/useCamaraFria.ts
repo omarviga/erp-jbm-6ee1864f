@@ -1,6 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+const buildRpcErrorMessage = (error: { message?: string; details?: string; hint?: string; code?: string } | null) => {
+    if (!error) return 'Error desconocido';
+
+    const parts = [error.message, error.details, error.hint].filter(Boolean);
+    const base = parts.length > 0 ? parts.join(' | ') : 'Error desconocido';
+    return error.code ? `${base} (code: ${error.code})` : base;
+};
+
 export const useCamaraFria = () => {
     const queryClient = useQueryClient();
 
@@ -101,6 +109,9 @@ export const useCamaraFria = () => {
             });
 
             if (error) {
+                const msg = buildRpcErrorMessage(error);
+                console.error("Error running trasladar_a_camara_fria RPC:", msg, error);
+                throw new Error(msg);
                 console.error("Error running trasladar_a_camara_fria RPC:", error);
                 throw error;
             }
@@ -133,6 +144,9 @@ export const useCamaraFria = () => {
             });
 
             if (error) {
+                const msg = buildRpcErrorMessage(error);
+                console.error("Error running registrar_envio_cdmx_transporte_directo RPC:", msg, error);
+                throw new Error(msg);
                 console.error("Error running registrar_envio_cdmx_transporte_directo RPC:", error);
                 throw error;
             }
@@ -163,6 +177,9 @@ export const useCamaraFria = () => {
             });
 
             if (error) {
+                const msg = buildRpcErrorMessage(error);
+                console.error("Error running registrar_baja_merma RPC:", msg, error);
+                throw new Error(msg);
                 console.error("Error running registrar_baja_merma RPC:", error);
                 throw error;
             }
