@@ -6,64 +6,42 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  ClipboardCheck,
   ShoppingCart,
   Package,
-  Camera,
   CheckCircle,
   AlertCircle,
   DollarSign,
   Plus,
   Minus,
   Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useVentas, Producto } from "@/hooks/useVentas";
+import { FiltrosLimon } from "@/components/ventas/FiltrosLimon";
+import { ProductoLimonCard } from "@/components/ventas/ProductoLimonCard";
+import { CobroModal } from "@/components/ventas/CobroModal";
 
-// --- DATOS INICIALES ---
-
-const embarquesPendientes = [
-  {
-    id: "EMB-2501",
-    origen: "Michoacán",
-    tarimas: 24,
-    estado: "llegado",
-    hora: "11:45 AM",
-  },
-];
-
-const productosRecibirInicial = [
-  { producto: "Limón Verde Super", enviado: 8, recibido: 8 },
-  { producto: "Limón Verde Extra", enviado: 6, recibido: 6 },
-  { producto: "Limón Verde XXX", enviado: 5, recibido: 4 },
-  { producto: "Limón Alimonado", enviado: 5, recibido: 5 },
-];
-
-const inventarioCDMX = [
-  { producto: "Limón Verde Super", cantidad: 45, precio: 850 },
-  { producto: "Limón Verde Extra", cantidad: 32, precio: 750 },
-  { producto: "Limón Verde XXX", cantidad: 28, precio: 680 },
-  { producto: "Limón Alimonado", cantidad: 18, precio: 620 },
-];
-
-interface CartItem {
-  producto: string;
-  cantidad: number;
-  precio: number;
-}
-
-export default function CDMXPage() {
+export default function Ventas() {
   // --- ESTADO ---
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [recepcionList, setRecepcionList] = useState(productosRecibirInicial);
+  const {
+    productos,
+    clientes,
+    carrito,
+    stock,
+    loading,
+    agregarAlCarrito,
+    actualizarItem,
+    eliminarDelCarrito,
+    limpiarCarrito,
+    cobrar
+  } = useVentas();
+
+  const [filtroCalibre, setFiltroCalibre] = useState<string>("todos");
+  const [filtroCalidad, setFiltroCalidad] = useState<string>("todos");
+  const [filtroColor, setFiltroColor] = useState<string>("todos");
+  const [showCobroModal, setShowCobroModal] = useState(false);
 
   // --- LÓGICA DE CARRITO ---
   const addToCart = (producto: any) => {
