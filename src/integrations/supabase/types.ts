@@ -272,6 +272,51 @@ export type Database = {
           },
         ]
       }
+      gastos: {
+        Row: {
+          categoria: Database["public"]["Enums"]["categoria_gasto"]
+          concepto: string
+          created_at: string
+          fecha: string
+          id: string
+          imagen_url: string | null
+          monto: number
+          notas: string | null
+          numero_ticket: string | null
+          proveedor: string | null
+          updated_at: string
+          usuario_id: string | null
+        }
+        Insert: {
+          categoria?: Database["public"]["Enums"]["categoria_gasto"]
+          concepto: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          imagen_url?: string | null
+          monto?: number
+          notas?: string | null
+          numero_ticket?: string | null
+          proveedor?: string | null
+          updated_at?: string
+          usuario_id?: string | null
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["categoria_gasto"]
+          concepto?: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          imagen_url?: string | null
+          monto?: number
+          notas?: string | null
+          numero_ticket?: string | null
+          proveedor?: string | null
+          updated_at?: string
+          usuario_id?: string | null
+        }
+        Relationships: []
+      }
       guia_detalles: {
         Row: {
           camara_fria_id: string | null
@@ -1293,6 +1338,15 @@ export type Database = {
         | "AM-EXT"
       calidad_fruta: "exportacion" | "nacional" | "industria" | "desecho"
       calidad_limon: "primera" | "segunda" | "industria"
+      categoria_gasto:
+        | "mantenimiento"
+        | "viaticos"
+        | "combustible"
+        | "papeleria"
+        | "limpieza"
+        | "refacciones"
+        | "servicios"
+        | "otros"
       color_limon: "verde" | "alimonado" | "amarillo"
       destino_produccion:
         | "piso_empaque"
@@ -1459,6 +1513,16 @@ export const Constants = {
       ],
       calidad_fruta: ["exportacion", "nacional", "industria", "desecho"],
       calidad_limon: ["primera", "segunda", "industria"],
+      categoria_gasto: [
+        "mantenimiento",
+        "viaticos",
+        "combustible",
+        "papeleria",
+        "limpieza",
+        "refacciones",
+        "servicios",
+        "otros",
+      ],
       color_limon: ["verde", "alimonado", "amarillo"],
       destino_produccion: [
         "piso_empaque",
