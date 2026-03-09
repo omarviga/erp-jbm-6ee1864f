@@ -42,13 +42,6 @@ type Liquidacion = Database['public']['Tables']['liquidaciones']['Row'];
 type Cliente = Database['public']['Tables']['clientes']['Row'];
 
 // Tipos para los datos transformados
-interface ClienteMoroso {
-  id: string;
-  nombre: string;
-  saldo: number;
-  diasVencido: number;
-  limite: number;
-}
 
 interface LiquidacionPasada {
   id: string;
