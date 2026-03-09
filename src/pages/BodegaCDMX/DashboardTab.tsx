@@ -97,6 +97,23 @@ export default function DashboardTab() {
   });
 
   // Calculate metrics
+  // SECURITY: Double-check admin access (after hooks)
+  if (!isAdmin) {
+    return (
+      <div className="h-full flex items-center justify-center bg-background">
+        <Card className="max-w-md">
+          <CardContent className="p-8 text-center">
+            <ShieldAlert className="h-16 w-16 mx-auto text-red-500 mb-4" />
+            <h2 className="text-xl font-bold text-foreground mb-2">Acceso Restringido</h2>
+            <p className="text-muted-foreground">
+              Esta sección solo está disponible para administradores.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const totalVentas = ventasData?.reduce((sum, v) => sum + v.total, 0) || 0;
   const totalGastos = gastosData?.reduce((sum, g) => sum + g.monto, 0) || 0;
   
