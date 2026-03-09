@@ -9,6 +9,25 @@ const buildRpcErrorMessage = (error: { message?: string; details?: string; hint?
     return error.code ? `${base} (code: ${error.code})` : base;
 };
 
+const isMissingFunctionError = (error: { code?: string; message?: string } | null) => {
+    if (!error) return false;
+    return error.code === 'PGRST202' || (error.message || '').includes('Could not find the function');
+};
+
+const safeInsertKardex = async (payload: {
+    lote_id: string;
+    tipo_movimiento: 'traslado_interno' | 'envio_cdmx';
+    cantidad: number;
+    ubicacion_origen: string;
+    ubicacion_destino: string;
+    usuario_id: string;
+}) => {
+    const { error } = await supabase.from('inventario_kardex').insert(payload);
+    if (error) {
+        console.warn('Kardex fallback insert skipped:', error.message);
+    }
+};
+
 export const useCamaraFria = () => {
     const queryClient = useQueryClient();
 
@@ -108,6 +127,69 @@ export const useCamaraFria = () => {
                 p_usuario_id: usuarioId,
             });
 
+            if (!error) {
+                return true;
+            }
+
+            if (!isMissingFunctionError(error)) {
+                const msg = buildRpcErrorMessage(error);
+                console.error("Error running trasladar_a_camara_fria RPC:", msg, error);
+                throw new Error(msg);
+            }
+
+            // Fallback client-side transaction for environments without migrated RPC.
+            const { error: updateProdError } = await supabase
+                .from('produccion')
+                .update({ destino: 'camara_fria' })
+                .eq('id', produccionId)
+                .eq('destino', 'piso_empaque');
+
+            if (updateProdError) {
+                throw new Error(buildRpcErrorMessage(updateProdError));
+            }
+
+            const { data: camaraRow, error: camaraFetchError } = await supabase
+                .from('camara_fria')
+                .select('id, cantidad_disponible')
+                .eq('produccion_id', produccionId)
+                .maybeSingle();
+
+            if (camaraFetchError) {
+                throw new Error(buildRpcErrorMessage(camaraFetchError));
+            }
+
+            if (!camaraRow) {
+                const { error: insertCamaraError } = await supabase
+                    .from('camara_fria')
+                    .insert({
+                        produccion_id: produccionId,
+                        cantidad_cajas: cantidad,
+                        cantidad_disponible: cantidad,
+                    });
+
+                if (insertCamaraError) {
+                    throw new Error(buildRpcErrorMessage(insertCamaraError));
+                }
+            } else {
+                const { error: updateCamaraError } = await supabase
+                    .from('camara_fria')
+                    .update({ cantidad_disponible: camaraRow.cantidad_disponible + cantidad })
+                    .eq('id', camaraRow.id);
+
+                if (updateCamaraError) {
+                    throw new Error(buildRpcErrorMessage(updateCamaraError));
+                }
+            }
+
+            await safeInsertKardex({
+                lote_id: loteId,
+                tipo_movimiento: 'traslado_interno',
+                cantidad,
+                ubicacion_origen: 'piso_empaque',
+                ubicacion_destino: 'camara_fria',
+                usuario_id: usuarioId,
+            });
+
             if (error) {
                 const msg = buildRpcErrorMessage(error);
                 console.error("Error running trasladar_a_camara_fria RPC:", msg, error);
@@ -143,6 +225,118 @@ export const useCamaraFria = () => {
                 p_usuario_id: usuarioId,
             });
 
+            if (!error) {
+                return true;
+            }
+
+            if (!isMissingFunctionError(error)) {
+                const msg = buildRpcErrorMessage(error);
+                console.error("Error running registrar_envio_cdmx_transporte_directo RPC:", msg, error);
+                throw new Error(msg);
+            }
+
+            // Fallback client-side transaction for environments without migrated RPC.
+            const { data: produccion, error: prodError } = await supabase
+                .from('produccion')
+                .select('id, presentacion_id, cantidad_cajas')
+                .eq('id', produccionId)
+                .single();
+
+            if (prodError || !produccion) {
+                throw new Error(buildRpcErrorMessage(prodError));
+            }
+
+            const { error: updateProdError } = await supabase
+                .from('produccion')
+                .update({ destino: 'camara_fria' })
+                .eq('id', produccionId);
+
+            if (updateProdError) {
+                throw new Error(buildRpcErrorMessage(updateProdError));
+            }
+
+            const { data: camaraRow, error: camaraFetchError } = await supabase
+                .from('camara_fria')
+                .select('id, cantidad_disponible')
+                .eq('produccion_id', produccionId)
+                .maybeSingle();
+
+            if (camaraFetchError) {
+                throw new Error(buildRpcErrorMessage(camaraFetchError));
+            }
+
+            let camaraId = camaraRow?.id;
+            let disponible = camaraRow?.cantidad_disponible || 0;
+
+            if (!camaraRow) {
+                const { data: inserted, error: insertCamaraError } = await supabase
+                    .from('camara_fria')
+                    .insert({
+                        produccion_id: produccionId,
+                        cantidad_cajas: produccion.cantidad_cajas || cantidad,
+                        cantidad_disponible: produccion.cantidad_cajas || cantidad,
+                    })
+                    .select('id, cantidad_disponible')
+                    .single();
+
+                if (insertCamaraError || !inserted) {
+                    throw new Error(buildRpcErrorMessage(insertCamaraError));
+                }
+                camaraId = inserted.id;
+                disponible = inserted.cantidad_disponible;
+            }
+
+            if (disponible < cantidad) {
+                throw new Error(`Stock insuficiente para envío. Disponible: ${disponible} cajas.`);
+            }
+
+            const { error: updateCamaraError } = await supabase
+                .from('camara_fria')
+                .update({ cantidad_disponible: disponible - cantidad })
+                .eq('id', camaraId);
+
+            if (updateCamaraError) {
+                throw new Error(buildRpcErrorMessage(updateCamaraError));
+            }
+
+            await safeInsertKardex({
+                lote_id: loteId,
+                tipo_movimiento: 'envio_cdmx',
+                cantidad: -cantidad,
+                ubicacion_origen: 'transporte_directo',
+                ubicacion_destino: 'en_transito_cdmx',
+                usuario_id: usuarioId,
+            });
+
+            const folio = `TR-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 9000 + 1000)}`;
+            const { data: transferencia, error: transferenciaError } = await supabase
+                .from('transferencias_bodega')
+                .insert({
+                    folio,
+                    origen: 'michoacan',
+                    destino: 'cdmx',
+                    estado: 'en_transito',
+                    chofer: 'Pendiente',
+                    notas_salida: referenciaViaje,
+                })
+                .select('id')
+                .single();
+
+            if (transferenciaError || !transferencia) {
+                throw new Error(buildRpcErrorMessage(transferenciaError));
+            }
+
+            const { error: detalleError } = await supabase
+                .from('transferencia_detalles')
+                .insert({
+                    transferencia_id: transferencia.id,
+                    presentacion_id: produccion.presentacion_id,
+                    cantidad_enviada: cantidad,
+                    precio_base: precioBaseCongelado,
+                });
+
+            if (detalleError) {
+                throw new Error(buildRpcErrorMessage(detalleError));
             if (error) {
                 const msg = buildRpcErrorMessage(error);
                 console.error("Error running registrar_envio_cdmx_transporte_directo RPC:", msg, error);
