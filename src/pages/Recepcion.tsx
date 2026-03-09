@@ -871,7 +871,29 @@ export default function Recepcion() {
                         </div>
                       )}
 
-                      <div className="space-y-1">
+                      {/* Precio por caja para cálculo de cortadores */}
+                      <div className="space-y-2">
+                        <Label htmlFor="precio-caja-propia" className="text-base font-semibold">
+                          <DollarSign className="h-4 w-4 inline mr-1" />
+                          Precio por Caja (para pago a cortadores)
+                        </Label>
+                        <Input
+                          id="precio-caja-propia"
+                          type="number"
+                          step="0.01"
+                          value={precio}
+                          onChange={(e) => setPrecio(e.target.value)}
+                          placeholder="Ej: 100.00"
+                          className="h-14 text-2xl font-mono text-center font-bold"
+                        />
+                        {precio && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            Pago al cortador: 30% = <span className="font-bold">${(parseFloat(precio) * 0.30).toFixed(2)}</span> por caja
+                          </p>
+                        )}
+                      </div>
+
+
                         <div className="flex justify-between text-sm">
                           <Label htmlFor={fieldIds.defectos} className="text-rose-600 font-bold">
                             Defectos (%)
