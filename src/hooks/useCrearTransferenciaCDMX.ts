@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface ItemTransferencia {
   id: string;
@@ -46,8 +46,6 @@ export function useCrearTransferenciaCDMX() {
           cantidad_disponible,
           produccion_id,
           produccion (
-            id,
-            destino,
             lote_id,
             calibre,
             calidad,
@@ -59,7 +57,6 @@ export function useCrearTransferenciaCDMX() {
           )
         `)
         .gt("cantidad_disponible", 0);
-
       if (errorCamara) throw errorCamara;
 
       const { data: stockTransicion, error: errorTransicion } = await supabase
@@ -78,26 +75,10 @@ export function useCrearTransferenciaCDMX() {
         `)
         .in("destino", ["piso_empaque", "transporte_directo"])
         .gt("cantidad_cajas", 0);
-
       if (errorTransicion) throw errorTransicion;
 
       const desdeCamara = (stockCamara || []).map((item) => {
         const prod = item.produccion as {
-          id?: string;
-          destino?: string;
-          lote_id?: string;
-          calibre?: string;
-          calidad?: string;
-          cantidad_cajas?: number;
-          peso_total_kg?: number;
-          presentacion_id?: string;
-          lotes?: { numero_lote?: string };
-          presentaciones?: { id?: string; nombre?: string };
-        };
-
-      return (data || []).map((item) => {
-        const prod = item.produccion as {
-          id?: string;
           lote_id?: string;
           calibre?: string;
           calidad?: string;
@@ -148,11 +129,7 @@ export function useCrearTransferenciaCDMX() {
   const { data: stockMolino = [], isLoading: loadingMolino } = useQuery({
     queryKey: ["stock-molino-transferencia"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stock_molino")
-        .select(`*, lotes (numero_lote)`)
-        .gt("peso_disponible", 0);
-
+      const { data, error } = await supabase.from("stock_molino").select(`*, lotes (numero_lote)`).gt("peso_disponible", 0);
       if (error) throw error;
       return data || [];
     },
@@ -170,7 +147,9 @@ export function useCrearTransferenciaCDMX() {
         `Chofer: ${datos.chofer.trim()}`,
         datos.placas.trim() ? `Placas: ${datos.placas.trim()}` : "",
         datos.notas.trim() ? `Notas: ${datos.notas.trim()}` : "",
-      ].filter(Boolean).join(" / ");
+      ]
+        .filter(Boolean)
+        .join(" / ");
 
       for (const item of datos.items) {
         const precioBaseCongelado = calcularPrecioBaseCongelado(item);
@@ -190,20 +169,16 @@ export function useCrearTransferenciaCDMX() {
 
         const { error } = await supabase.rpc("registrar_envio_cdmx_transporte_directo", {
           p_produccion_id: item.produccion_id,
-        const { error } = await supabase.rpc("registrar_envio_cdmx", {
-          p_registro_camara_id: item.id,
           p_lote_id: item.lote_id,
           p_cantidad_enviar: item.cantidad,
           p_precio_base_congelado: precioBaseCongelado,
           p_referencia_viaje: referenciaViaje,
           p_usuario_id: authData.user.id,
         });
-
         if (error) throw error;
       }
 
-      const folio = `TR-${format(new Date(), "yyMMdd")}`;
-      return { folio, cantidadMovimientos: datos.items.length };
+      return { folio: `TR-${format(new Date(), "yyMMdd")}`, cantidadMovimientos: datos.items.length };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["stock-para-transferencia"] });
@@ -218,9 +193,7 @@ export function useCrearTransferenciaCDMX() {
       });
     },
     onError: (error: Error) => {
-      toast.error("Error al crear transferencia", {
-        description: error.message,
-      });
+      toast.error("Error al crear transferencia", { description: error.message });
     },
   });
 
