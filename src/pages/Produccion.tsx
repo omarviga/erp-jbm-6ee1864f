@@ -686,76 +686,86 @@ export default function Produccion() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 3. SELECCIÓN DE CALIBRE */}
-                <div className="space-y-2">
-                  <Label htmlFor={idCalibre} className="text-xs font-bold text-slate-500 uppercase">
-                    Calibre
-                  </Label>
-                  <Select
-                    value={calibre}
-                    onValueChange={setCalibre}
-                    disabled={!loteId}
-                  >
-                    <SelectTrigger id={idCalibre} name="calibre" className="h-14">
-                      <SelectValue placeholder={
-                        !loteId ? "Seleccione un lote primero" :
-                            "Seleccione calibre"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {calibresLimon.length > 0 ? (
-                        calibresLimon.map((item) => (
-                          <SelectItem key={item.id} value={item.calibre} className="py-3">
-                            <div className="flex items-center gap-3">
-                              <span className={cn(
-                                "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold border-2",
-                                item.calibre === 'SUPER' ? "bg-green-800 text-white border-green-900" :
-                                  item.calibre === 'EXTRA' ? "bg-green-600 text-white border-green-700" :
-                                    item.calibre.includes('X') ? "bg-green-100 text-green-800 border-green-300" :
-                                      "bg-slate-100 text-slate-600 border-slate-200"
-                              )}>
-                                {item.calibre.substring(0, 2)}
-                              </span>
-                              <div className="flex flex-col">
-                                <span className="font-bold text-lg">{item.calibre}</span>
-                                <span className="text-xs text-slate-500">
-                                  {item.nombre_producto}
-                                </span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          No se encontraron calibres
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
+              {/* 3. SELECCIÓN DE CALIBRE (incluye color) */}
+              <div className="space-y-3">
+                <Label className="text-xs font-bold text-slate-500 uppercase">
+                  Calibre (Color + Tamaño)
+                </Label>
+                {/* Verde */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-green-700 flex items-center gap-1">🟢 Verde</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CALIBRES_POR_COLOR.verde.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        disabled={!loteId}
+                        onClick={() => setCalibre(c.value)}
+                        className={cn(
+                          "px-3 py-2 rounded-lg border-2 font-bold text-sm transition-all",
+                          calibre === c.value
+                            ? "bg-green-600 text-white border-green-700 shadow-md scale-105"
+                            : "bg-green-50 text-green-800 border-green-200 hover:bg-green-100",
+                          !loteId && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-
-                {/* 4. SELECCIÓN DE COLOR */}
-                <div className="space-y-2">
-                  <Label htmlFor={idColor} className="text-xs font-bold text-slate-500 uppercase">
-                    Color
-                  </Label>
-                  <Select value={color} onValueChange={setColor}>
-                    <SelectTrigger id={idColor} name="color" className="h-14">
-                      <SelectValue placeholder="Madurez..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {colores.map((c) => (
-                        <SelectItem key={c.value} value={c.value} className="py-3">
-                          <div className="flex items-center gap-2">
-                            <div className={cn("h-6 w-6 rounded-full border border-slate-200 shadow-sm", c.color)} />
-                            <span className="text-base">{c.label}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Alimonado */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-lime-700 flex items-center gap-1">🟡 Alimonado</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CALIBRES_POR_COLOR.alimonado.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        disabled={!loteId}
+                        onClick={() => setCalibre(c.value)}
+                        className={cn(
+                          "px-3 py-2 rounded-lg border-2 font-bold text-sm transition-all",
+                          calibre === c.value
+                            ? "bg-lime-500 text-white border-lime-600 shadow-md scale-105"
+                            : "bg-lime-50 text-lime-800 border-lime-200 hover:bg-lime-100",
+                          !loteId && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                {/* Amarillo */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-yellow-700 flex items-center gap-1">🟠 Amarillo</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CALIBRES_POR_COLOR.amarillo.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        disabled={!loteId}
+                        onClick={() => setCalibre(c.value)}
+                        className={cn(
+                          "px-3 py-2 rounded-lg border-2 font-bold text-sm transition-all",
+                          calibre === c.value
+                            ? "bg-yellow-500 text-white border-yellow-600 shadow-md scale-105"
+                            : "bg-yellow-50 text-yellow-800 border-yellow-200 hover:bg-yellow-100",
+                          !loteId && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {calibre && (
+                  <p className="text-sm text-slate-600">
+                    Seleccionado: <span className={cn("font-bold px-2 py-0.5 rounded", getCalibreColorClass(calibre))}>{calibre}</span>
+                    {" → "}{getColorGroupLabel(calibre).emoji} {getColorGroupLabel(calibre).label}
+                  </p>
+                )}
               </div>
 
               {/* 5. ALERTA DE DESTINO */}
