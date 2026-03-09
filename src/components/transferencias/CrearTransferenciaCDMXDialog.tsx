@@ -28,6 +28,7 @@ import {
   Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CalibreBadge } from "@/components/ui/calibre-badge";
 import { useCrearTransferenciaCDMX, type ItemTransferencia } from "@/hooks/useCrearTransferenciaCDMX";
 
 interface Props {
