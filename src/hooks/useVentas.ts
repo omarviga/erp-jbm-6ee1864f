@@ -8,6 +8,7 @@ export interface Producto {
     peso_kg: number;
     tipo: string;
     precio_sugerido?: number;
+    precio_base?: number;
     inventario_id?: string;
 }
 
@@ -32,9 +33,15 @@ export function useVentas() {
 
     // Cargar datos iniciales
     useEffect(() => {
-        cargarProductos();
-        cargarClientes();
-        cargarStock();
+        const inicializar = async () => {
+            const productosBase = await cargarProductos();
+            await Promise.all([
+                cargarClientes(),
+                cargarStock(productosBase)
+            ]);
+        };
+
+        void inicializar();
     }, []);
 
     const cargarProductos = async () => {
@@ -47,16 +54,18 @@ export function useVentas() {
 
             if (error) throw error;
 
-            // Mock precios sugeridos por ahora ya que no existen en DB
             const productosConPrecio = data?.map(p => ({
                 ...p,
-                precio_sugerido: p.tipo === "arpilla" ? 150 : 200 // Default prices
+                precio_sugerido: 0,
+                precio_base: 0,
             })) || [];
 
             setProductos(productosConPrecio);
+            return productosConPrecio;
         } catch (error) {
             console.error("Error cargando productos:", error);
             toast.error("Error al cargar productos");
+            return [];
         }
     };
 
@@ -74,7 +83,7 @@ export function useVentas() {
         }
     };
 
-    const cargarStock = async () => {
+    const cargarStock = async (productosBase: Producto[] = []) => {
         try {
             // Query CDMX inventory instead of camara_fria
             const { data, error } = await supabase
@@ -82,6 +91,7 @@ export function useVentas() {
                 .select(`
                     id,
                     cantidad_disponible,
+                    precio_base,
                     precio_venta,
                     presentacion_id
                 `)
@@ -91,27 +101,33 @@ export function useVentas() {
 
             // Aggregate stock and map IDs
             const stockMap: Record<string, number> = {};
-            // Also update products with their real precio_venta from CDMX inventory
-            const preciosMap: Record<string, number> = {};
+            const preciosVentaMap: Record<string, number> = {};
+            const preciosBaseMap: Record<string, number> = {};
+            const inventarioIdMap: Record<string, string> = {};
             
             data?.forEach((item: any) => {
                 const pId = item.presentacion_id;
                 if (pId) {
                     stockMap[pId] = (stockMap[pId] || 0) + (item.cantidad_disponible || 0);
-                    // Use the first valid precio_venta found for this presentation
-                    if (!preciosMap[pId] && item.precio_venta) {
-                        preciosMap[pId] = item.precio_venta;
+                    preciosBaseMap[pId] = Math.max(preciosBaseMap[pId] || 0, item.precio_base || 0);
+                    preciosVentaMap[pId] = Math.max(
+                        preciosVentaMap[pId] || 0,
+                        item.precio_venta || item.precio_base || 0
+                    );
+                    if (!inventarioIdMap[pId]) {
+                        inventarioIdMap[pId] = item.id;
                     }
                 }
             });
 
             setStock(stockMap);
-            
-            // Update product prices if we have them
-            setProductos(prev => prev.map(p => ({
+             
+            const productosOrigen = productosBase.length > 0 ? productosBase : productos;
+            setProductos(productosOrigen.map(p => ({
                 ...p,
-                precio_sugerido: preciosMap[p.id] || p.precio_sugerido,
-                inventario_id: data?.find(i => i.presentacion_id === p.id)?.id // Store one valid inventory ID for the sale payload
+                precio_base: preciosBaseMap[p.id] || p.precio_base || 0,
+                precio_sugerido: preciosVentaMap[p.id] || preciosBaseMap[p.id] || p.precio_sugerido || 0,
+                inventario_id: inventarioIdMap[p.id] || p.inventario_id
             })));
         } catch (error) {
             console.error("Error cargando stock CDMX:", error);
@@ -140,7 +156,7 @@ export function useVentas() {
             setCarrito([...carrito, {
                 ...producto,
                 cantidad: 1,
-                precio_venta: producto.precio_sugerido || 0
+                precio_venta: Math.max(producto.precio_sugerido || 0, producto.precio_base || 0)
             }]);
         }
     };

@@ -50,8 +50,8 @@ export default function POSTab() {
 
   const subtotal = total;
   
-  // CRITICAL: Price lock validation - precio_venta MUST be >= precio_base (precio_sugerido)
-  const precioInvalido = carrito.some(item => item.precio_venta < (item.precio_sugerido || 0));
+  // Keep UI validation aligned with backend: price cannot go below precio_base.
+  const precioInvalido = carrito.some(item => item.precio_venta < (item.precio_base || item.precio_sugerido || 0));
 
   const productosFiltrados = productos.filter(p =>
     p.nombre.toLowerCase().includes(busqueda.toLowerCase())
@@ -209,7 +209,8 @@ export default function POSTab() {
             ) : (
               <div className="space-y-2">
                 {carrito.map((item) => {
-                  const porDebajoBase = item.precio_venta < (item.precio_sugerido || 0);
+                  const precioMinimo = item.precio_base || item.precio_sugerido || 0;
+                  const porDebajoBase = item.precio_venta < precioMinimo;
                   const isSelected = selectedCartItem === item.id;
                   return (
                     <div
@@ -230,7 +231,7 @@ export default function POSTab() {
                         <p className="text-sm font-bold text-gray-900">${(item.cantidad * item.precio_venta).toFixed(2)}</p>
                         {porDebajoBase && (
                           <span className="text-[9px] text-red-600 font-bold flex items-center gap-0.5">
-                            <Lock className="h-2.5 w-2.5" /> MIN ${(item.precio_sugerido || 0).toFixed(0)}
+                            <Lock className="h-2.5 w-2.5" /> MIN ${precioMinimo.toFixed(0)}
                           </span>
                         )}
                       </div>
