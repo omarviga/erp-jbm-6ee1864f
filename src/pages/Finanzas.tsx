@@ -279,9 +279,15 @@ export default function Finanzas() {
   const saldoDeudaAnticipo = productorSeleccionado?.saldo_anticipos || 0;
   const cobroAnticipo = parseFloat(amortizacionManual) || 0;
   const excedeAnticipo = cobroAnticipo > saldoDeudaAnticipo;
+  const maximoAplicableAnticipo = Math.max(0, importeBruto - totalGastoExterno - totalDeduccionesOp);
 
   // 5. GRAN TOTAL (A PAGAR)
   const totalPagar = importeBruto - totalGastoExterno - totalDeduccionesOp - cobroAnticipo;
+
+  const aplicarSaldoAnticipoDisponible = (saldoDisponible = saldoDeudaAnticipo) => {
+    const montoAplicable = Math.min(saldoDisponible || 0, maximoAplicableAnticipo);
+    setAmortizacionManual(montoAplicable > 0 ? montoAplicable.toFixed(2) : "");
+  };
 
   const handleRegistrarAdelanto = async () => {
     if (!productorId || !productorSeleccionado) {
@@ -338,10 +344,11 @@ export default function Finanzas() {
 
       toast({
         title: "✅ Adelanto registrado",
-        description: `Se registró un adelanto por $${monto.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`,
+        description: `Se registró un adelanto por $${monto.toLocaleString("es-MX", { minimumFractionDigits: 2 })}. Ya puedes aplicarlo a la liquidación actual.`,
         className: "bg-slate-800 text-white border-none"
       });
 
+      aplicarSaldoAnticipoDisponible(nuevoSaldoAnticipos);
       setMontoAdelanto("");
       setReferenciaPago("");
     } catch (error) {
@@ -843,6 +850,16 @@ export default function Finanzas() {
                           onChange={(e) => setAmortizacionManual(e.target.value)}
                         />
                       </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => aplicarSaldoAnticipoDisponible()}
+                        disabled={!saldoDeudaAnticipo || maximoAplicableAnticipo <= 0}
+                      >
+                        Aplicar saldo
+                      </Button>
                       {excedeAnticipo && (
                         <span className="text-xs text-red-600">Excede el saldo de anticipo</span>
                       )}
