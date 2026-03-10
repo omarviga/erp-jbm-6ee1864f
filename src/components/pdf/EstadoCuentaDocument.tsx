@@ -28,13 +28,13 @@ const styles = StyleSheet.create({
   // Tabla Detallada
   table: { display: "flex", width: "auto", borderStyle: "solid", borderRightWidth: 0, borderBottomWidth: 0 },
   tableRow: { margin: "auto", flexDirection: "row" },
-  tableColHeader: { width: "15%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#000', backgroundColor: '#f1f5f9', padding: 5 },
-  tableColDesc: { width: "40%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#000', backgroundColor: '#f1f5f9', padding: 5 },
-  tableColMoney: { width: "15%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#000', backgroundColor: '#f1f5f9', padding: 5, textAlign: 'right' },
+  tableColHeader: { width: "14%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#000', backgroundColor: '#f1f5f9', padding: 5 },
+  tableColDesc: { width: "30%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#000', backgroundColor: '#f1f5f9', padding: 5 },
+  tableColMoney: { width: "14%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#000', backgroundColor: '#f1f5f9', padding: 5, textAlign: 'right' },
 
-  tableCell: { width: "15%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#e2e8f0', padding: 5 },
-  tableCellDesc: { width: "40%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#e2e8f0', padding: 5 },
-  tableCellMoney: { width: "15%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#e2e8f0', padding: 5, textAlign: 'right' },
+  tableCell: { width: "14%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#e2e8f0', padding: 5 },
+  tableCellDesc: { width: "30%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#e2e8f0', padding: 5 },
+  tableCellMoney: { width: "14%", borderStyle: "solid", borderBottomWidth: 1, borderColor: '#e2e8f0', padding: 5, textAlign: 'right' },
 
   // Firmas
   footer: { position: 'absolute', bottom: 40, left: 40, right: 40, flexDirection: 'row', justifyContent: 'space-between' },
@@ -105,7 +105,7 @@ export const EstadoCuentaDocument = ({ productor, periodo, movimientos, resumen 
           <Text style={{ ...styles.summaryValue, color: '#dc2626' }}>${resumen.totalCargos.toLocaleString('es-MX')}</Text>
         </View>
         <View style={{ ...styles.summaryCard, backgroundColor: '#f0fdf4', borderColor: '#86efac' }}>
-          <Text style={styles.summaryLabel}>= A PAGAR</Text>
+          <Text style={styles.summaryLabel}>= SALDO PENDIENTE</Text>
           <Text style={{ ...styles.summaryValue, color: '#15803d' }}>${resumen.saldoFinal.toLocaleString('es-MX')}</Text>
         </View>
       </View>
@@ -119,6 +119,7 @@ export const EstadoCuentaDocument = ({ productor, periodo, movimientos, resumen 
           <Text style={styles.tableColDesc}>CONCEPTO / DETALLE</Text>
           <Text style={styles.tableColMoney}>CARGOS</Text>
           <Text style={styles.tableColMoney}>ABONOS</Text>
+          <Text style={styles.tableColMoney}>SALDO</Text>
         </View>
 
         {/* Rows */}
@@ -132,6 +133,9 @@ export const EstadoCuentaDocument = ({ productor, periodo, movimientos, resumen 
             </Text>
             <Text style={{ ...styles.tableCellMoney, color: mov.abonos > 0 ? '#16a34a' : '#333' }}>
               {mov.abonos > 0 ? `$${mov.abonos.toLocaleString('es-MX')}` : '-'}
+            </Text>
+            <Text style={{ ...styles.tableCellMoney, color: mov.saldo >= 0 ? '#15803d' : '#dc2626' }}>
+              ${mov.saldo.toLocaleString('es-MX')}
             </Text>
           </View>
         ))}

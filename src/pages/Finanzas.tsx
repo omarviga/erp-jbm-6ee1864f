@@ -53,6 +53,15 @@ interface LiquidacionPasada {
   ref: string;
 }
 
+interface EstadoCuentaMovimiento {
+  fecha: string;
+  folio: string;
+  concepto: string;
+  cargos: number;
+  abonos: number;
+  saldo: number;
+}
+
 interface MovimientoBanco {
   fecha: string;
   concepto: string;
@@ -106,6 +115,8 @@ export default function Finanzas() {
   const [referenciaPago, setReferenciaPago] = useState("");
   const [montoAdelanto, setMontoAdelanto] = useState("");
   const [montoPagoActual, setMontoPagoActual] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
 
   // Deducciones Operativas Normales
   const [deducciones, setDeducciones] = useState({
@@ -186,7 +197,7 @@ export default function Finanzas() {
             )
           `)
           .eq('productor_id', productorId)
-          .order('fecha_recepcion', { ascending: true });
+          .order('fecha_recepcion', { ascending: false });
 
         if (errorLotes) throw errorLotes;
 
@@ -252,14 +263,42 @@ export default function Finanzas() {
 
   const productorSeleccionado = productores.find(p => p.id === productorId);
 
+  const construirEstadoCuentaMovimientos = (movimientosBase: Omit<EstadoCuentaMovimiento, "saldo">[]): EstadoCuentaMovimiento[] => {
+    let saldoAcumulado = 0;
+
+    return movimientosBase.map((movimiento) => {
+      saldoAcumulado += movimiento.abonos - movimiento.cargos;
+      return {
+        ...movimiento,
+        saldo: saldoAcumulado,
+      };
+    });
+  };
+
   // --- LÓGICA DE CÁLCULO ---
   const toggleTicket = (id: string) => {
-    setTicketsSeleccionados(prev =>
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-    );
+    setTicketsSeleccionados(prev => (prev[0] === id ? [] : [id]));
   };
 
   const ticketsData = lotesPendientes.filter(t => ticketsSeleccionados.includes(t.id));
+  const ticketSeleccionado = ticketsData[0] || null;
+  const lotesPendientesFiltrados = lotesPendientes.filter((lote) => {
+    const fechaLote = lote.fecha_recepcion ? lote.fecha_recepcion.split('T')[0] : '';
+
+    if (fechaDesde && fechaLote < fechaDesde) {
+      return false;
+    }
+
+    if (fechaHasta && fechaLote > fechaHasta) {
+      return false;
+    }
+
+    return true;
+  });
+  const filtrosFechaActivos = Boolean(fechaDesde || fechaHasta);
+  const lotesVisibles = filtrosFechaActivos
+    ? lotesPendientesFiltrados
+    : lotesPendientesFiltrados.slice(0, 15);
 
   // 1. Totales Básicos
   const totalKilos = ticketsData.reduce((sum, t) => sum + (t.peso_neto || 0), 0);
@@ -378,7 +417,7 @@ export default function Finanzas() {
 
   const handleGenerarLiquidacion = async () => {
     if (ticketsData.length === 0) {
-      toast({ title: "⚠️ Sin lotes seleccionados", description: "Selecciona al menos un lote para liquidar", variant: "destructive" });
+      toast({ title: "⚠️ Sin nota seleccionada", description: "Selecciona una nota para liquidar", variant: "destructive" });
       return;
     }
 
@@ -459,8 +498,8 @@ export default function Finanzas() {
       toast({
         title: "✅ Liquidación Procesada",
         description: saldoPendienteLiquidacion > 0
-          ? `Liquidación registrada. Pago actual: $${pagoActual.toLocaleString("es-MX", { minimumFractionDigits: 2 })}. Pendiente: $${saldoPendienteLiquidacion.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`
-          : `Liquidación pagada por $${pagoActual.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`,
+          ? `Nota ${ticketSeleccionado?.numero_lote || ""} registrada. Pago actual: $${pagoActual.toLocaleString("es-MX", { minimumFractionDigits: 2 })}. Pendiente: $${saldoPendienteLiquidacion.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`
+          : `Nota ${ticketSeleccionado?.numero_lote || ""} pagada por $${pagoActual.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`,
         className: "bg-slate-800 text-white border-none"
       });
 
@@ -595,6 +634,8 @@ export default function Finanzas() {
                       setAmortizacionManual("");
                       setMontoPagoActual("");
                       setReferenciaPago("");
+                      setFechaDesde("");
+                      setFechaHasta("");
                     }}
                     disabled={cargandoProductores} // CORREGIDO: Usa cargandoProductores en lugar de loadingProductores
                   >
@@ -622,7 +663,7 @@ export default function Finanzas() {
                                     totalCargos: totalDeduccionesOp + cobroAnticipo + pagoActual,
                                     saldoFinal: saldoPendienteLiquidacion
                                   }}
-                                  movimientos={[
+                                  movimientos={construirEstadoCuentaMovimientos([
                                     // Convertimos tus tickets a formato de movimiento para el PDF
                                     ...ticketsData.map(t => ({
                                       fecha: t.fecha_recepcion,
@@ -630,7 +671,6 @@ export default function Finanzas() {
                                       concepto: `Entrega de Fruta (${t.peso_neto}kg x $${t.precio_pactado_kg})`,
                                       cargos: 0,
                                       abonos: (t.peso_neto || 0) * (t.precio_pactado_kg || 0),
-                                      saldo: 0
                                     })),
                                     // Agregamos las deducciones como movimientos de cargo
                                     ...(cobroAnticipo > 0 ? [{
@@ -639,7 +679,6 @@ export default function Finanzas() {
                                       concepto: "Amortización de Anticipo",
                                       cargos: cobroAnticipo,
                                       abonos: 0,
-                                      saldo: 0
                                     }] : []),
                                     ...(hayPagoActual ? [{
                                       fecha: new Date().toLocaleDateString(),
@@ -647,9 +686,8 @@ export default function Finanzas() {
                                       concepto: "Pago aplicado en liquidación",
                                       cargos: pagoActual,
                                       abonos: 0,
-                                      saldo: 0
                                     }] : [])
-                                  ]}
+                                  ])}
                                 />
                               }
                               fileName={`EstadoCuenta_${productorSeleccionado.nombre.replace(/\s+/g, '_')}.pdf`}
@@ -673,11 +711,6 @@ export default function Finanzas() {
                       {productores.map((p) => (
                         <SelectItem key={p.id} value={p.id} className="py-2">
                           <span className="font-bold text-slate-900">{p.nombre}</span>
-                          {p.saldo_anticipos > 0 && (
-                            <Badge variant="outline" className="ml-2 text-xs bg-amber-50 text-amber-700">
-                              Anticipo: ${p.saldo_anticipos.toLocaleString()}
-                            </Badge>
-                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -685,64 +718,169 @@ export default function Finanzas() {
 
                   {/* Tabla de Tickets */}
                   {productorId && (
-                    <div className="mt-6 border rounded-lg overflow-hidden">
-                      {loadingLotes ? (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                          <span className="ml-2 text-slate-600">Cargando lotes pendientes...</span>
-                        </div>
-                      ) : (
-                        <>
-                          <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
-                              <tr>
-                                <th className="p-3">Sel.</th>
-                                <th className="p-3">Nota</th>
-                                <th className="p-3">Fecha</th>
-                                <th className="p-3 text-right">Kilos Netos</th>
-                                <th className="p-3 text-right">Precio</th>
-                                <th className="p-3 text-right">Importe</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {lotesPendientes.map((lote) => (
-                                <tr key={lote.id}
-                                  className={cn("border-t hover:bg-blue-50 cursor-pointer", ticketsSeleccionados.includes(lote.id) && "bg-blue-50")}
-                                  onClick={() => toggleTicket(lote.id)}
-                                >
-                                  <td className="p-3">
-                                    <Checkbox checked={ticketsSeleccionados.includes(lote.id)} />
-                                  </td>
-                                  <td className="p-3 font-bold text-slate-700">{lote.numero_lote}</td>
-                                  <td className="p-3 text-slate-500">
-                                    {new Date(lote.fecha_recepcion).toLocaleDateString('es-MX')}
-                                  </td>
-                                  <td className="p-3 text-right font-mono">{lote.peso_neto?.toLocaleString() || "0"}</td>
-                                  <td className="p-3 text-right font-mono">${lote.precio_pactado_kg?.toFixed(2) || "0.00"}</td>
-                                  <td className="p-3 text-right font-bold text-slate-900">
-                                    ${((lote.peso_neto || 0) * (lote.precio_pactado_kg || 0)).toLocaleString()}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          <div className="p-2 bg-slate-50 text-xs text-center text-muted-foreground border-t">
-                            {ticketsSeleccionados.length} notas seleccionadas de {lotesPendientes.length} disponibles
+                    <div className="mt-6 space-y-4">
+                      <div className="rounded-lg border bg-slate-50 p-3">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Desde</Label>
+                              <Input
+                                type="date"
+                                className="h-9 bg-white text-sm"
+                                value={fechaDesde}
+                                onChange={(e) => setFechaDesde(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Hasta</Label>
+                              <Input
+                                type="date"
+                                className="h-9 bg-white text-sm"
+                                value={fechaHasta}
+                                onChange={(e) => setFechaHasta(e.target.value)}
+                              />
+                            </div>
                           </div>
-                        </>
-                      )}
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-white text-slate-700">
+                              {filtrosFechaActivos
+                                ? `${lotesVisibles.length} tickets filtrados`
+                                : `${lotesVisibles.length} tickets recientes`}
+                            </Badge>
+                            <span className="text-xs text-slate-500">Se liquida 1 nota a la vez</span>
+                            {filtrosFechaActivos && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 text-xs"
+                                onClick={() => {
+                                  setFechaDesde("");
+                                  setFechaHasta("");
+                                }}
+                              >
+                                Limpiar filtro
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border rounded-lg overflow-hidden">
+                        {loadingLotes ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                            <span className="ml-2 text-slate-600">Cargando lotes pendientes...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <table className="w-full text-sm text-left">
+                              <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
+                                <tr>
+                                  <th className="p-3">Sel.</th>
+                                  <th className="p-3">Nota</th>
+                                  <th className="p-3">Fecha</th>
+                                  <th className="p-3 text-right">Kilos Netos</th>
+                                  <th className="p-3 text-right">Precio</th>
+                                  <th className="p-3 text-right">Importe</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {lotesVisibles.map((lote) => (
+                                  <tr key={lote.id}
+                                    className={cn("border-t hover:bg-blue-50 cursor-pointer", ticketsSeleccionados.includes(lote.id) && "bg-blue-50")}
+                                    onClick={() => toggleTicket(lote.id)}
+                                  >
+                                    <td className="p-3">
+                                      <Checkbox checked={ticketsSeleccionados.includes(lote.id)} />
+                                    </td>
+                                    <td className="p-3 font-bold text-slate-700">{lote.numero_lote}</td>
+                                    <td className="p-3 text-slate-500">
+                                      {new Date(lote.fecha_recepcion).toLocaleDateString('es-MX')}
+                                    </td>
+                                    <td className="p-3 text-right font-mono">{lote.peso_neto?.toLocaleString() || "0"}</td>
+                                    <td className="p-3 text-right font-mono">${lote.precio_pactado_kg?.toFixed(2) || "0.00"}</td>
+                                    <td className="p-3 text-right font-bold text-slate-900">
+                                      ${((lote.peso_neto || 0) * (lote.precio_pactado_kg || 0)).toLocaleString()}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <div className="p-2 bg-slate-50 text-xs text-center text-muted-foreground border-t">
+                              {ticketsSeleccionados.length} nota seleccionada de {lotesPendientesFiltrados.length} disponibles
+                              {!filtrosFechaActivos && lotesPendientesFiltrados.length > 15 ? " · Mostrando las 15 más recientes" : ""}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wide text-amber-900">Pagos parciales / anticipos</p>
+                            <p className="text-xs text-amber-800">
+                              Saldo disponible: ${saldoDeudaAnticipo.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-28 relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs">$</span>
+                              <Input
+                                className="h-9 pl-5 text-xs text-right border-amber-300 bg-white text-amber-900 font-bold"
+                                placeholder="0.00"
+                                value={amortizacionManual}
+                                onChange={(e) => setAmortizacionManual(e.target.value)}
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-9 border-amber-300 bg-white text-xs hover:bg-amber-100"
+                              onClick={() => aplicarSaldoAnticipoDisponible()}
+                              disabled={!saldoDeudaAnticipo || maximoAplicableAnticipo <= 0}
+                            >
+                              Aplicar saldo
+                            </Button>
+                          </div>
+                        </div>
+                        {excedeAnticipo && (
+                          <p className="mt-2 text-xs text-red-600">El anticipo aplicado no puede exceder el saldo disponible.</p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
               {/* 2. DEDUCCIONES Y CAMPO ESPECIAL (SEGURIDAD) */}
-              {ticketsSeleccionados.length > 0 && (
+              {ticketSeleccionado && (
                 <Card className="shadow-md border-l-4 border-l-amber-500">
                   <CardHeader className="pb-3 flex flex-row justify-between items-center">
-                    <CardTitle className="text-lg">2. Deducciones Operativas</CardTitle>
+                    <CardTitle className="text-lg">2. Ajustes de la Nota</CardTitle>
                   </CardHeader>
-                  <CardContent className="grid grid-cols-2 gap-4">
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-3 rounded-lg border bg-slate-50 p-3 text-sm md:grid-cols-4">
+                      <div>
+                        <p className="text-xs uppercase text-slate-500">Nota</p>
+                        <p className="font-bold text-slate-900">{ticketSeleccionado.numero_lote}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase text-slate-500">Fecha</p>
+                        <p className="font-medium text-slate-900">{new Date(ticketSeleccionado.fecha_recepcion).toLocaleDateString('es-MX')}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase text-slate-500">Kilos</p>
+                        <p className="font-medium text-slate-900">{(ticketSeleccionado.peso_neto || 0).toLocaleString()} kg</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase text-slate-500">Importe</p>
+                        <p className="font-bold text-slate-900">${((ticketSeleccionado.peso_neto || 0) * (ticketSeleccionado.precio_pactado_kg || 0)).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Corte ($)</Label>
                       <Input type="number" placeholder="0.00" value={deducciones.corte} onChange={e => setDeducciones({ ...deducciones, corte: e.target.value })} />
@@ -804,6 +942,7 @@ export default function Finanzas() {
                         * Este monto se descuenta del total. Si el "ojo" está cerrado, no se imprime en el PDF.
                       </p>
                     </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -850,40 +989,6 @@ export default function Finanzas() {
                           <span>(-) Gastos Operativos:</span>
                           <span>-${totalDeduccionesOp.toLocaleString()}</span>
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ANTICIPOS */}
-                  <div className="bg-white p-3 rounded border space-y-2 mt-2">
-                    <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
-                      <span>Anticipos / Préstamos</span>
-                      <span className="text-xs text-muted-foreground">
-                        Saldo: ${saldoDeudaAnticipo.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs">$</span>
-                        <Input
-                          className="h-7 pl-4 text-xs text-right border-red-200 text-red-700 font-bold"
-                          placeholder="0.00"
-                          value={amortizacionManual}
-                          onChange={(e) => setAmortizacionManual(e.target.value)}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => aplicarSaldoAnticipoDisponible()}
-                        disabled={!saldoDeudaAnticipo || maximoAplicableAnticipo <= 0}
-                      >
-                        Aplicar saldo
-                      </Button>
-                      {excedeAnticipo && (
-                        <span className="text-xs text-red-600">Excede el saldo de anticipo</span>
                       )}
                     </div>
                   </div>
@@ -992,12 +1097,10 @@ export default function Finanzas() {
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                           Procesando...
                         </>
-                      ) : (
-                        "Registrar Liquidación"
-                      )}
+                      ) : "Registrar Nota"}
                     </Button>
 
-                    {productorSeleccionado && ticketsData.length > 0 ? (
+                    {productorSeleccionado && ticketSeleccionado ? (
                       <PDFDownloadLink
                         document={
                           <EstadoCuentaDocument
@@ -1007,8 +1110,8 @@ export default function Finanzas() {
                               rfc: "XAXX010101000",
                             } as any}
                             periodo={{
-                              inicio: new Date(Math.min(...ticketsData.map(t => new Date(t.fecha_recepcion).getTime()))).toLocaleDateString('es-MX'),
-                              fin: new Date().toLocaleDateString('es-MX')
+                              inicio: new Date(ticketSeleccionado.fecha_recepcion).toLocaleDateString('es-MX'),
+                              fin: new Date(ticketSeleccionado.fecha_recepcion).toLocaleDateString('es-MX')
                             }}
                             resumen={{
                               saldoInicial: 0,
@@ -1016,7 +1119,7 @@ export default function Finanzas() {
                               totalCargos: (mostrarGastoEnPDF ? totalGastoExterno : 0) + totalDeduccionesOp + cobroAnticipo + pagoActual,
                               saldoFinal: saldoPendienteLiquidacion
                             }}
-                            movimientos={[
+                            movimientos={construirEstadoCuentaMovimientos([
                               // ABONOS - Fruta entregada
                               ...ticketsData.map(t => ({
                                 fecha: new Date(t.fecha_recepcion).toLocaleDateString('es-MX'),
@@ -1024,7 +1127,6 @@ export default function Finanzas() {
                                 concepto: `Entrega de Fruta - Lote ${t.numero_lote}`,
                                 cargos: 0,
                                 abonos: (t.peso_neto || 0) * (t.precio_pactado_kg || 0),
-                                saldo: 0
                               })),
 
                               // CARGOS - Ordenados por tipo
@@ -1034,7 +1136,6 @@ export default function Finanzas() {
                                 concepto: "Amortización de Anticipo",
                                 cargos: cobroAnticipo,
                                 abonos: 0,
-                                saldo: 0
                               }] : []),
 
                               ...(hayPagoActual ? [{
@@ -1043,7 +1144,6 @@ export default function Finanzas() {
                                 concepto: "Pago aplicado en liquidación",
                                 cargos: pagoActual,
                                 abonos: 0,
-                                saldo: 0
                               }] : []),
 
                               ...(parseFloat(deducciones.corte) > 0 ? [{
@@ -1052,7 +1152,6 @@ export default function Finanzas() {
                                 concepto: "Servicio de Corte",
                                 cargos: parseFloat(deducciones.corte),
                                 abonos: 0,
-                                saldo: 0
                               }] : []),
 
                               ...(parseFloat(deducciones.flete) > 0 ? [{
@@ -1061,7 +1160,6 @@ export default function Finanzas() {
                                 concepto: "Servicio de Flete",
                                 cargos: parseFloat(deducciones.flete),
                                 abonos: 0,
-                                saldo: 0
                               }] : []),
 
                               ...(mostrarGastoEnPDF && totalGastoExterno > 0 ? [{
@@ -1070,12 +1168,11 @@ export default function Finanzas() {
                                 concepto: nombreGastoExterno,
                                 cargos: totalGastoExterno,
                                 abonos: 0,
-                                saldo: 0
                               }] : [])
-                            ]}
+                            ])}
                           />
                         }
-                        fileName={`Liquidacion_${productorSeleccionado.nombre.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`}
+                        fileName={`Liquidacion_${ticketSeleccionado.numero_lote}_${new Date().toISOString().split('T')[0]}.pdf`}
                       >
                         {({ loading }) => (
                           <Button variant="outline" className="h-12 w-12 p-0" title="Imprimir Recibo" disabled={loading}>
