@@ -172,6 +172,8 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
           <DialogDescription>
             {step === "seleccion"
               ? "Selecciona los productos y cantidades a enviar"
+              : step === "precios"
+              ? "Establece el precio por caja de cada producto"
               : "Ingresa los datos de transporte"}
           </DialogDescription>
         </DialogHeader>
