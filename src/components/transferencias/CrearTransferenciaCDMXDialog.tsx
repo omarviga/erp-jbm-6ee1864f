@@ -436,7 +436,7 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
 
             <Separator />
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep("seleccion")}>
+              <Button variant="outline" onClick={() => setStep("precios")}>
                 Volver
               </Button>
               <Button
