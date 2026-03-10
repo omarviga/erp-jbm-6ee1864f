@@ -105,6 +105,21 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
 
   const totalCajas = Array.from(selectedItems.values()).reduce((a, b) => a + b, 0);
 
+  const updatePrecio = (id: string, valor: number) => {
+    const newMap = new Map(precios);
+    newMap.set(id, valor);
+    setPrecios(newMap);
+  };
+
+  const allPricesSet = Array.from(selectedItems.keys()).every((id) => {
+    const p = precios.get(id);
+    return p !== undefined && p > 0;
+  });
+
+  const totalValor = Array.from(selectedItems.entries()).reduce((sum, [id, qty]) => {
+    return sum + (precios.get(id) || 0) * qty;
+  }, 0);
+
   const handleCrear = async () => {
     const items: ItemTransferencia[] = [];
     selectedItems.forEach((qty, id) => {
@@ -125,6 +140,7 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
           calidad: stock.calidad,
           lote_numero: stock.lote_numero,
           descripcion: stock.descripcion,
+          precio_caja: precios.get(id) || 0,
         });
       }
     });
