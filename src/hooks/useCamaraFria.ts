@@ -98,7 +98,7 @@ export const useCamaraFria = () => {
 
   const trasladoInternoMutation = useMutation({
     mutationFn: async ({ produccionId, loteId, cantidad, usuarioId }: { produccionId: string; loteId: string; cantidad: number; usuarioId: string }) => {
-      const { error } = await supabase.rpc("trasladar_a_camara_fria", {
+      const { error } = await (supabase as any).rpc("trasladar_a_camara_fria", {
         p_produccion_id: produccionId,
         p_lote_id: loteId,
         p_cantidad: cantidad,
