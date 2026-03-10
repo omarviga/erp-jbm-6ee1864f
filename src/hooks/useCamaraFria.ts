@@ -155,7 +155,7 @@ export const useCamaraFria = () => {
       referenciaViaje: string;
       usuarioId: string;
     }) => {
-      const { error } = await supabase.rpc("registrar_envio_cdmx_transporte_directo", {
+      const { error } = await (supabase as any).rpc("registrar_envio_cdmx_transporte_directo", {
         p_produccion_id: produccionId,
         p_lote_id: loteId,
         p_cantidad_enviar: cantidad,
