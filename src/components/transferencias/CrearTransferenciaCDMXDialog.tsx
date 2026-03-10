@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Minus,
   Plus,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CalibreBadge } from "@/components/ui/calibre-badge";
@@ -40,8 +41,9 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
   const { stockDisponible, loadingStock, crearTransferencia, isCreando } = useCrearTransferenciaCDMX();
 
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"seleccion" | "datos">("seleccion");
+  const [step, setStep] = useState<"seleccion" | "precios" | "datos">("seleccion");
   const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
+  const [precios, setPrecios] = useState<Map<string, number>>(new Map());
   const [searchTerm, setSearchTerm] = useState("");
   const [chofer, setChofer] = useState("");
   const [placas, setPlacas] = useState("");
@@ -56,6 +58,7 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
       setPlacas("");
       setNotas("");
       setSearchTerm("");
+      setPrecios(new Map());
       if (preselectedIds && preselectedIds.length > 0) {
         const map = new Map<string, number>();
         preselectedIds.forEach((id) => {
@@ -102,6 +105,21 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
 
   const totalCajas = Array.from(selectedItems.values()).reduce((a, b) => a + b, 0);
 
+  const updatePrecio = (id: string, valor: number) => {
+    const newMap = new Map(precios);
+    newMap.set(id, valor);
+    setPrecios(newMap);
+  };
+
+  const allPricesSet = Array.from(selectedItems.keys()).every((id) => {
+    const p = precios.get(id);
+    return p !== undefined && p > 0;
+  });
+
+  const totalValor = Array.from(selectedItems.entries()).reduce((sum, [id, qty]) => {
+    return sum + (precios.get(id) || 0) * qty;
+  }, 0);
+
   const handleCrear = async () => {
     const items: ItemTransferencia[] = [];
     selectedItems.forEach((qty, id) => {
@@ -122,6 +140,7 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
           calidad: stock.calidad,
           lote_numero: stock.lote_numero,
           descripcion: stock.descripcion,
+          precio_caja: precios.get(id) || 0,
         });
       }
     });
@@ -153,6 +172,8 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
           <DialogDescription>
             {step === "seleccion"
               ? "Selecciona los productos y cantidades a enviar"
+              : step === "precios"
+              ? "Establece el precio por caja de cada producto"
               : "Ingresa los datos de transporte"}
           </DialogDescription>
         </DialogHeader>
@@ -270,11 +291,83 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
                 <span className="font-medium">{totalCajas}</span> cajas
               </div>
               <Button
-                onClick={() => setStep("datos")}
+                onClick={() => setStep("precios")}
                 disabled={selectedItems.size === 0}
               >
                 Continuar
               </Button>
+            </div>
+          </div>
+        )}
+
+        {step === "precios" && (
+          <div className="flex flex-col flex-1 overflow-hidden gap-4">
+            <div className="text-sm text-muted-foreground">
+              Define el precio por caja para cada producto seleccionado.
+            </div>
+
+            <ScrollArea className="flex-1 max-h-[350px] pr-2">
+              <div className="space-y-3">
+                {Array.from(selectedItems.entries()).map(([id, qty]) => {
+                  const stock = stockDisponible.find((s) => s.id === id);
+                  if (!stock) return null;
+                  const precio = precios.get(id) || 0;
+
+                  return (
+                    <div key={id} className="p-3 rounded-lg border space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CalibreBadge calibre={stock.calibre} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{stock.descripcion}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {stock.presentacion_nombre} · {qty} cajas
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Label className="flex items-center gap-1 text-xs whitespace-nowrap">
+                          <DollarSign className="h-3.5 w-3.5" /> Precio/caja
+                        </Label>
+                        <Input
+                          type="number"
+                          className="w-32 h-8 text-sm"
+                          placeholder="0.00"
+                          min={0}
+                          step={10}
+                          value={precio || ""}
+                          onChange={(e) => updatePrecio(id, parseFloat(e.target.value) || 0)}
+                        />
+                        {precio > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            Subtotal: <strong>${(precio * qty).toLocaleString("es-MX")}</strong>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+
+            <Separator />
+            {!allPricesSet && (
+              <div className="flex items-center gap-2 text-xs text-destructive">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>Todos los productos deben tener un precio por caja mayor a $0</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                Valor total: <strong>${totalValor.toLocaleString("es-MX")}</strong>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep("seleccion")}>
+                  Volver
+                </Button>
+                <Button onClick={() => setStep("datos")} disabled={!allPricesSet}>
+                  Continuar
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -287,6 +380,9 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
               <div className="flex gap-4 text-muted-foreground">
                 <span>{selectedItems.size} productos</span>
                 <span>{totalCajas} cajas totales</span>
+                <span className="font-semibold text-foreground">
+                  Valor: ${totalValor.toLocaleString("es-MX")}
+                </span>
               </div>
             </div>
 
@@ -340,7 +436,7 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
 
             <Separator />
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep("seleccion")}>
+              <Button variant="outline" onClick={() => setStep("precios")}>
                 Volver
               </Button>
               <Button
