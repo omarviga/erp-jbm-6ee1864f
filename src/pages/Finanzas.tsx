@@ -24,7 +24,6 @@ import {
   Upload,
   CheckCircle,
   Download,
-  Loader,
   ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -103,7 +102,7 @@ export default function Finanzas() {
   const [ticketsSeleccionados, setTicketsSeleccionados] = useState<string[]>([]);
 
   // Estados financieros
-  const [amortizacionManual, setAmortizacionManual] = useState("");
+  const [anticiposPorTicket, setAnticiposPorTicket] = useState<Record<string, string>>({});
 
   // --- SEGURIDAD: MANEJO DE GASTO EXTERNO (EXTORSIÓN/CUOTA) ---
   const [gastoExternoKilo, setGastoExternoKilo] = useState("0.04"); // Default 4 centavos
@@ -141,7 +140,6 @@ export default function Finanzas() {
   const {
     productores: productoresDB, // Productores del hook
     loading: cargandoProductores, // CORREGIDO: nombre diferente para evitar duplicación
-    error: errorProductores,
     refetch: refreshProductores
   } = useProductores();
 
@@ -275,13 +273,40 @@ export default function Finanzas() {
     });
   };
 
+  const calcularImporteLote = (lote: Lote) => (lote.peso_neto || 0) * (lote.precio_pactado_kg || 0);
+
   // --- LÓGICA DE CÁLCULO ---
+  const obtenerAnticipoTicket = (ticketId: string) => parseFloat(anticiposPorTicket[ticketId] || "") || 0;
+
   const toggleTicket = (id: string) => {
-    setTicketsSeleccionados(prev => (prev[0] === id ? [] : [id]));
+    const lote = lotesPendientes.find((item) => item.id === id);
+
+    setTicketsSeleccionados(prev => {
+      if (prev.includes(id)) {
+        setAnticiposPorTicket((current) => {
+          const next = { ...current };
+          delete next[id];
+          return next;
+        });
+        return prev.filter((ticketId) => ticketId !== id);
+      }
+
+      if (lote) {
+        const anticipoAsignado = prev.reduce((sum, ticketId) => sum + obtenerAnticipoTicket(ticketId), 0);
+        const saldoRestante = Math.max(0, (productorSeleccionado?.saldo_anticipos || 0) - anticipoAsignado);
+        const anticipoSugerido = Math.min(saldoRestante, calcularImporteLote(lote));
+
+        setAnticiposPorTicket((current) => ({
+          ...current,
+          [id]: anticipoSugerido > 0 ? anticipoSugerido.toFixed(2) : "",
+        }));
+      }
+
+      return [...prev, id];
+    });
   };
 
   const ticketsData = lotesPendientes.filter(t => ticketsSeleccionados.includes(t.id));
-  const ticketSeleccionado = ticketsData[0] || null;
   const lotesPendientesFiltrados = lotesPendientes.filter((lote) => {
     const fechaLote = lote.fecha_recepcion ? lote.fecha_recepcion.split('T')[0] : '';
 
@@ -317,9 +342,9 @@ export default function Finanzas() {
 
   // 4. Amortización de Anticipos
   const saldoDeudaAnticipo = productorSeleccionado?.saldo_anticipos || 0;
-  const cobroAnticipo = parseFloat(amortizacionManual) || 0;
-  const excedeAnticipo = cobroAnticipo > saldoDeudaAnticipo;
   const maximoAplicableAnticipo = Math.max(0, importeBruto - totalGastoExterno - totalDeduccionesOp);
+  const cobroAnticipo = ticketsData.reduce((sum, ticket) => sum + obtenerAnticipoTicket(ticket.id), 0);
+  const excedeAnticipo = cobroAnticipo > saldoDeudaAnticipo || cobroAnticipo > maximoAplicableAnticipo;
 
   // 5. GRAN TOTAL (A PAGAR)
   const totalPagar = importeBruto - totalGastoExterno - totalDeduccionesOp - cobroAnticipo;
@@ -330,10 +355,65 @@ export default function Finanzas() {
   const hayPagoActual = pagoActual > 0.009;
   const requiereReferenciaPago = hayPagoActual && metodoPago === 'cheque';
 
-  const aplicarSaldoAnticipoDisponible = (saldoDisponible = saldoDeudaAnticipo) => {
-    const montoAplicable = Math.min(saldoDisponible || 0, maximoAplicableAnticipo);
-    setAmortizacionManual(montoAplicable > 0 ? montoAplicable.toFixed(2) : "");
+  const aplicarSaldoAnticipoDisponible = () => {
+    let saldoRestante = Math.min(saldoDeudaAnticipo, maximoAplicableAnticipo);
+
+    setAnticiposPorTicket((current) => {
+      const next = { ...current };
+
+      ticketsSeleccionados.forEach((ticketId) => {
+        const lote = lotesPendientes.find((item) => item.id === ticketId);
+        if (!lote) return;
+
+        const anticipoTicket = Math.min(saldoRestante, calcularImporteLote(lote));
+        next[ticketId] = anticipoTicket > 0 ? anticipoTicket.toFixed(2) : "";
+        saldoRestante -= anticipoTicket;
+      });
+
+      return next;
+    });
   };
+
+  const actualizarAnticipoTicket = (ticketId: string, value: string) => {
+    setAnticiposPorTicket((current) => ({
+      ...current,
+      [ticketId]: value,
+    }));
+  };
+
+  useEffect(() => {
+    const limiteGlobal = Math.min(saldoDeudaAnticipo, maximoAplicableAnticipo);
+    let anticipoAcumulado = 0;
+    let changed = false;
+
+    const next = { ...anticiposPorTicket };
+
+    Object.keys(next).forEach((ticketId) => {
+      if (!ticketsSeleccionados.includes(ticketId)) {
+        delete next[ticketId];
+        changed = true;
+      }
+    });
+
+    ticketsSeleccionados.forEach((ticketId) => {
+      const lote = lotesPendientes.find((item) => item.id === ticketId);
+      const maximoPorTicket = lote ? calcularImporteLote(lote) : 0;
+      const disponible = Math.max(0, limiteGlobal - anticipoAcumulado);
+      const actual = parseFloat(next[ticketId] || "") || 0;
+      const normalizado = Math.min(actual, maximoPorTicket, disponible);
+
+      if (normalizado !== actual) {
+        next[ticketId] = normalizado > 0 ? normalizado.toFixed(2) : "";
+        changed = true;
+      }
+
+      anticipoAcumulado += normalizado;
+    });
+
+    if (changed) {
+      setAnticiposPorTicket(next);
+    }
+  }, [anticiposPorTicket, ticketsSeleccionados, lotesPendientes, saldoDeudaAnticipo, maximoAplicableAnticipo]);
 
   const aplicarPagoTotal = () => {
     const montoAplicable = Math.max(0, totalPagar);
@@ -399,7 +479,9 @@ export default function Finanzas() {
         className: "bg-slate-800 text-white border-none"
       });
 
-      aplicarSaldoAnticipoDisponible(nuevoSaldoAnticipos);
+      if (ticketsSeleccionados.length > 0) {
+        setTimeout(() => aplicarSaldoAnticipoDisponible(), 0);
+      }
       setMontoAdelanto("");
       setReferenciaPago("");
     } catch (error) {
@@ -417,7 +499,7 @@ export default function Finanzas() {
 
   const handleGenerarLiquidacion = async () => {
     if (ticketsData.length === 0) {
-      toast({ title: "⚠️ Sin nota seleccionada", description: "Selecciona una nota para liquidar", variant: "destructive" });
+      toast({ title: "⚠️ Sin notas seleccionadas", description: "Selecciona una o varias notas para liquidar", variant: "destructive" });
       return;
     }
 
@@ -498,14 +580,14 @@ export default function Finanzas() {
       toast({
         title: "✅ Liquidación Procesada",
         description: saldoPendienteLiquidacion > 0
-          ? `Nota ${ticketSeleccionado?.numero_lote || ""} registrada. Pago actual: $${pagoActual.toLocaleString("es-MX", { minimumFractionDigits: 2 })}. Pendiente: $${saldoPendienteLiquidacion.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`
-          : `Nota ${ticketSeleccionado?.numero_lote || ""} pagada por $${pagoActual.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`,
+          ? `${ticketsData.length} nota(s) registradas. Pago actual: $${pagoActual.toLocaleString("es-MX", { minimumFractionDigits: 2 })}. Pendiente: $${saldoPendienteLiquidacion.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`
+          : `${ticketsData.length} nota(s) pagadas por $${pagoActual.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`,
         className: "bg-slate-800 text-white border-none"
       });
 
       // Limpiar formulario
       setTicketsSeleccionados([]);
-      setAmortizacionManual("");
+      setAnticiposPorTicket({});
       setMontoAdelanto("");
       setMontoPagoActual("");
       setDeducciones({ corte: "", flete: "", otros: "" });
@@ -631,7 +713,7 @@ export default function Finanzas() {
                     onValueChange={(v) => {
                       setProductorId(v);
                       setTicketsSeleccionados([]);
-                      setAmortizacionManual("");
+                      setAnticiposPorTicket({});
                       setMontoPagoActual("");
                       setReferenciaPago("");
                       setFechaDesde("");
@@ -673,13 +755,15 @@ export default function Finanzas() {
                                       abonos: (t.peso_neto || 0) * (t.precio_pactado_kg || 0),
                                     })),
                                     // Agregamos las deducciones como movimientos de cargo
-                                    ...(cobroAnticipo > 0 ? [{
-                                      fecha: new Date().toLocaleDateString(),
-                                      folio: "ANT-AMORT",
-                                      concepto: "Amortización de Anticipo",
-                                      cargos: cobroAnticipo,
-                                      abonos: 0,
-                                    }] : []),
+                                    ...ticketsData
+                                      .filter((ticket) => obtenerAnticipoTicket(ticket.id) > 0)
+                                      .map((ticket) => ({
+                                        fecha: new Date().toLocaleDateString(),
+                                        folio: `ANT-${ticket.numero_lote}`,
+                                        concepto: `Amortización de Anticipo - ${ticket.numero_lote}`,
+                                        cargos: obtenerAnticipoTicket(ticket.id),
+                                        abonos: 0,
+                                      })),
                                     ...(hayPagoActual ? [{
                                       fecha: new Date().toLocaleDateString(),
                                       folio: referenciaPago || "PAGO-ACTUAL",
@@ -782,6 +866,7 @@ export default function Finanzas() {
                                   <th className="p-3">Fecha</th>
                                   <th className="p-3 text-right">Kilos Netos</th>
                                   <th className="p-3 text-right">Precio</th>
+                                  <th className="p-3 text-right">Adelanto</th>
                                   <th className="p-3 text-right">Importe</th>
                                 </tr>
                               </thead>
@@ -800,15 +885,33 @@ export default function Finanzas() {
                                     </td>
                                     <td className="p-3 text-right font-mono">{lote.peso_neto?.toLocaleString() || "0"}</td>
                                     <td className="p-3 text-right font-mono">${lote.precio_pactado_kg?.toFixed(2) || "0.00"}</td>
+                                    <td className="p-3 text-right">
+                                      {ticketsSeleccionados.includes(lote.id) ? (
+                                        <div className="ml-auto w-28 relative">
+                                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">$</span>
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            className="h-8 pl-5 text-right text-xs font-mono bg-white"
+                                            value={anticiposPorTicket[lote.id] || ""}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={(e) => actualizarAnticipoTicket(lote.id, e.target.value)}
+                                          />
+                                        </div>
+                                      ) : (
+                                        <span className="font-mono text-slate-400">$0.00</span>
+                                      )}
+                                    </td>
                                     <td className="p-3 text-right font-bold text-slate-900">
-                                      ${((lote.peso_neto || 0) * (lote.precio_pactado_kg || 0)).toLocaleString()}
+                                      ${calcularImporteLote(lote).toLocaleString()}
                                     </td>
                                   </tr>
                                 ))}
                               </tbody>
                             </table>
                             <div className="p-2 bg-slate-50 text-xs text-center text-muted-foreground border-t">
-                              {ticketsSeleccionados.length} nota seleccionada de {lotesPendientesFiltrados.length} disponibles
+                              {ticketsSeleccionados.length} nota(s) seleccionada(s) de {lotesPendientesFiltrados.length} disponibles
                               {!filtrosFechaActivos && lotesPendientesFiltrados.length > 15 ? " · Mostrando las 15 más recientes" : ""}
                             </div>
                           </>
@@ -820,33 +923,24 @@ export default function Finanzas() {
                           <div>
                             <p className="text-xs font-bold uppercase tracking-wide text-amber-900">Pagos parciales / anticipos</p>
                             <p className="text-xs text-amber-800">
-                              Saldo disponible: ${saldoDeudaAnticipo.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                              Disponible: ${saldoDeudaAnticipo.toLocaleString("es-MX", { minimumFractionDigits: 2 })} · Aplicado en seleccionadas: ${cobroAnticipo.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-28 relative">
-                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs">$</span>
-                              <Input
-                                className="h-9 pl-5 text-xs text-right border-amber-300 bg-white text-amber-900 font-bold"
-                                placeholder="0.00"
-                                value={amortizacionManual}
-                                onChange={(e) => setAmortizacionManual(e.target.value)}
-                              />
-                            </div>
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
                               className="h-9 border-amber-300 bg-white text-xs hover:bg-amber-100"
                               onClick={() => aplicarSaldoAnticipoDisponible()}
-                              disabled={!saldoDeudaAnticipo || maximoAplicableAnticipo <= 0}
+                              disabled={!saldoDeudaAnticipo || maximoAplicableAnticipo <= 0 || ticketsSeleccionados.length === 0}
                             >
-                              Aplicar saldo
+                              Distribuir anticipo
                             </Button>
                           </div>
                         </div>
                         {excedeAnticipo && (
-                          <p className="mt-2 text-xs text-red-600">El anticipo aplicado no puede exceder el saldo disponible.</p>
+                          <p className="mt-2 text-xs text-red-600">El anticipo total aplicado no puede exceder el saldo disponible ni el neto de la liquidación.</p>
                         )}
                       </div>
                     </div>
@@ -855,28 +949,32 @@ export default function Finanzas() {
               </Card>
 
               {/* 2. DEDUCCIONES Y CAMPO ESPECIAL (SEGURIDAD) */}
-              {ticketSeleccionado && (
+              {ticketsData.length > 0 && (
                 <Card className="shadow-md border-l-4 border-l-amber-500">
                   <CardHeader className="pb-3 flex flex-row justify-between items-center">
-                    <CardTitle className="text-lg">2. Ajustes de la Nota</CardTitle>
+                    <CardTitle className="text-lg">2. Ajustes de la Liquidación</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid gap-3 rounded-lg border bg-slate-50 p-3 text-sm md:grid-cols-4">
                       <div>
-                        <p className="text-xs uppercase text-slate-500">Nota</p>
-                        <p className="font-bold text-slate-900">{ticketSeleccionado.numero_lote}</p>
+                        <p className="text-xs uppercase text-slate-500">Notas</p>
+                        <p className="font-bold text-slate-900">{ticketsData.length} seleccionadas</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase text-slate-500">Fecha</p>
-                        <p className="font-medium text-slate-900">{new Date(ticketSeleccionado.fecha_recepcion).toLocaleDateString('es-MX')}</p>
+                        <p className="text-xs uppercase text-slate-500">Periodo</p>
+                        <p className="font-medium text-slate-900">
+                          {new Date(Math.min(...ticketsData.map((ticket) => new Date(ticket.fecha_recepcion).getTime()))).toLocaleDateString('es-MX')}
+                          {" - "}
+                          {new Date(Math.max(...ticketsData.map((ticket) => new Date(ticket.fecha_recepcion).getTime()))).toLocaleDateString('es-MX')}
+                        </p>
                       </div>
                       <div>
                         <p className="text-xs uppercase text-slate-500">Kilos</p>
-                        <p className="font-medium text-slate-900">{(ticketSeleccionado.peso_neto || 0).toLocaleString()} kg</p>
+                        <p className="font-medium text-slate-900">{totalKilos.toLocaleString()} kg</p>
                       </div>
                       <div>
                         <p className="text-xs uppercase text-slate-500">Importe</p>
-                        <p className="font-bold text-slate-900">${((ticketSeleccionado.peso_neto || 0) * (ticketSeleccionado.precio_pactado_kg || 0)).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+                        <p className="font-bold text-slate-900">${importeBruto.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
                       </div>
                     </div>
 
@@ -1097,10 +1195,10 @@ export default function Finanzas() {
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                           Procesando...
                         </>
-                      ) : "Registrar Nota"}
+                      ) : "Registrar Liquidación"}
                     </Button>
 
-                    {productorSeleccionado && ticketSeleccionado ? (
+                    {productorSeleccionado && ticketsData.length > 0 ? (
                       <PDFDownloadLink
                         document={
                           <EstadoCuentaDocument
@@ -1110,8 +1208,8 @@ export default function Finanzas() {
                               rfc: "XAXX010101000",
                             } as any}
                             periodo={{
-                              inicio: new Date(ticketSeleccionado.fecha_recepcion).toLocaleDateString('es-MX'),
-                              fin: new Date(ticketSeleccionado.fecha_recepcion).toLocaleDateString('es-MX')
+                              inicio: new Date(Math.min(...ticketsData.map((ticket) => new Date(ticket.fecha_recepcion).getTime()))).toLocaleDateString('es-MX'),
+                              fin: new Date(Math.max(...ticketsData.map((ticket) => new Date(ticket.fecha_recepcion).getTime()))).toLocaleDateString('es-MX')
                             }}
                             resumen={{
                               saldoInicial: 0,
@@ -1130,13 +1228,15 @@ export default function Finanzas() {
                               })),
 
                               // CARGOS - Ordenados por tipo
-                              ...(cobroAnticipo > 0 ? [{
-                                fecha: new Date().toLocaleDateString('es-MX'),
-                                folio: "ANT-AMORT",
-                                concepto: "Amortización de Anticipo",
-                                cargos: cobroAnticipo,
-                                abonos: 0,
-                              }] : []),
+                              ...ticketsData
+                                .filter((ticket) => obtenerAnticipoTicket(ticket.id) > 0)
+                                .map((ticket) => ({
+                                  fecha: new Date().toLocaleDateString('es-MX'),
+                                  folio: `ANT-${ticket.numero_lote}`,
+                                  concepto: `Amortización de Anticipo - ${ticket.numero_lote}`,
+                                  cargos: obtenerAnticipoTicket(ticket.id),
+                                  abonos: 0,
+                                })),
 
                               ...(hayPagoActual ? [{
                                 fecha: new Date().toLocaleDateString('es-MX'),
@@ -1172,7 +1272,7 @@ export default function Finanzas() {
                             ])}
                           />
                         }
-                        fileName={`Liquidacion_${ticketSeleccionado.numero_lote}_${new Date().toISOString().split('T')[0]}.pdf`}
+                        fileName={`Liquidacion_${ticketsData.length === 1 ? ticketsData[0].numero_lote : `${ticketsData.length}_notas`}_${new Date().toISOString().split('T')[0]}.pdf`}
                       >
                         {({ loading }) => (
                           <Button variant="outline" className="h-12 w-12 p-0" title="Imprimir Recibo" disabled={loading}>
