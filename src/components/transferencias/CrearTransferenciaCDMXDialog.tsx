@@ -370,6 +370,7 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
               </div>
             </div>
           </div>
+        )}
 
         {step === "datos" && (
           <div className="space-y-4">
