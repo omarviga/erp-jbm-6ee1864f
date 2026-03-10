@@ -166,6 +166,17 @@ export function useVentas() {
 
     const limpiarCarrito = () => setCarrito([]);
 
+    const getClienteFallbackId = () => {
+        if (clientes.length === 0) return null;
+        const publico = clientes.find((c) => {
+            const n = c.nombre.trim().toLowerCase();
+            return n === "público en general" || n === "publico en general";
+        });
+        return (clienteIdCache(publico?.id) || clienteIdCache(clientes[0]?.id));
+    };
+
+    const clienteIdCache = (id?: string | null) => id || null;
+
     const cobrar = async (clienteId: string | null, montoRecibido: number, metodoPago: string) => {
         if (carrito.length === 0) return;
         setLoading(true);
@@ -208,12 +219,26 @@ export function useVentas() {
                 }
             }
 
-            // Call RPC function for CDMX sales
-            const { data, error } = await supabase.rpc('procesar_venta_cdmx', {
+            const clienteFinalId = clienteId || getClienteFallbackId();
+
+            // Prefer extended RPC signature (with client id). Fallback to legacy signature.
+            let data: any = null;
+            let error: any = null;
+
+            ({ data, error } = await (supabase as any).rpc('procesar_venta_cdmx', {
                 p_monto_total: montoTotal,
                 p_metodo_pago: metodoPago,
-                p_items: itemsPayload
-            });
+                p_items: itemsPayload,
+                p_cliente_id: clienteFinalId,
+            }));
+
+            if (error && (error.code === 'PGRST202' || String(error.message || '').includes('Could not find the function'))) {
+                ({ data, error } = await supabase.rpc('procesar_venta_cdmx', {
+                    p_monto_total: montoTotal,
+                    p_metodo_pago: metodoPago,
+                    p_items: itemsPayload
+                }));
+            }
 
             if (error) throw error;
 
