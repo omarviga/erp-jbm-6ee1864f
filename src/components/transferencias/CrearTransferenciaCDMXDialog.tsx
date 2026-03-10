@@ -380,6 +380,9 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
               <div className="flex gap-4 text-muted-foreground">
                 <span>{selectedItems.size} productos</span>
                 <span>{totalCajas} cajas totales</span>
+                <span className="font-semibold text-foreground">
+                  Valor: ${totalValor.toLocaleString("es-MX")}
+                </span>
               </div>
             </div>
 
