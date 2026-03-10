@@ -183,7 +183,10 @@ export function useCrearTransferenciaCDMX() {
         .join(" / ");
 
       for (const item of datos.items) {
-        const precioBaseCongelado = calcularPrecioBaseCongelado(item);
+        if (!item.precio_caja || item.precio_caja <= 0) {
+          throw new Error(`Debes establecer un precio por caja válido para: ${item.descripcion}`);
+        }
+        const precioBaseCongelado = item.precio_caja;
 
         if (item.origen_inventario === "camara_fria") {
           const { error } = await (supabase as any).rpc("registrar_envio_cdmx", {
