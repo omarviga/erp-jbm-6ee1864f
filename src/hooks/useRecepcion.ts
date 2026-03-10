@@ -112,6 +112,29 @@ export function useRecepcion() {
 
       if (error) throw error;
 
+      // Crear cuenta por pagar al productor desde la recepción
+      const pesoPagable = datos.peso_pagable ?? peso_neto;
+      const subtotalLote = Math.max(0, pesoPagable * (datos.precio_pactado_kg || 0));
+      const totalCuentaPorPagar = Math.max(0, subtotalLote - (datos.costo_bascula || 0));
+
+      if (totalCuentaPorPagar > 0) {
+        const { data: productorActual, error: errorProductorActual } = await supabase
+          .from("productores")
+          .select("saldo_pendiente")
+          .eq("id", datos.productor_id)
+          .single();
+
+        if (errorProductorActual) throw errorProductorActual;
+
+        const nuevoSaldoPendiente = (productorActual?.saldo_pendiente || 0) + totalCuentaPorPagar;
+        const { error: errorActualizarSaldo } = await supabase
+          .from("productores")
+          .update({ saldo_pendiente: nuevoSaldoPendiente })
+          .eq("id", datos.productor_id);
+
+        if (errorActualizarSaldo) throw errorActualizarSaldo;
+      }
+
       return data;
     } catch (err: any) {
       setErrorGuardar(err.message);
