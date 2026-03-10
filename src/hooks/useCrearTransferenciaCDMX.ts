@@ -84,20 +84,6 @@ export function useCrearTransferenciaCDMX() {
       const desdeCamara = (stockCamara || []).map((item) => {
         const prod = item.produccion as {
           id?: string;
-          destino?: string;
-          lote_id?: string;
-          calibre?: string;
-          calidad?: string;
-          cantidad_cajas?: number;
-          peso_total_kg?: number;
-          presentacion_id?: string;
-          lotes?: { numero_lote?: string };
-          presentaciones?: { id?: string; nombre?: string };
-        };
-
-      return (data || []).map((item) => {
-        const prod = item.produccion as {
-          id?: string;
           lote_id?: string;
           calibre?: string;
           calidad?: string;
@@ -182,6 +168,8 @@ export function useCrearTransferenciaCDMX() {
             p_cantidad_enviar: item.cantidad,
             p_precio_base_congelado: precioBaseCongelado,
             p_referencia_viaje: referenciaViaje,
+            p_chofer: datos.chofer.trim(),
+            p_placas: datos.placas.trim(),
             p_usuario_id: authData.user.id,
           });
           if (error) throw error;
@@ -190,12 +178,12 @@ export function useCrearTransferenciaCDMX() {
 
         const { error } = await supabase.rpc("registrar_envio_cdmx_transporte_directo", {
           p_produccion_id: item.produccion_id,
-        const { error } = await supabase.rpc("registrar_envio_cdmx", {
-          p_registro_camara_id: item.id,
           p_lote_id: item.lote_id,
           p_cantidad_enviar: item.cantidad,
           p_precio_base_congelado: precioBaseCongelado,
           p_referencia_viaje: referenciaViaje,
+          p_chofer: datos.chofer.trim(),
+          p_placas: datos.placas.trim(),
           p_usuario_id: authData.user.id,
         });
 
