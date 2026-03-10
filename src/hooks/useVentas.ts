@@ -166,6 +166,17 @@ export function useVentas() {
 
     const limpiarCarrito = () => setCarrito([]);
 
+    const getClienteFallbackId = () => {
+        if (clientes.length === 0) return null;
+        const publico = clientes.find((c) => {
+            const n = c.nombre.trim().toLowerCase();
+            return n === "público en general" || n === "publico en general";
+        });
+        return (clienteIdCache(publico?.id) || clienteIdCache(clientes[0]?.id));
+    };
+
+    const clienteIdCache = (id?: string | null) => id || null;
+
     const cobrar = async (clienteId: string | null, montoRecibido: number, metodoPago: string) => {
         if (carrito.length === 0) return;
         setLoading(true);
@@ -208,12 +219,23 @@ export function useVentas() {
                 }
             }
 
-            // Call RPC function for CDMX sales
-            const { data, error } = await supabase.rpc('procesar_venta_cdmx', {
+            const clienteFinalId = clienteId || getClienteFallbackId();
+
+            if (!clienteFinalId) {
+                throw new Error("No existe un cliente válido para POS. Crea/configura 'Público en general'.");
+            }
+
+            // Require the extended RPC signature to guarantee cliente_id in pagos_clientes.
+            const { data, error } = await (supabase as any).rpc('procesar_venta_cdmx', {
                 p_monto_total: montoTotal,
                 p_metodo_pago: metodoPago,
-                p_items: itemsPayload
+                p_items: itemsPayload,
+                p_cliente_id: clienteFinalId,
             });
+
+            if (error && (error.code === 'PGRST202' || String(error.message || '').includes('Could not find the function'))) {
+                throw new Error("Tu base de datos no tiene la migración POS más reciente. Aplica las migraciones para procesar ventas sin cliente_id nulo.");
+            }
 
             if (error) throw error;
 
