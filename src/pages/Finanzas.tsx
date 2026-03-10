@@ -191,8 +191,8 @@ export default function Finanzas() {
         // Filtramos lotes que no están en liquidacion_lotes y no están rechazados
         const lotesPendientes = todosLotes?.filter(lote => {
           const estaLiquidado = lotesLiquidados.includes(lote.id);
-          // Usamos una verificación de string en lugar de comparación de tipo estricto
-          const estaRechazado = lote.estado === 'pendiente';
+          const estadoCalidad = (lote.estado_calidad || '').toLowerCase();
+          const estaRechazado = estadoCalidad === 'rechazado';
           return !estaLiquidado && !estaRechazado;
         }) || [];
 
@@ -334,16 +334,24 @@ export default function Finanzas() {
 
       if (errorLotes) throw errorLotes;
 
-      // 3. Si hay amortización, actualizar saldo de anticipos del productor
-      if (cobroAnticipo > 0 && productorSeleccionado) {
-        const nuevoSaldo = productorSeleccionado.saldo_anticipos - cobroAnticipo;
+      // 3. Actualizar anticipos y sincronizar CxP en backend
+      if (productorSeleccionado) {
+        const nuevoSaldoAnticipos = cobroAnticipo > 0
+          ? Math.max(0, (productorSeleccionado.saldo_anticipos || 0) - cobroAnticipo)
+          : (productorSeleccionado.saldo_anticipos || 0);
 
-        const { error: errorProductor } = await supabase
+        const { error: errorAnticipos } = await supabase
           .from('productores')
-          .update({ saldo_anticipos: nuevoSaldo })
+          .update({ saldo_anticipos: nuevoSaldoAnticipos })
           .eq('id', productorId);
 
-        if (errorProductor) throw errorProductor;
+        if (errorAnticipos) throw errorAnticipos;
+
+        const { error: errorSyncCxp } = await (supabase as any).rpc('sync_productor_saldo_pendiente', {
+          p_productor_id: productorId,
+        });
+
+        if (errorSyncCxp) throw errorSyncCxp;
       }
 
       toast({
