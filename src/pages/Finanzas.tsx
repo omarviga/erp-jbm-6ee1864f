@@ -191,8 +191,8 @@ export default function Finanzas() {
         // Filtramos lotes que no están en liquidacion_lotes y no están rechazados
         const lotesPendientes = todosLotes?.filter(lote => {
           const estaLiquidado = lotesLiquidados.includes(lote.id);
-          // Usamos una verificación de string en lugar de comparación de tipo estricto
-          const estaRechazado = lote.estado === 'pendiente';
+          const estadoCalidad = (lote.estado_calidad || '').toLowerCase();
+          const estaRechazado = estadoCalidad === 'rechazado';
           return !estaLiquidado && !estaRechazado;
         }) || [];
 
@@ -334,13 +334,27 @@ export default function Finanzas() {
 
       if (errorLotes) throw errorLotes;
 
-      // 3. Si hay amortización, actualizar saldo de anticipos del productor
-      if (cobroAnticipo > 0 && productorSeleccionado) {
-        const nuevoSaldo = productorSeleccionado.saldo_anticipos - cobroAnticipo;
+      // 3. Actualizar saldos del productor (anticipos + cuentas por pagar)
+      if (productorSeleccionado) {
+        const montoLiquidado = ticketsData.reduce((sum, lote) => {
+          const pesoPagable = lote.peso_pagable ?? lote.peso_neto ?? 0;
+          const precioPactado = lote.precio_pactado_kg ?? 0;
+          const costoBascula = lote.costo_bascula ?? 0;
+          const totalLote = Math.max(0, (pesoPagable * precioPactado) - costoBascula);
+          return sum + totalLote;
+        }, 0);
+
+        const nuevoSaldoPendiente = Math.max(0, (productorSeleccionado.saldo_pendiente || 0) - montoLiquidado);
+        const nuevoSaldoAnticipos = cobroAnticipo > 0
+          ? Math.max(0, (productorSeleccionado.saldo_anticipos || 0) - cobroAnticipo)
+          : (productorSeleccionado.saldo_anticipos || 0);
 
         const { error: errorProductor } = await supabase
           .from('productores')
-          .update({ saldo_anticipos: nuevoSaldo })
+          .update({
+            saldo_anticipos: nuevoSaldoAnticipos,
+            saldo_pendiente: nuevoSaldoPendiente,
+          })
           .eq('id', productorId);
 
         if (errorProductor) throw errorProductor;
