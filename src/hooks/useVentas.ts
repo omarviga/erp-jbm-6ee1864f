@@ -173,17 +173,40 @@ export function useVentas() {
         try {
             const montoTotal = carrito.reduce((sum, item) => sum + (item.cantidad * item.precio_venta), 0);
 
-            const itemsPayload = carrito.map(item => {
-                // Find a valid inventory ID for this product
-                const inventario_id = (item as any).inventario_id;
-                if (!inventario_id) throw new Error(`No hay inventario registrado para ${item.nombre}`);
-                
-                return {
-                    inventario_id: inventario_id,
-                    cantidad: item.cantidad,
-                    precio_venta: item.precio_venta
-                };
-            });
+            // Build payload by looking up inventory IDs (FIFO) for each cart item
+            const itemsPayload: { inventario_id: string; cantidad: number; precio_venta: number }[] = [];
+
+            for (const item of carrito) {
+                // Get all inventory rows with stock for this presentacion, ordered FIFO
+                const { data: invRows, error: invError } = await supabase
+                    .from("inventario_bodega_cdmx")
+                    .select("id, cantidad_disponible, precio_base")
+                    .eq("presentacion_id", item.id)
+                    .gt("cantidad_disponible", 0)
+                    .order("fecha_ingreso", { ascending: true });
+
+                if (invError) throw invError;
+                if (!invRows || invRows.length === 0) {
+                    throw new Error(`No hay inventario disponible para ${item.nombre}`);
+                }
+
+                // Distribute the requested quantity across inventory rows (FIFO)
+                let pendiente = item.cantidad;
+                for (const row of invRows) {
+                    if (pendiente <= 0) break;
+                    const tomar = Math.min(pendiente, row.cantidad_disponible);
+                    itemsPayload.push({
+                        inventario_id: row.id,
+                        cantidad: tomar,
+                        precio_venta: item.precio_venta
+                    });
+                    pendiente -= tomar;
+                }
+
+                if (pendiente > 0) {
+                    throw new Error(`Stock insuficiente para ${item.nombre}. Faltan ${pendiente} unidades.`);
+                }
+            }
 
             // Call RPC function for CDMX sales
             const { data, error } = await supabase.rpc('procesar_venta_cdmx', {
