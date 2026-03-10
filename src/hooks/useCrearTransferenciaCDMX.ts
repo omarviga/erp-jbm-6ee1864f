@@ -28,6 +28,11 @@ const safeInsertKardex = async (payload: {
   const { error } = await supabase.from("inventario_kardex").insert(payload);
   if (error) {
     console.warn("Kardex fallback insert skipped:", error.message);
+  try {
+    const { error } = await (supabase as any).from("inventario_kardex").insert(payload);
+    if (error) console.warn("Kardex fallback insert skipped:", error.message);
+  } catch {
+    // silently skip
   }
 };
 
@@ -46,6 +51,7 @@ export interface ItemTransferencia {
   calidad: string;
   lote_numero: string;
   descripcion: string;
+  precio_caja: number; // Precio por caja definido manualmente por el usuario
 }
 
 export interface DatosTransferencia {
@@ -180,10 +186,13 @@ export function useCrearTransferenciaCDMX() {
         .join(" / ");
 
       for (const item of datos.items) {
-        const precioBaseCongelado = calcularPrecioBaseCongelado(item);
+        if (!item.precio_caja || item.precio_caja <= 0) {
+          throw new Error(`Debes establecer un precio por caja válido para: ${item.descripcion}`);
+        }
+        const precioBaseCongelado = item.precio_caja;
 
         if (item.origen_inventario === "camara_fria") {
-          const { error } = await supabase.rpc("registrar_envio_cdmx", {
+          const { error } = await (supabase as any).rpc("registrar_envio_cdmx", {
             p_registro_camara_id: item.id,
             p_lote_id: item.lote_id,
             p_cantidad_enviar: item.cantidad,
@@ -263,7 +272,7 @@ export function useCrearTransferenciaCDMX() {
           continue;
         }
 
-        const { error } = await supabase.rpc("registrar_envio_cdmx_transporte_directo", {
+        const { error } = await (supabase as any).rpc("registrar_envio_cdmx_transporte_directo", {
           p_produccion_id: item.produccion_id,
           p_lote_id: item.lote_id,
           p_cantidad_enviar: item.cantidad,
@@ -377,6 +386,7 @@ export function useCrearTransferenciaCDMX() {
 
           if (detalleError) throw new Error(buildRpcErrorMessage(detalleError));
         }
+        if (error) throw error;
       }
 
       return { folio: `TR-${format(new Date(), "yyMMdd")}`, cantidadMovimientos: datos.items.length };

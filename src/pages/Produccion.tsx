@@ -395,7 +395,7 @@ export default function Produccion() {
 
       const { data: produccionData, error } = await supabase
         .from('produccion')
-        .insert([datosProduccion])
+        .insert([datosProduccion as any])
         .select()
         .single();
 

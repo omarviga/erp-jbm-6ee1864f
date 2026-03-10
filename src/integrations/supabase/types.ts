@@ -1267,6 +1267,36 @@ export type Database = {
           },
         ]
       }
+      rutas_validas: {
+        Row: {
+          activa: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          dominio: string
+          id: number
+          ruta: string
+          updated_at: string | null
+        }
+        Insert: {
+          activa?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          dominio: string
+          id?: number
+          ruta: string
+          updated_at?: string | null
+        }
+        Update: {
+          activa?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          dominio?: string
+          id?: number
+          ruta?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       stock_molino: {
         Row: {
           created_at: string
@@ -1609,38 +1639,6 @@ export type Database = {
         Returns: number
       }
       generate_lote_number: { Args: never; Returns: string }
-      registrar_baja_merma: {
-        Args: {
-          p_cantidad_mermada: number
-          p_lote_id: string
-          p_motivo: string
-          p_registro_camara_id: string
-          p_usuario_id: string
-        }
-        Returns: undefined
-      }
-      registrar_envio_cdmx: {
-        Args: {
-          p_cantidad_enviar: number
-          p_lote_id: string
-          p_precio_base_congelado: number
-          p_referencia_viaje: string
-          p_registro_camara_id: string
-          p_usuario_id: string
-        }
-        Returns: undefined
-      }
-      registrar_envio_cdmx_transporte_directo: {
-        Args: {
-          p_cantidad_enviar: number
-          p_lote_id: string
-          p_precio_base_congelado: number
-          p_produccion_id: string
-          p_referencia_viaje: string
-          p_usuario_id: string
-        }
-        Returns: undefined
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1677,14 +1675,9 @@ export type Database = {
         }
         Returns: string
       }
-      trasladar_a_camara_fria: {
-        Args: {
-          p_cantidad: number
-          p_lote_id: string
-          p_produccion_id: string
-          p_usuario_id: string
-        }
-        Returns: undefined
+      validar_ruta: {
+        Args: { p_dominio: string; p_ruta: string }
+        Returns: boolean
       }
     }
     Enums: {

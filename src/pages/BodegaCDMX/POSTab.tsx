@@ -92,6 +92,12 @@ export default function POSTab() {
       toast.error("El carrito está vacío");
       return;
     }
+    if (!clienteIdSeleccionado) {
+      toast.error("Selecciona un cliente para cobrar", {
+        description: "Configura al menos 'Público en general' antes de procesar la venta."
+      });
+      return;
+    }
     if (precioInvalido) {
       toast.error("Precio por debajo del costo", {
         description: "No puedes vender por debajo del precio base. Contacta al administrador para autorización."

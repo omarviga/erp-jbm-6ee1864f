@@ -57,7 +57,7 @@ export async function descontarInsumosPorProduccion(
   const { data: insumos, error: fetchError } = await supabase
     .from("insumos")
     .select("id, nombre, tipo, cantidad_disponible")
-    .in("tipo", tiposNecesarios);
+    .in("tipo", tiposNecesarios as any);
 
   if (fetchError) {
     console.error("Error al obtener insumos:", fetchError);

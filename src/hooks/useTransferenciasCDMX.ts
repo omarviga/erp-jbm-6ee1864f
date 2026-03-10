@@ -99,7 +99,7 @@ export function useTransferenciasCDMX() {
 
       const { data, error } = await supabase.rpc("procesar_recepcion_transferencia", {
         p_transferencia_id: transferenciaId,
-        p_detalles: detalles,
+        p_detalles: detalles as any,
         p_recibido_por: user.user.id,
       });
 

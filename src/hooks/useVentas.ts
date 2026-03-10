@@ -166,6 +166,17 @@ export function useVentas() {
 
     const limpiarCarrito = () => setCarrito([]);
 
+    const getClienteFallbackId = () => {
+        if (clientes.length === 0) return null;
+        const publico = clientes.find((c) => {
+            const n = c.nombre.trim().toLowerCase();
+            return n === "público en general" || n === "publico en general";
+        });
+        return (clienteIdCache(publico?.id) || clienteIdCache(clientes[0]?.id));
+    };
+
+    const clienteIdCache = (id?: string | null) => id || null;
+
     const cobrar = async (clienteId: string | null, montoRecibido: number, metodoPago: string) => {
         if (carrito.length === 0) return;
         setLoading(true);
@@ -173,24 +184,72 @@ export function useVentas() {
         try {
             const montoTotal = carrito.reduce((sum, item) => sum + (item.cantidad * item.precio_venta), 0);
 
-            const itemsPayload = carrito.map(item => {
-                // Find a valid inventory ID for this product
-                const inventario_id = (item as any).inventario_id;
-                if (!inventario_id) throw new Error(`No hay inventario registrado para ${item.nombre}`);
-                
-                return {
-                    inventario_id: inventario_id,
-                    cantidad: item.cantidad,
-                    precio_venta: item.precio_venta
-                };
-            });
+            // Build payload by looking up inventory IDs (FIFO) for each cart item
+            const itemsPayload: { inventario_id: string; cantidad: number; precio_venta: number }[] = [];
 
-            // Call RPC function for CDMX sales
-            const { data, error } = await supabase.rpc('procesar_venta_cdmx', {
+            for (const item of carrito) {
+                // Get all inventory rows with stock for this presentacion, ordered FIFO
+                const { data: invRows, error: invError } = await supabase
+                    .from("inventario_bodega_cdmx")
+                    .select("id, cantidad_disponible, precio_base")
+                    .eq("presentacion_id", item.id)
+                    .gt("cantidad_disponible", 0)
+                    .order("fecha_ingreso", { ascending: true });
+
+                if (invError) throw invError;
+                if (!invRows || invRows.length === 0) {
+                    throw new Error(`No hay inventario disponible para ${item.nombre}`);
+                }
+
+                // Distribute the requested quantity across inventory rows (FIFO)
+                let pendiente = item.cantidad;
+                for (const row of invRows) {
+                    if (pendiente <= 0) break;
+                    const tomar = Math.min(pendiente, row.cantidad_disponible);
+                    itemsPayload.push({
+                        inventario_id: row.id,
+                        cantidad: tomar,
+                        precio_venta: item.precio_venta
+                    });
+                    pendiente -= tomar;
+                }
+
+                if (pendiente > 0) {
+                    throw new Error(`Stock insuficiente para ${item.nombre}. Faltan ${pendiente} unidades.`);
+                }
+            }
+
+            const clienteFinalId = clienteId || getClienteFallbackId();
+
+            if (!clienteFinalId) {
+                throw new Error("No existe un cliente válido para POS. Crea/configura 'Público en general'.");
+            }
+
+            // Require the extended RPC signature to guarantee cliente_id in pagos_clientes.
+            const { data, error } = await (supabase as any).rpc('procesar_venta_cdmx', {
+            // Prefer extended RPC signature (with client id). Fallback to legacy signature.
+            let data: any = null;
+            let error: any = null;
+
+            ({ data, error } = await (supabase as any).rpc('procesar_venta_cdmx', {
                 p_monto_total: montoTotal,
                 p_metodo_pago: metodoPago,
-                p_items: itemsPayload
+                p_items: itemsPayload,
+                p_cliente_id: clienteFinalId,
             });
+            }));
+
+            if (error && (error.code === 'PGRST202' || String(error.message || '').includes('Could not find the function'))) {
+                ({ data, error } = await supabase.rpc('procesar_venta_cdmx', {
+                    p_monto_total: montoTotal,
+                    p_metodo_pago: metodoPago,
+                    p_items: itemsPayload
+                }));
+            }
+
+            if (error && (error.code === 'PGRST202' || String(error.message || '').includes('Could not find the function'))) {
+                throw new Error("Tu base de datos no tiene la migración POS más reciente. Aplica las migraciones para procesar ventas sin cliente_id nulo.");
+            }
 
             if (error) throw error;
 
