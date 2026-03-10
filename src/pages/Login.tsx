@@ -184,14 +184,14 @@ export default function Login() {
             <div className="pt-6 border-t border-border space-y-2 text-xs text-muted-foreground">
               <div className="flex items-start gap-2">
                 <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>Carretera Federal 129, Col. Centro, Martínez de la Torre, Veracruz</span>
+                <span>Carretera Federal Cuatro Caminos-Apatzingan Km 16, No 10. Antúnez, Michoacán</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-3.5 w-3.5 shrink-0" />
-                <span>+52 (232) 123 4567 • soporte@jbmcitricos.com</span>
+                <span>+52 (425) 115 2205 • soporte@jbm.com.mx</span>
               </div>
               <p className="pt-2 text-[10px] uppercase tracking-wider text-muted-foreground/60">
-                © 2024 JBM Cítricos Premium • Limones Barragán S.A. de C.V.
+                © 2026 JBM Cítricos Premium • Limones Barragán S.A. de C.V.
               </p>
             </div>
           </div>
