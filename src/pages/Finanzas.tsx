@@ -105,6 +105,7 @@ export default function Finanzas() {
   const [metodoPago, setMetodoPago] = useState<"cheque" | "transferencia" | "efectivo">("cheque");
   const [referenciaPago, setReferenciaPago] = useState("");
   const [montoAdelanto, setMontoAdelanto] = useState("");
+  const [montoPagoActual, setMontoPagoActual] = useState("");
 
   // Deducciones Operativas Normales
   const [deducciones, setDeducciones] = useState({
@@ -283,10 +284,21 @@ export default function Finanzas() {
 
   // 5. GRAN TOTAL (A PAGAR)
   const totalPagar = importeBruto - totalGastoExterno - totalDeduccionesOp - cobroAnticipo;
+  const pagoActualCapturado = parseFloat(montoPagoActual) || 0;
+  const excedePagoActual = pagoActualCapturado > Math.max(0, totalPagar);
+  const pagoActual = Math.min(Math.max(0, pagoActualCapturado), Math.max(0, totalPagar));
+  const saldoPendienteLiquidacion = Math.max(0, totalPagar - pagoActual);
+  const hayPagoActual = pagoActual > 0.009;
+  const requiereReferenciaPago = hayPagoActual && metodoPago === 'cheque';
 
   const aplicarSaldoAnticipoDisponible = (saldoDisponible = saldoDeudaAnticipo) => {
     const montoAplicable = Math.min(saldoDisponible || 0, maximoAplicableAnticipo);
     setAmortizacionManual(montoAplicable > 0 ? montoAplicable.toFixed(2) : "");
+  };
+
+  const aplicarPagoTotal = () => {
+    const montoAplicable = Math.max(0, totalPagar);
+    setMontoPagoActual(montoAplicable > 0 ? montoAplicable.toFixed(2) : "");
   };
 
   const handleRegistrarAdelanto = async () => {
@@ -375,7 +387,12 @@ export default function Finanzas() {
       return;
     }
 
-    if (metodoPago === 'cheque' && !referenciaPago) {
+    if (excedePagoActual) {
+      toast({ title: "⚠️ Pago inválido", description: "El pago actual no puede ser mayor al saldo de la liquidación.", variant: "destructive" });
+      return;
+    }
+
+    if (requiereReferenciaPago && !referenciaPago.trim()) {
       toast({ title: "⚠️ Falta Cheque", description: "Ingresa el número de cheque.", variant: "destructive" });
       return;
     }
@@ -394,9 +411,11 @@ export default function Finanzas() {
           deduccion_corte: parseFloat(deducciones.corte) || 0,
           deduccion_flete: parseFloat(deducciones.flete) || 0,
           deduccion_anticipo: cobroAnticipo,
-          total_pagar: totalPagar,
+          total_pagar: pagoActual,
+          saldo_pendiente_liq: saldoPendienteLiquidacion,
+          estado_liq: saldoPendienteLiquidacion > 0 ? 'AUTORIZADA' : 'PAGADA',
           forma_pago: metodoPago,
-          referencia_pago: referenciaPago.trim() || null
+          referencia_pago: hayPagoActual ? referenciaPago.trim() || null : null
         })
         .select()
         .single();
@@ -417,15 +436,6 @@ export default function Finanzas() {
 
       // 3. Actualizar saldos del productor (anticipos + cuentas por pagar)
       if (productorSeleccionado) {
-        const montoLiquidado = ticketsData.reduce((sum, lote) => {
-          const pesoPagable = lote.peso_pagable ?? lote.peso_neto ?? 0;
-          const precioPactado = lote.precio_pactado_kg ?? 0;
-          const costoBascula = lote.costo_bascula ?? 0;
-          const totalLote = Math.max(0, (pesoPagable * precioPactado) - costoBascula);
-          return sum + totalLote;
-        }, 0);
-
-        const nuevoSaldoPendiente = Math.max(0, (productorSeleccionado.saldo_pendiente || 0) - montoLiquidado);
         const nuevoSaldoAnticipos = cobroAnticipo > 0
           ? Math.max(0, (productorSeleccionado.saldo_anticipos || 0) - cobroAnticipo)
           : (productorSeleccionado.saldo_anticipos || 0);
@@ -434,7 +444,6 @@ export default function Finanzas() {
           .from('productores')
           .update({
             saldo_anticipos: nuevoSaldoAnticipos,
-            saldo_pendiente: nuevoSaldoPendiente,
           })
           .eq('id', productorId);
 
@@ -449,7 +458,9 @@ export default function Finanzas() {
 
       toast({
         title: "✅ Liquidación Procesada",
-        description: `Pago registrado por $${totalPagar.toLocaleString("es-MX")}.`,
+        description: saldoPendienteLiquidacion > 0
+          ? `Liquidación registrada. Pago actual: $${pagoActual.toLocaleString("es-MX", { minimumFractionDigits: 2 })}. Pendiente: $${saldoPendienteLiquidacion.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`
+          : `Liquidación pagada por $${pagoActual.toLocaleString("es-MX", { minimumFractionDigits: 2 })}.`,
         className: "bg-slate-800 text-white border-none"
       });
 
@@ -457,6 +468,7 @@ export default function Finanzas() {
       setTicketsSeleccionados([]);
       setAmortizacionManual("");
       setMontoAdelanto("");
+      setMontoPagoActual("");
       setDeducciones({ corte: "", flete: "", otros: "" });
       setReferenciaPago("");
       await refreshProductores();
@@ -581,6 +593,8 @@ export default function Finanzas() {
                       setProductorId(v);
                       setTicketsSeleccionados([]);
                       setAmortizacionManual("");
+                      setMontoPagoActual("");
+                      setReferenciaPago("");
                     }}
                     disabled={cargandoProductores} // CORREGIDO: Usa cargandoProductores en lugar de loadingProductores
                   >
@@ -605,8 +619,8 @@ export default function Finanzas() {
                                   resumen={{
                                     saldoInicial: 0,
                                     totalAbonos: importeBruto,
-                                    totalCargos: totalDeduccionesOp + cobroAnticipo,
-                                    saldoFinal: totalPagar
+                                    totalCargos: totalDeduccionesOp + cobroAnticipo + pagoActual,
+                                    saldoFinal: saldoPendienteLiquidacion
                                   }}
                                   movimientos={[
                                     // Convertimos tus tickets a formato de movimiento para el PDF
@@ -624,6 +638,14 @@ export default function Finanzas() {
                                       folio: "ANT-AMORT",
                                       concepto: "Amortización de Anticipo",
                                       cargos: cobroAnticipo,
+                                      abonos: 0,
+                                      saldo: 0
+                                    }] : []),
+                                    ...(hayPagoActual ? [{
+                                      fecha: new Date().toLocaleDateString(),
+                                      folio: referenciaPago || "PAGO-ACTUAL",
+                                      concepto: "Pago aplicado en liquidación",
+                                      cargos: pagoActual,
                                       abonos: 0,
                                       saldo: 0
                                     }] : [])
@@ -882,6 +904,15 @@ export default function Finanzas() {
                       <CreditCard className="h-3 w-3" /> Datos del Pago
                     </div>
                     <div className="grid grid-cols-3 gap-2">
+                      <Input
+                        className="h-9 text-xs bg-white col-span-1 font-mono"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Pago hoy"
+                        value={montoPagoActual}
+                        onChange={(e) => setMontoPagoActual(e.target.value)}
+                      />
                       <Select value={metodoPago} onValueChange={(value: "cheque" | "transferencia" | "efectivo") => setMetodoPago(value)}>
                         <SelectTrigger className="h-9 text-xs bg-white col-span-1"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -891,12 +922,35 @@ export default function Finanzas() {
                         </SelectContent>
                       </Select>
                       <Input
-                        className="h-9 text-xs bg-white col-span-2 font-mono"
-                        placeholder={metodoPago === 'cheque' ? "No. Cheque" : "Referencia"}
+                        className="h-9 text-xs bg-white col-span-1 font-mono"
+                        placeholder={hayPagoActual ? (metodoPago === 'cheque' ? "No. Cheque" : "Referencia") : "Sin pago"}
                         value={referenciaPago}
                         onChange={(e) => setReferenciaPago(e.target.value)}
+                        disabled={!hayPagoActual}
                       />
                     </div>
+                    <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+                      <span>
+                        {saldoPendienteLiquidacion > 0
+                          ? `Pendiente despues de liquidar: $${saldoPendienteLiquidacion.toLocaleString("es-MX", { minimumFractionDigits: 2 })}`
+                          : "La liquidacion quedara pagada en su totalidad."}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={aplicarPagoTotal}
+                        disabled={Math.max(0, totalPagar) <= 0}
+                      >
+                        Pagar total
+                      </Button>
+                    </div>
+                    {excedePagoActual && (
+                      <p className="text-xs text-red-600">
+                        El pago actual no puede exceder el saldo por liquidar.
+                      </p>
+                    )}
 
                     <div className="space-y-2 rounded-md border border-blue-200 bg-white p-3">
                       <div className="flex items-center justify-between text-xs font-bold uppercase text-blue-800">
@@ -931,7 +985,7 @@ export default function Finanzas() {
                     <Button
                       onClick={handleGenerarLiquidacion}
                       className="flex-1 h-12 text-lg font-bold bg-green-600 hover:bg-green-700"
-                      disabled={totalPagar < 0 || excedeAnticipo || guardandoLiquidacion}
+                      disabled={totalPagar < 0 || excedeAnticipo || excedePagoActual || guardandoLiquidacion}
                     >
                       {guardandoLiquidacion ? (
                         <>
@@ -959,8 +1013,8 @@ export default function Finanzas() {
                             resumen={{
                               saldoInicial: 0,
                               totalAbonos: importeBruto,
-                              totalCargos: (mostrarGastoEnPDF ? totalGastoExterno : 0) + totalDeduccionesOp + cobroAnticipo,
-                              saldoFinal: Math.max(0, totalPagar)
+                              totalCargos: (mostrarGastoEnPDF ? totalGastoExterno : 0) + totalDeduccionesOp + cobroAnticipo + pagoActual,
+                              saldoFinal: saldoPendienteLiquidacion
                             }}
                             movimientos={[
                               // ABONOS - Fruta entregada
@@ -979,6 +1033,15 @@ export default function Finanzas() {
                                 folio: "ANT-AMORT",
                                 concepto: "Amortización de Anticipo",
                                 cargos: cobroAnticipo,
+                                abonos: 0,
+                                saldo: 0
+                              }] : []),
+
+                              ...(hayPagoActual ? [{
+                                fecha: new Date().toLocaleDateString('es-MX'),
+                                folio: referenciaPago || "PAGO-ACTUAL",
+                                concepto: "Pago aplicado en liquidación",
+                                cargos: pagoActual,
                                 abonos: 0,
                                 saldo: 0
                               }] : []),

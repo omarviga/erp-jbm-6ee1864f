@@ -747,6 +747,7 @@ export type Database = {
           precio_por_kg: number
           productor_id: string
           referencia_pago: string | null
+          saldo_pendiente_liq: number | null
           subtotal: number | null
           total_kilos: number
           total_pagar: number | null
@@ -771,6 +772,7 @@ export type Database = {
           precio_por_kg: number
           productor_id: string
           referencia_pago?: string | null
+          saldo_pendiente_liq?: number | null
           subtotal?: number | null
           total_kilos: number
           total_pagar?: number | null
@@ -795,6 +797,7 @@ export type Database = {
           precio_por_kg?: number
           productor_id?: string
           referencia_pago?: string | null
+          saldo_pendiente_liq?: number | null
           subtotal?: number | null
           total_kilos?: number
           total_pagar?: number | null
