@@ -43,7 +43,7 @@ interface FotoEvidencia {
 }
 
 export default function RecepcionesTab() {
-  const { transferencias, isLoading, useDetallesTransferencia, procesarRecepcion } = useTransferenciasCDMX();
+  const { transferencias, isLoading, error, useDetallesTransferencia, procesarRecepcion } = useTransferenciasCDMX();
   const [transferenciaSeleccionada, setTransferenciaSeleccionada] = useState<string | null>(null);
   const [detallesRecepcion, setDetallesRecepcion] = useState<Record<string, DetalleRecepcion>>({});
   const [mostrarDialog, setMostrarDialog] = useState(false);
@@ -54,6 +54,12 @@ export default function RecepcionesTab() {
   const { data: detalles, isLoading: loadingDetalles } = useDetallesTransferencia(transferenciaSeleccionada || undefined);
 
   const transferenciasEnTransito = transferencias?.filter(t => t.estado === 'en_transito') || [];
+
+  const badgeEstado = (estado: string) => {
+    if (estado === 'recibido') return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Recibido</Badge>;
+    if (estado === 'con_discrepancia') return <Badge className="bg-rose-100 text-rose-700 border-rose-200">Con discrepancia</Badge>;
+    return <Badge className="bg-amber-100 text-amber-700 border-amber-200">En tránsito</Badge>;
+  };
 
   const seleccionarTransferencia = (id: string) => {
     setTransferenciaSeleccionada(id);
@@ -293,6 +299,50 @@ export default function RecepcionesTab() {
                     </TableCell>
                   </TableRow>
                 ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Seguimiento completo */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Seguimiento de envíos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {error ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+              No se pudieron cargar las transferencias. Verifica permisos del rol para seguimiento de envíos.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Folio</TableHead>
+                  <TableHead>Salida</TableHead>
+                  <TableHead>Recepción</TableHead>
+                  <TableHead>Chofer</TableHead>
+                  <TableHead>Estado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(transferencias || []).slice(0, 20).map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="font-medium">{t.folio}</TableCell>
+                    <TableCell>{new Date(t.fecha_salida).toLocaleString('es-MX')}</TableCell>
+                    <TableCell>{t.fecha_recepcion ? new Date(t.fecha_recepcion).toLocaleString('es-MX') : 'Pendiente'}</TableCell>
+                    <TableCell>{t.chofer || '—'}</TableCell>
+                    <TableCell>{badgeEstado(t.estado)}</TableCell>
+                  </TableRow>
+                ))}
+                {(transferencias || []).length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      No hay envíos registrados aún.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           )}

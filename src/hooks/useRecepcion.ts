@@ -112,6 +112,13 @@ export function useRecepcion() {
 
       if (error) throw error;
 
+      // Sincronizar CxP de forma segura en backend (evita bloqueos por RLS en productores)
+      const { error: errorSyncCxp } = await (supabase as any).rpc("sync_productor_saldo_pendiente", {
+        p_productor_id: datos.productor_id,
+      });
+
+      if (errorSyncCxp) throw errorSyncCxp;
+
       return data;
     } catch (err: any) {
       setErrorGuardar(err.message);
