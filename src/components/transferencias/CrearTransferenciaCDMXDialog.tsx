@@ -109,6 +109,7 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
       if (stock) {
         items.push({
           id: stock.id,
+          origen_inventario: stock.origen_inventario,
           produccion_id: stock.produccion_id,
           lote_id: stock.lote_id,
           presentacion_id: stock.presentacion_id,

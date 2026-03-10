@@ -25,9 +25,11 @@ const safeInsertKardex = async (payload: {
   ubicacion_destino: string;
   usuario_id: string;
 }) => {
-  const { error } = await supabase.from("inventario_kardex").insert(payload);
-  if (error) {
-    console.warn("Kardex fallback insert skipped:", error.message);
+  try {
+    const { error } = await (supabase as any).from("inventario_kardex").insert(payload);
+    if (error) console.warn("Kardex fallback insert skipped:", error.message);
+  } catch {
+    // silently skip
   }
 };
 
@@ -183,7 +185,7 @@ export function useCrearTransferenciaCDMX() {
         const precioBaseCongelado = calcularPrecioBaseCongelado(item);
 
         if (item.origen_inventario === "camara_fria") {
-          const { error } = await supabase.rpc("registrar_envio_cdmx", {
+          const { error } = await (supabase as any).rpc("registrar_envio_cdmx", {
             p_registro_camara_id: item.id,
             p_lote_id: item.lote_id,
             p_cantidad_enviar: item.cantidad,
@@ -263,7 +265,7 @@ export function useCrearTransferenciaCDMX() {
           continue;
         }
 
-        const { error } = await supabase.rpc("registrar_envio_cdmx_transporte_directo", {
+        const { error } = await (supabase as any).rpc("registrar_envio_cdmx_transporte_directo", {
           p_produccion_id: item.produccion_id,
           p_lote_id: item.lote_id,
           p_cantidad_enviar: item.cantidad,

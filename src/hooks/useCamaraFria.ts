@@ -21,9 +21,12 @@ const safeInsertKardex = async (payload: {
   ubicacion_destino: string;
   usuario_id: string;
 }) => {
-  const { error } = await supabase.from("inventario_kardex").insert(payload);
-  if (error) {
-    console.warn("Kardex fallback insert skipped:", error.message);
+  try {
+    // inventario_kardex may not exist yet — best-effort insert
+    const { error } = await (supabase as any).from("inventario_kardex").insert(payload);
+    if (error) console.warn("Kardex fallback insert skipped:", error.message);
+  } catch {
+    // silently skip
   }
 };
 
@@ -95,7 +98,7 @@ export const useCamaraFria = () => {
 
   const trasladoInternoMutation = useMutation({
     mutationFn: async ({ produccionId, loteId, cantidad, usuarioId }: { produccionId: string; loteId: string; cantidad: number; usuarioId: string }) => {
-      const { error } = await supabase.rpc("trasladar_a_camara_fria", {
+      const { error } = await (supabase as any).rpc("trasladar_a_camara_fria", {
         p_produccion_id: produccionId,
         p_lote_id: loteId,
         p_cantidad: cantidad,
@@ -152,7 +155,7 @@ export const useCamaraFria = () => {
       referenciaViaje: string;
       usuarioId: string;
     }) => {
-      const { error } = await supabase.rpc("registrar_envio_cdmx_transporte_directo", {
+      const { error } = await (supabase as any).rpc("registrar_envio_cdmx_transporte_directo", {
         p_produccion_id: produccionId,
         p_lote_id: loteId,
         p_cantidad_enviar: cantidad,
@@ -233,7 +236,7 @@ export const useCamaraFria = () => {
 
   const registrarMermaMutation = useMutation({
     mutationFn: async ({ idCamara, idLote, cantidad, motivo, idUsuario }: { idCamara: string; idLote: string; cantidad: number; motivo: string; idUsuario: string }) => {
-      const { error } = await supabase.rpc("registrar_baja_merma", {
+      const { error } = await (supabase as any).rpc("registrar_baja_merma", {
         p_registro_camara_id: idCamara,
         p_lote_id: idLote,
         p_cantidad_mermada: cantidad,

@@ -270,12 +270,11 @@ export function useVentasLimon() {
 
             // Crear la venta usando la función RPC
             const { data: ventaData, error: ventaError } = await supabase
-                .rpc('crear_venta_completa', {
+                .rpc('process_sale_with_inventory', {
                     p_cliente_id: clienteId,
                     p_monto_total: montoTotal,
-                    p_monto_recibido: montoRecibido,
                     p_metodo_pago: metodoPago,
-                    p_items: itemsPayload
+                    p_items: itemsPayload as any
                 });
 
             if (ventaError) throw ventaError;
@@ -285,10 +284,11 @@ export function useVentasLimon() {
             }
 
             // Obtener los datos completos de la venta
+            const ventaId = typeof ventaData === 'string' ? ventaData : (ventaData as any)?.id || (ventaData as any)?.[0]?.id;
             const { data: ventaCompleta } = await supabase
                 .from('ventas')
                 .select('*')
-                .eq('id', ventaData.id || ventaData[0]?.id)
+                .eq('id', ventaId)
                 .single();
 
             toast.success("Venta de limón registrada correctamente", {
