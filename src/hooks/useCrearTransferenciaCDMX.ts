@@ -48,6 +48,7 @@ export interface ItemTransferencia {
   calidad: string;
   lote_numero: string;
   descripcion: string;
+  precio_caja: number; // Precio por caja definido manualmente por el usuario
 }
 
 export interface DatosTransferencia {
