@@ -300,6 +300,77 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
           </div>
         )}
 
+        {step === "precios" && (
+          <div className="flex flex-col flex-1 overflow-hidden gap-4">
+            <div className="text-sm text-muted-foreground">
+              Define el precio por caja para cada producto seleccionado.
+            </div>
+
+            <ScrollArea className="flex-1 max-h-[350px] pr-2">
+              <div className="space-y-3">
+                {Array.from(selectedItems.entries()).map(([id, qty]) => {
+                  const stock = stockDisponible.find((s) => s.id === id);
+                  if (!stock) return null;
+                  const precio = precios.get(id) || 0;
+
+                  return (
+                    <div key={id} className="p-3 rounded-lg border space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CalibreBadge calibre={stock.calibre} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{stock.descripcion}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {stock.presentacion_nombre} · {qty} cajas
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Label className="flex items-center gap-1 text-xs whitespace-nowrap">
+                          <DollarSign className="h-3.5 w-3.5" /> Precio/caja
+                        </Label>
+                        <Input
+                          type="number"
+                          className="w-32 h-8 text-sm"
+                          placeholder="0.00"
+                          min={0}
+                          step={10}
+                          value={precio || ""}
+                          onChange={(e) => updatePrecio(id, parseFloat(e.target.value) || 0)}
+                        />
+                        {precio > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            Subtotal: <strong>${(precio * qty).toLocaleString("es-MX")}</strong>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+
+            <Separator />
+            {!allPricesSet && (
+              <div className="flex items-center gap-2 text-xs text-destructive">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>Todos los productos deben tener un precio por caja mayor a $0</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                Valor total: <strong>${totalValor.toLocaleString("es-MX")}</strong>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep("seleccion")}>
+                  Volver
+                </Button>
+                <Button onClick={() => setStep("datos")} disabled={!allPricesSet}>
+                  Continuar
+                </Button>
+              </div>
+            </div>
+          </div>
+
         {step === "datos" && (
           <div className="space-y-4">
             {/* Summary */}
