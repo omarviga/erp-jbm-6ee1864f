@@ -291,7 +291,7 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
                 <span className="font-medium">{totalCajas}</span> cajas
               </div>
               <Button
-                onClick={() => setStep("datos")}
+                onClick={() => setStep("precios")}
                 disabled={selectedItems.size === 0}
               >
                 Continuar
