@@ -265,7 +265,7 @@ export function useCrearTransferenciaCDMX() {
           continue;
         }
 
-        const { error } = await supabase.rpc("registrar_envio_cdmx_transporte_directo", {
+        const { error } = await (supabase as any).rpc("registrar_envio_cdmx_transporte_directo", {
           p_produccion_id: item.produccion_id,
           p_lote_id: item.lote_id,
           p_cantidad_enviar: item.cantidad,

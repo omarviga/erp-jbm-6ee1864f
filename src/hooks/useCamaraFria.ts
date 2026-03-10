@@ -236,7 +236,7 @@ export const useCamaraFria = () => {
 
   const registrarMermaMutation = useMutation({
     mutationFn: async ({ idCamara, idLote, cantidad, motivo, idUsuario }: { idCamara: string; idLote: string; cantidad: number; motivo: string; idUsuario: string }) => {
-      const { error } = await supabase.rpc("registrar_baja_merma", {
+      const { error } = await (supabase as any).rpc("registrar_baja_merma", {
         p_registro_camara_id: idCamara,
         p_lote_id: idLote,
         p_cantidad_mermada: cantidad,
