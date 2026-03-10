@@ -41,8 +41,9 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
   const { stockDisponible, loadingStock, crearTransferencia, isCreando } = useCrearTransferenciaCDMX();
 
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"seleccion" | "datos">("seleccion");
+  const [step, setStep] = useState<"seleccion" | "precios" | "datos">("seleccion");
   const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
+  const [precios, setPrecios] = useState<Map<string, number>>(new Map());
   const [searchTerm, setSearchTerm] = useState("");
   const [chofer, setChofer] = useState("");
   const [placas, setPlacas] = useState("");
