@@ -185,7 +185,7 @@ export function useCrearTransferenciaCDMX() {
         const precioBaseCongelado = calcularPrecioBaseCongelado(item);
 
         if (item.origen_inventario === "camara_fria") {
-          const { error } = await supabase.rpc("registrar_envio_cdmx", {
+          const { error } = await (supabase as any).rpc("registrar_envio_cdmx", {
             p_registro_camara_id: item.id,
             p_lote_id: item.lote_id,
             p_cantidad_enviar: item.cantidad,
