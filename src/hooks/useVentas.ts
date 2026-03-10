@@ -221,6 +221,12 @@ export function useVentas() {
 
             const clienteFinalId = clienteId || getClienteFallbackId();
 
+            if (!clienteFinalId) {
+                throw new Error("No existe un cliente válido para POS. Crea/configura 'Público en general'.");
+            }
+
+            // Require the extended RPC signature to guarantee cliente_id in pagos_clientes.
+            const { data, error } = await (supabase as any).rpc('procesar_venta_cdmx', {
             // Prefer extended RPC signature (with client id). Fallback to legacy signature.
             let data: any = null;
             let error: any = null;
@@ -230,6 +236,7 @@ export function useVentas() {
                 p_metodo_pago: metodoPago,
                 p_items: itemsPayload,
                 p_cliente_id: clienteFinalId,
+            });
             }));
 
             if (error && (error.code === 'PGRST202' || String(error.message || '').includes('Could not find the function'))) {
@@ -238,6 +245,10 @@ export function useVentas() {
                     p_metodo_pago: metodoPago,
                     p_items: itemsPayload
                 }));
+            }
+
+            if (error && (error.code === 'PGRST202' || String(error.message || '').includes('Could not find the function'))) {
+                throw new Error("Tu base de datos no tiene la migración POS más reciente. Aplica las migraciones para procesar ventas sin cliente_id nulo.");
             }
 
             if (error) throw error;
