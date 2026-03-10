@@ -104,6 +104,7 @@ export default function Finanzas() {
   // Datos del Pago
   const [metodoPago, setMetodoPago] = useState<"cheque" | "transferencia" | "efectivo">("cheque");
   const [referenciaPago, setReferenciaPago] = useState("");
+  const [montoPagoManual, setMontoPagoManual] = useState("");
 
   // Deducciones Operativas Normales
   const [deducciones, setDeducciones] = useState({
@@ -281,6 +282,11 @@ export default function Finanzas() {
 
   // 5. GRAN TOTAL (A PAGAR)
   const totalPagar = importeBruto - totalGastoExterno - totalDeduccionesOp - cobroAnticipo;
+  const montoPagoCapturado = parseFloat(montoPagoManual);
+  const montoAPagarHoy = Number.isFinite(montoPagoCapturado) && montoPagoManual.trim() !== ""
+    ? montoPagoCapturado
+    : Math.max(0, totalPagar);
+  const saldoPendienteGenerado = Math.max(0, totalPagar - montoAPagarHoy);
 
   const handleGenerarLiquidacion = async () => {
     if (ticketsData.length === 0) {
@@ -290,6 +296,16 @@ export default function Finanzas() {
 
     if (totalPagar < 0) {
       toast({ title: "⚠️ Saldo Negativo", description: "El cálculo resulta en saldo negativo.", variant: "destructive" });
+      return;
+    }
+
+    if (montoAPagarHoy <= 0) {
+      toast({ title: "⚠️ Monto inválido", description: "El monto a pagar hoy debe ser mayor a 0.", variant: "destructive" });
+      return;
+    }
+
+    if (montoAPagarHoy > totalPagar) {
+      toast({ title: "⚠️ Monto excedido", description: "El pago parcial no puede exceder el neto a pagar.", variant: "destructive" });
       return;
     }
 
@@ -313,7 +329,8 @@ export default function Finanzas() {
           deduccion_corte: parseFloat(deducciones.corte) || 0,
           deduccion_flete: parseFloat(deducciones.flete) || 0,
           deduccion_anticipo: cobroAnticipo,
-          total_pagar: totalPagar,
+          total_pagar: montoAPagarHoy,
+          estado_liq: saldoPendienteGenerado > 0 ? "AUTORIZADA" : "PAGADA",
           forma_pago: metodoPago,
           referencia_pago: referenciaPago
         })
@@ -334,21 +351,33 @@ export default function Finanzas() {
 
       if (errorLotes) throw errorLotes;
 
-      // 3. Si hay amortización, actualizar saldo de anticipos del productor
-      if (cobroAnticipo > 0 && productorSeleccionado) {
-        const nuevoSaldo = productorSeleccionado.saldo_anticipos - cobroAnticipo;
+      // 3. Actualizar saldos del productor (anticipos y saldo pendiente por pagar)
+      if (productorSeleccionado) {
+        const updateProductorPayload: { saldo_anticipos?: number; saldo_pendiente?: number } = {};
 
-        const { error: errorProductor } = await supabase
-          .from('productores')
-          .update({ saldo_anticipos: nuevoSaldo })
-          .eq('id', productorId);
+        if (cobroAnticipo > 0) {
+          updateProductorPayload.saldo_anticipos = productorSeleccionado.saldo_anticipos - cobroAnticipo;
+        }
 
-        if (errorProductor) throw errorProductor;
+        if (saldoPendienteGenerado > 0) {
+          updateProductorPayload.saldo_pendiente = (productorSeleccionado.saldo_pendiente || 0) + saldoPendienteGenerado;
+        }
+
+        if (Object.keys(updateProductorPayload).length > 0) {
+          const { error: errorProductor } = await supabase
+            .from('productores')
+            .update(updateProductorPayload)
+            .eq('id', productorId);
+
+          if (errorProductor) throw errorProductor;
+        }
       }
 
       toast({
         title: "✅ Liquidación Procesada",
-        description: `Pago registrado por $${totalPagar.toLocaleString("es-MX")}.`,
+        description: saldoPendienteGenerado > 0
+          ? `Pago parcial por $${montoAPagarHoy.toLocaleString("es-MX")}. Saldo pendiente: $${saldoPendienteGenerado.toLocaleString("es-MX")}.`
+          : `Pago registrado por $${montoAPagarHoy.toLocaleString("es-MX")}.`,
         className: "bg-slate-800 text-white border-none"
       });
 
@@ -357,6 +386,7 @@ export default function Finanzas() {
       setAmortizacionManual("");
       setDeducciones({ corte: "", flete: "", otros: "" });
       setReferenciaPago("");
+      setMontoPagoManual("");
 
       // Recargar lotes pendientes
       setLotesPendientes(prev => prev.filter(l => !ticketsSeleccionados.includes(l.id)));
@@ -484,7 +514,7 @@ export default function Finanzas() {
                     <SelectTrigger className="h-12 bg-slate-50 font-medium">
                       {cargandoProductores ? ( // CORREGIDO: Usa cargandoProductores
                         <div className="flex gap-3 pt-2">
-                          <Button onClick={handleGenerarLiquidacion} className="flex-1 h-12 text-lg font-bold bg-green-600 hover:bg-green-700" disabled={totalPagar < 0 || excedeAnticipo}>
+                          <Button onClick={handleGenerarLiquidacion} className="flex-1 h-12 text-lg font-bold bg-green-600 hover:bg-green-700" disabled={totalPagar < 0 || excedeAnticipo || montoAPagarHoy <= 0 || montoAPagarHoy > totalPagar}>
                             Generar Pago
                           </Button>
 
@@ -784,6 +814,21 @@ export default function Finanzas() {
                         onChange={(e) => setReferenciaPago(e.target.value)}
                       />
                     </div>
+                    <div className="grid grid-cols-3 gap-2 items-center">
+                      <Label className="text-xs text-muted-foreground">Monto a pagar hoy</Label>
+                      <Input
+                        type="number"
+                        className="h-9 text-xs bg-white col-span-2 font-mono"
+                        placeholder={Math.max(0, totalPagar).toFixed(2)}
+                        value={montoPagoManual}
+                        onChange={(e) => setMontoPagoManual(e.target.value)}
+                      />
+                    </div>
+                    {saldoPendienteGenerado > 0 && (
+                      <p className="text-xs text-amber-700">
+                        Se registrará como pago parcial. Saldo pendiente: ${saldoPendienteGenerado.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                      </p>
+                    )}
                   </div>
 
                   {/* BOTONES */}
@@ -791,7 +836,7 @@ export default function Finanzas() {
                     <Button
                       onClick={handleGenerarLiquidacion}
                       className="flex-1 h-12 text-lg font-bold bg-green-600 hover:bg-green-700"
-                      disabled={totalPagar < 0 || excedeAnticipo || guardandoLiquidacion}
+                      disabled={totalPagar < 0 || excedeAnticipo || guardandoLiquidacion || montoAPagarHoy <= 0 || montoAPagarHoy > totalPagar}
                     >
                       {guardandoLiquidacion ? (
                         <>

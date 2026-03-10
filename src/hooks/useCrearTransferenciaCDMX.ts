@@ -84,20 +84,6 @@ export function useCrearTransferenciaCDMX() {
       const desdeCamara = (stockCamara || []).map((item) => {
         const prod = item.produccion as {
           id?: string;
-          destino?: string;
-          lote_id?: string;
-          calibre?: string;
-          calidad?: string;
-          cantidad_cajas?: number;
-          peso_total_kg?: number;
-          presentacion_id?: string;
-          lotes?: { numero_lote?: string };
-          presentaciones?: { id?: string; nombre?: string };
-        };
-
-      return (data || []).map((item) => {
-        const prod = item.produccion as {
-          id?: string;
           lote_id?: string;
           calibre?: string;
           calidad?: string;
