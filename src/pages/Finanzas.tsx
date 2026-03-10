@@ -334,6 +334,8 @@ export default function Finanzas() {
 
       if (errorLotes) throw errorLotes;
 
+      // 3. Actualizar anticipos y sincronizar CxP en backend
+      if (productorSeleccionado) {
       // 3. Actualizar saldos del productor (anticipos + cuentas por pagar)
       if (productorSeleccionado) {
         const montoLiquidado = ticketsData.reduce((sum, lote) => {
@@ -349,15 +351,22 @@ export default function Finanzas() {
           ? Math.max(0, (productorSeleccionado.saldo_anticipos || 0) - cobroAnticipo)
           : (productorSeleccionado.saldo_anticipos || 0);
 
-        const { error: errorProductor } = await supabase
+        const { error: errorAnticipos } = await supabase
           .from('productores')
+          .update({ saldo_anticipos: nuevoSaldoAnticipos })
           .update({
             saldo_anticipos: nuevoSaldoAnticipos,
             saldo_pendiente: nuevoSaldoPendiente,
           })
           .eq('id', productorId);
 
-        if (errorProductor) throw errorProductor;
+        if (errorAnticipos) throw errorAnticipos;
+
+        const { error: errorSyncCxp } = await (supabase as any).rpc('sync_productor_saldo_pendiente', {
+          p_productor_id: productorId,
+        });
+
+        if (errorSyncCxp) throw errorSyncCxp;
       }
 
       toast({

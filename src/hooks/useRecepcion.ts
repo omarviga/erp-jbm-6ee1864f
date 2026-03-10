@@ -112,6 +112,12 @@ export function useRecepcion() {
 
       if (error) throw error;
 
+      // Sincronizar CxP de forma segura en backend (evita bloqueos por RLS en productores)
+      const { error: errorSyncCxp } = await (supabase as any).rpc("sync_productor_saldo_pendiente", {
+        p_productor_id: datos.productor_id,
+      });
+
+      if (errorSyncCxp) throw errorSyncCxp;
       // Crear cuenta por pagar al productor desde la recepción
       const pesoPagable = datos.peso_pagable ?? peso_neto;
       const subtotalLote = Math.max(0, pesoPagable * (datos.precio_pactado_kg || 0));
