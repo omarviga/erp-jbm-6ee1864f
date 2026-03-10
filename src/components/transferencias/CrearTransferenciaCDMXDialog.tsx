@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Minus,
   Plus,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CalibreBadge } from "@/components/ui/calibre-badge";
