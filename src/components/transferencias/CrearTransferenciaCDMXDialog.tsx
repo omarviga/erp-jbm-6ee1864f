@@ -58,6 +58,7 @@ export function CrearTransferenciaCDMXDialog({ trigger, preselectedIds }: Props)
       setPlacas("");
       setNotas("");
       setSearchTerm("");
+      setPrecios(new Map());
       if (preselectedIds && preselectedIds.length > 0) {
         const map = new Map<string, number>();
         preselectedIds.forEach((id) => {
