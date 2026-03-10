@@ -21,9 +21,12 @@ const safeInsertKardex = async (payload: {
   ubicacion_destino: string;
   usuario_id: string;
 }) => {
-  const { error } = await supabase.from("inventario_kardex").insert(payload);
-  if (error) {
-    console.warn("Kardex fallback insert skipped:", error.message);
+  try {
+    // inventario_kardex may not exist yet — best-effort insert
+    const { error } = await (supabase as any).from("inventario_kardex").insert(payload);
+    if (error) console.warn("Kardex fallback insert skipped:", error.message);
+  } catch {
+    // silently skip
   }
 };
 

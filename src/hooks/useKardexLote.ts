@@ -21,7 +21,7 @@ const enrichUsuarios = async (rows: Omit<KardexLoteRow, "usuario_nombre" | "usua
     const { data: usuarios, error: usuariosError } = await supabase
       .from("usuarios")
       .select("auth_user_id, nombre, email")
-      .in("auth_user_id", uniqueUserIds);
+      .in("auth_user_id", uniqueUserIds as string[]);
 
     if (!usuariosError && usuarios) {
       usuariosMap = new Map(
@@ -46,29 +46,31 @@ export const useKardexLote = (loteId?: string, open?: boolean) => {
     queryFn: async (): Promise<KardexLoteRow[]> => {
       if (!loteId) return [];
 
-      // Intento principal: tabla kardex
-      const { data: kardexRows, error: kardexError } = await supabase
-      const { data: kardexRows, error } = await supabase
-        .from("inventario_kardex")
-        .select("id, created_at, tipo_movimiento, cantidad, ubicacion_origen, ubicacion_destino, usuario_id, lote_id")
-        .eq("lote_id", loteId)
-        .order("created_at", { ascending: false });
+      // Try inventario_kardex table (may not exist)
+      try {
+        const { data: kardexRows, error: kardexError } = await (supabase as any)
+          .from("inventario_kardex")
+          .select("id, created_at, tipo_movimiento, cantidad, ubicacion_origen, ubicacion_destino, usuario_id, lote_id")
+          .eq("lote_id", loteId)
+          .order("created_at", { ascending: false });
 
-      if (!kardexError && kardexRows) {
-        const normalized = kardexRows.map((row) => ({
-          id: row.id,
-          created_at: row.created_at,
-          tipo_movimiento: row.tipo_movimiento,
-          cantidad: Number(row.cantidad || 0),
-          ubicacion_origen: row.ubicacion_origen || "-",
-          ubicacion_destino: row.ubicacion_destino || "-",
-          usuario_id: row.usuario_id || "",
-        }));
-        return enrichUsuarios(normalized);
+        if (!kardexError && kardexRows && kardexRows.length > 0) {
+          const normalized = (kardexRows as any[]).map((row: any) => ({
+            id: row.id,
+            created_at: row.created_at,
+            tipo_movimiento: row.tipo_movimiento,
+            cantidad: Number(row.cantidad || 0),
+            ubicacion_origen: row.ubicacion_origen || "-",
+            ubicacion_destino: row.ubicacion_destino || "-",
+            usuario_id: row.usuario_id || "",
+          }));
+          return enrichUsuarios(normalized);
+        }
+      } catch {
+        // table doesn't exist, fall through to synthetic
       }
 
-      // Fallback visual para no bloquear trazabilidad cuando kardex no está accesible
-      // (entornos sin migración/políticas).
+      // Fallback: build synthetic history from produccion + camara_fria
       const { data: producciones, error: prodError } = await supabase
         .from("produccion")
         .select("id, created_at, destino, cantidad_cajas")
@@ -81,10 +83,10 @@ export const useKardexLote = (loteId?: string, open?: boolean) => {
             .from("camara_fria")
             .select("id, fecha_ingreso, cantidad_disponible, produccion_id")
             .in("produccion_id", produccionIds)
-        : { data: [], error: null };
+        : { data: [] as any[], error: null };
 
       if (prodError || camaraError) {
-        const details = [kardexError?.message, prodError?.message, camaraError?.message].filter(Boolean).join(" | ");
+        const details = [prodError?.message, camaraError?.message].filter(Boolean).join(" | ");
         throw new Error(details || "No se pudo cargar el historial del kardex.");
       }
 
@@ -116,38 +118,6 @@ export const useKardexLote = (loteId?: string, open?: boolean) => {
 
       const ordered = syntheticRows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       return enrichUsuarios(ordered);
-      if (error) throw error;
-      if (!kardexRows || kardexRows.length === 0) return [];
-
-      const uniqueUserIds = Array.from(new Set(kardexRows.map((r) => r.usuario_id).filter(Boolean)));
-      let usuariosMap = new Map<string, { nombre: string | null; email: string | null }>();
-
-      if (uniqueUserIds.length > 0) {
-        const { data: usuarios, error: usuariosError } = await supabase
-          .from("usuarios")
-          .select("auth_user_id, nombre, email")
-          .in("auth_user_id", uniqueUserIds);
-
-        if (!usuariosError && usuarios) {
-          usuariosMap = new Map(
-            usuarios
-              .filter((u) => Boolean(u.auth_user_id))
-              .map((u) => [u.auth_user_id as string, { nombre: u.nombre || null, email: u.email || null }])
-          );
-        }
-      }
-
-      return kardexRows.map((row) => ({
-        id: row.id,
-        created_at: row.created_at,
-        tipo_movimiento: row.tipo_movimiento,
-        cantidad: row.cantidad,
-        ubicacion_origen: row.ubicacion_origen,
-        ubicacion_destino: row.ubicacion_destino,
-        usuario_id: row.usuario_id,
-        usuario_nombre: usuariosMap.get(row.usuario_id)?.nombre || null,
-        usuario_email: usuariosMap.get(row.usuario_id)?.email || null,
-      }));
     },
   });
 };
