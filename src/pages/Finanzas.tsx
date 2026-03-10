@@ -858,7 +858,8 @@ export default function Finanzas() {
                           </div>
                         ) : (
                           <>
-                            <table className="w-full text-sm text-left">
+                            <div className="overflow-x-auto w-full pb-2">
+                              <table className="w-full whitespace-nowrap text-sm text-left">
                               <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
                                 <tr>
                                   <th className="p-3">Sel.</th>
@@ -909,7 +910,8 @@ export default function Finanzas() {
                                   </tr>
                                 ))}
                               </tbody>
-                            </table>
+                              </table>
+                            </div>
                             <div className="p-2 bg-slate-50 text-xs text-center text-muted-foreground border-t">
                               {ticketsSeleccionados.length} nota(s) seleccionada(s) de {lotesPendientesFiltrados.length} disponibles
                               {!filtrosFechaActivos && lotesPendientesFiltrados.length > 15 ? " · Mostrando las 15 más recientes" : ""}
