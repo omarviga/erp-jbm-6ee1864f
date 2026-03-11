@@ -1,9 +1,10 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Package, Boxes, Loader2, Eye, EyeOff } from "lucide-react";
+import { EyeOff, Loader2, Package, Boxes } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,202 +14,153 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-interface InventarioItem {
+interface InventarioRow {
   id: string;
-  presentacion_id: string;
   cantidad_disponible: number;
-  precio_base?: number;
+  precio_base: number;
   precio_venta: number;
-  fecha_ingreso: string;
-  presentacion: {
-    nombre: string;
-    tipo: string;
-    peso_kg: number;
-  } | null;
+  presentacion: { nombre: string; tipo: string; peso_kg: number } | null;
 }
+
+const detectCalibre = (nombre: string) => {
+  const hit = nombre.match(/(V-4|V-5|V-X|V-XX|V-XXX|V-EXT|AL-4|AL-5|AL-X|AL-XX|AL-XXX|AL-EXT|AM-X|AM-XX|AM-XXX|AM-EXT)/i);
+  return hit ? hit[1].toUpperCase() : "SIN-CALIBRE";
+};
 
 export default function InventarioTab() {
   const { isAdmin } = useAuth();
 
-  const { data: inventario, isLoading } = useQuery({
-    queryKey: ['inventario-cdmx', isAdmin ? 'admin' : 'operativo'],
+  const { data, isLoading } = useQuery({
+    queryKey: ["inventario-cdmx-rebuild", isAdmin],
     queryFn: async () => {
-      const selectFields = isAdmin
-        ? `
-          id,
-          presentacion_id,
-          cantidad_disponible,
-          precio_base,
-          precio_venta,
-          fecha_ingreso,
-          presentacion:presentaciones(nombre, tipo, peso_kg)
-        `
-        : `
-          id,
-          presentacion_id,
-          cantidad_disponible,
-          precio_venta,
-          fecha_ingreso,
-          presentacion:presentaciones(nombre, tipo, peso_kg)
-        `;
-
       const { data, error } = await supabase
-        .from('inventario_bodega_cdmx')
-        .select(selectFields)
-        .gt('cantidad_disponible', 0)
-        .order('fecha_ingreso', { ascending: false });
+        .from("inventario_bodega_cdmx")
+        .select("id,cantidad_disponible,precio_base,precio_venta,presentacion:presentacion_id(nombre,tipo,peso_kg)")
+        .gt("cantidad_disponible", 0);
 
       if (error) throw error;
-      return data as unknown as InventarioItem[];
+      return (data || []) as unknown as InventarioRow[];
     },
   });
 
-  // Group by presentacion for summary
-  const inventarioAgrupado = inventario?.reduce((acc, item) => {
-    const key = item.presentacion?.nombre || 'Sin nombre';
-    if (!acc[key]) {
-      acc[key] = {
-        nombre: key,
-        tipo: item.presentacion?.tipo || '',
-        peso_kg: item.presentacion?.peso_kg || 0,
-        total_cajas: 0,
-        lotes: [] as InventarioItem[],
-      };
-    }
-    acc[key].total_cajas += item.cantidad_disponible;
-    acc[key].lotes.push(item);
-    return acc;
-  }, {} as Record<string, { nombre: string; tipo: string; peso_kg: number; total_cajas: number; lotes: InventarioItem[] }>);
+  const resumen = useMemo(() => {
+    const grouped = new Map<string, {
+      calibre: string;
+      tipo: string;
+      cajas: number;
+      kilos: number;
+      lotes: number;
+      totalBase: number;
+      totalVenta: number;
+    }>();
 
-  const totalCajas = inventario?.reduce((sum, item) => sum + item.cantidad_disponible, 0) || 0;
-  const totalKilos = inventario?.reduce((sum, item) => sum + (item.cantidad_disponible * (item.presentacion?.peso_kg || 0)), 0) || 0;
+    for (const row of data || []) {
+      const nombre = row.presentacion?.nombre || "Sin nombre";
+      const calibre = detectCalibre(nombre);
+      const tipo = row.presentacion?.tipo || "N/A";
+      const peso = row.presentacion?.peso_kg || 0;
+
+      const prev = grouped.get(calibre) || {
+        calibre,
+        tipo,
+        cajas: 0,
+        kilos: 0,
+        lotes: 0,
+        totalBase: 0,
+        totalVenta: 0,
+      };
+
+      prev.cajas += row.cantidad_disponible;
+      prev.kilos += row.cantidad_disponible * peso;
+      prev.lotes += 1;
+      prev.totalBase += row.precio_base;
+      prev.totalVenta += row.precio_venta;
+
+      grouped.set(calibre, prev);
+    }
+
+    return Array.from(grouped.values()).sort((a, b) => b.cajas - a.cajas);
+  }, [data]);
+
+  const totalCajas = useMemo(() => resumen.reduce((acc, r) => acc + r.cajas, 0), [resumen]);
+  const totalKilos = useMemo(() => resumen.reduce((acc, r) => acc + r.kilos, 0), [resumen]);
 
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
     <div className="h-full flex flex-col p-6 overflow-auto bg-background">
-      {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Inventario Local</h1>
-        <p className="text-sm text-muted-foreground">Stock físico en Bodega CDMX</p>
+        <h1 className="text-2xl font-bold text-foreground">Inventario por calibre</h1>
+        <p className="text-sm text-muted-foreground">Stock fisico de CDMX separado de matriz.</p>
       </div>
 
-      {/* Summary KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase">Total Cajas</p>
-                <p className="text-3xl font-black text-[#1E5128]">{totalCajas.toLocaleString()}</p>
-              </div>
-              <Boxes className="h-8 w-8 text-[#1E5128]" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase">Total Kilos</p>
-                <p className="text-3xl font-black text-blue-600">{totalKilos.toLocaleString()} kg</p>
-              </div>
-              <Package className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase">Productos</p>
-                <p className="text-3xl font-black text-purple-600">{Object.keys(inventarioAgrupado || {}).length}</p>
-              </div>
-              <Package className="h-8 w-8 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Security notice for non-admin */}
       {!isAdmin && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6 flex items-center gap-2">
           <EyeOff className="h-4 w-4 text-amber-600" />
-          <p className="text-sm text-amber-700">
-            Los precios base (costo) están ocultos. Solo el administrador puede verlos.
-          </p>
+          <p className="text-sm text-amber-700">Precio base oculto para operadores.</p>
         </div>
       )}
 
-      {/* Inventory Table */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase text-muted-foreground font-bold">Cajas disponibles</p>
+              <p className="text-3xl font-black text-[#1E5128]">{totalCajas.toLocaleString()}</p>
+            </div>
+            <Boxes className="h-8 w-8 text-[#1E5128]" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase text-muted-foreground font-bold">Kilos disponibles</p>
+              <p className="text-3xl font-black text-blue-600">{totalKilos.toLocaleString(undefined, { maximumFractionDigits: 1 })}</p>
+            </div>
+            <Package className="h-8 w-8 text-blue-600" />
+          </CardContent>
+        </Card>
+      </div>
+
       <Card className="flex-1">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Stock por Calibre
-          </CardTitle>
+          <CardTitle>Tabla agrupada por calibre</CardTitle>
         </CardHeader>
         <CardContent>
-          {!inventarioAgrupado || Object.keys(inventarioAgrupado).length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No hay productos en inventario</p>
-            </div>
+          {!resumen.length ? (
+            <p className="text-sm text-muted-foreground">Sin inventario disponible.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Producto / Calibre</TableHead>
+                  <TableHead>Calibre</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead className="text-center">Cajas Disponibles</TableHead>
-                  <TableHead className="text-center">Peso Total</TableHead>
-                  {/* precio_base HIDDEN for operator, visible for admin */}
-                  {isAdmin && <TableHead className="text-right">Precio Base (Costo)</TableHead>}
-                  <TableHead className="text-right">Precio Venta</TableHead>
+                  <TableHead className="text-center">Cajas</TableHead>
+                  <TableHead className="text-center">Kilos</TableHead>
+                  {isAdmin && <TableHead className="text-right">Precio base prom.</TableHead>}
+                  <TableHead className="text-right">Precio venta prom.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Object.values(inventarioAgrupado).map((grupo) => {
-                  // Get average prices from lotes
-                  const avgPrecioBase = grupo.lotes.reduce((sum, l) => sum + (l.precio_base || 0), 0) / grupo.lotes.length;
-                  const avgPrecioVenta = grupo.lotes.reduce((sum, l) => sum + l.precio_venta, 0) / grupo.lotes.length;
+                {resumen.map((r) => {
+                  const avgBase = r.totalBase / Math.max(r.lotes, 1);
+                  const avgVenta = r.totalVenta / Math.max(r.lotes, 1);
 
                   return (
-                    <TableRow key={grupo.nombre}>
-                      <TableCell className="font-semibold">
-                        {grupo.nombre}
-                        <Badge variant="outline" className="ml-2 text-[10px]">
-                          {grupo.lotes.length} lotes
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{grupo.tipo}</Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="text-lg font-bold text-[#1E5128]">
-                          {grupo.total_cajas.toLocaleString()}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center font-mono">
-                        {(grupo.total_cajas * grupo.peso_kg).toLocaleString()} kg
-                      </TableCell>
-                  {/* SECURITY: precio_base HIDDEN for cdmx_operator */}
-                      {isAdmin && (
-                        <TableCell className="text-right font-mono text-muted-foreground">
-                          ${avgPrecioBase.toFixed(2)}
-                        </TableCell>
-                      )}
-                      <TableCell className="text-right font-mono font-bold">
-                        ${avgPrecioVenta.toFixed(2)}
-                      </TableCell>
+                    <TableRow key={r.calibre}>
+                      <TableCell className="font-semibold">{r.calibre} <Badge variant="outline" className="ml-2">{r.lotes} lotes</Badge></TableCell>
+                      <TableCell>{r.tipo}</TableCell>
+                      <TableCell className="text-center font-bold">{r.cajas}</TableCell>
+                      <TableCell className="text-center">{r.kilos.toLocaleString(undefined, { maximumFractionDigits: 1 })}</TableCell>
+                      {isAdmin && <TableCell className="text-right">${avgBase.toFixed(2)}</TableCell>}
+                      <TableCell className="text-right font-semibold">${avgVenta.toFixed(2)}</TableCell>
                     </TableRow>
                   );
                 })}

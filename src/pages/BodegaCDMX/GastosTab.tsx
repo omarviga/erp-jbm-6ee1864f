@@ -1,392 +1,284 @@
-import { useState, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import { toast } from "sonner";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "sonner";
-import { Loader2, Receipt, Upload, FileImage, X, Plus } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { Database } from "@/integrations/supabase/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileImage, Loader2, Plus, Receipt, Upload, X } from "lucide-react";
 
-type CategoriaGasto = Database['public']['Enums']['categoria_gasto'];
+type CategoriaGasto = Database["public"]["Enums"]["categoria_gasto"];
 
 const CATEGORIAS: { value: CategoriaGasto; label: string }[] = [
-  { value: 'viaticos', label: 'Viáticos' },
-  { value: 'combustible', label: 'Combustible' },
-  { value: 'mantenimiento', label: 'Mantenimiento' },
-  { value: 'limpieza', label: 'Limpieza' },
-  { value: 'papeleria', label: 'Papelería' },
-  { value: 'refacciones', label: 'Refacciones' },
-  { value: 'servicios', label: 'Servicios' },
-  { value: 'otros', label: 'Otros' },
+  { value: "viaticos", label: "Viaticos" },
+  { value: "combustible", label: "Combustible" },
+  { value: "mantenimiento", label: "Mantenimiento" },
+  { value: "limpieza", label: "Limpieza" },
+  { value: "papeleria", label: "Papeleria" },
+  { value: "refacciones", label: "Refacciones" },
+  { value: "servicios", label: "Servicios" },
+  { value: "otros", label: "Otros" },
 ];
+
+const TAG_CDMX = "[CC:CDMX]";
 
 export default function GastosTab() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    concepto: '',
-    monto: '',
-    categoria: 'otros' as CategoriaGasto,
-    proveedor: '',
-    numero_ticket: '',
-    notas: '',
+  const [dragging, setDragging] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    concepto: "",
+    monto: "",
+    categoria: "otros" as CategoriaGasto,
+    proveedor: "",
+    numero_ticket: "",
+    notas: "",
   });
-  const [archivo, setArchivo] = useState<File | null>(null);
-  const [archivoPreview, setArchivoPreview] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
-  // Fetch gastos de CDMX (could filter by centro_de_costo in future)
   const { data: gastos, isLoading } = useQuery({
-    queryKey: ['gastos-cdmx'],
+    queryKey: ["gastos-cdmx-rebuild"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('gastos')
-        .select('*')
-        .ilike('notas', '[BODEGA CDMX]%')
-        .order('fecha', { ascending: false })
-        .limit(20);
+        .from("gastos")
+        .select("*")
+        .ilike("notas", `%${TAG_CDMX}%`)
+        .order("fecha", { ascending: false })
+        .limit(30);
+
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
-  const totalGastosMes = gastos?.reduce((sum, g) => {
-    const gastoDate = new Date(g.fecha);
+  const totalMes = useMemo(() => {
     const now = new Date();
-    if (gastoDate.getMonth() === now.getMonth() && gastoDate.getFullYear() === now.getFullYear()) {
-      return sum + g.monto;
-    }
-    return sum;
-  }, 0) || 0;
+    return (gastos || []).reduce((acc, row) => {
+      const d = new Date(row.fecha);
+      if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+        return acc + row.monto;
+      }
+      return acc;
+    }, 0);
+  }, [gastos]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const clearFile = () => {
+    if (preview) URL.revokeObjectURL(preview);
+    setFile(null);
+    setPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
-    setArchivo(file);
-    if (file.type.startsWith('image/')) {
-      setArchivoPreview(URL.createObjectURL(file));
-    } else {
-      setArchivoPreview(null);
+  const setTicketFile = (next: File) => {
+    clearFile();
+    setFile(next);
+    if (next.type.startsWith("image/")) {
+      setPreview(URL.createObjectURL(next));
     }
   };
 
-  const removeFile = () => {
-    if (archivoPreview) URL.revokeObjectURL(archivoPreview);
-    setArchivo(null);
-    setArchivoPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const onDrop: React.DragEventHandler<HTMLDivElement> = (event) => {
+    event.preventDefault();
+    setDragging(false);
+    const dropped = event.dataTransfer.files?.[0];
+    if (!dropped) return;
+    setTicketFile(dropped);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-    if (!formData.concepto || !formData.monto) {
-      toast.error("Completa los campos requeridos");
+    if (!form.concepto || !form.monto) {
+      toast.error("Captura concepto y monto");
       return;
     }
 
-    const monto = parseFloat(formData.monto);
-    if (isNaN(monto) || monto <= 0) {
-      toast.error("Ingresa un monto válido");
+    const monto = Number(form.monto);
+    if (!Number.isFinite(monto) || monto <= 0) {
+      toast.error("Monto invalido");
       return;
     }
 
-    setSubmitting(true);
-
+    setSaving(true);
     try {
-      let imagen_url = null;
+      let imagen_url: string | null = null;
+      if (file) {
+        const ext = file.name.split(".").pop() || "jpg";
+        const path = `gastos-cdmx/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
 
-      // Upload file if exists
-      if (archivo) {
-        const ext = archivo.name.split('.').pop();
-        const path = `gastos-cdmx/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('gastos-tickets')
-          .upload(path, archivo);
+        const { error: uploadError } = await supabase.storage.from("gastos-tickets").upload(path, file);
+        if (uploadError) throw uploadError;
 
-        if (uploadError) {
-          throw uploadError;
-        } else {
-          const { data: signedData } = await supabase.storage.from('gastos-tickets').createSignedUrl(path, 3600);
-          imagen_url = signedData?.signedUrl || null;
-        }
+        const { data: signed } = await supabase.storage.from("gastos-tickets").createSignedUrl(path, 3600 * 24);
+        imagen_url = signed?.signedUrl || null;
       }
 
-      // Insert gasto - automatically assigned to CDMX context
-      const { error } = await supabase.from('gastos').insert({
-        concepto: formData.concepto,
+      const notas = `${TAG_CDMX} ${form.notas}`.trim();
+
+      const { error } = await supabase.from("gastos").insert({
+        concepto: form.concepto,
         monto,
-        categoria: formData.categoria,
-        proveedor: formData.proveedor || null,
-        numero_ticket: formData.numero_ticket || null,
-        notas: formData.notas ? `[BODEGA CDMX] ${formData.notas}` : '[BODEGA CDMX]',
+        categoria: form.categoria,
+        proveedor: form.proveedor || null,
+        numero_ticket: form.numero_ticket || null,
+        notas,
         imagen_url,
-        usuario_id: user?.id,
+        usuario_id: user?.id || null,
       });
 
       if (error) throw error;
 
-      toast.success("Gasto registrado correctamente");
-      
-      // Reset form
-      setFormData({
-        concepto: '',
-        monto: '',
-        categoria: 'otros',
-        proveedor: '',
-        numero_ticket: '',
-        notas: '',
+      toast.success("Gasto registrado en centro de costo CDMX");
+      setForm({
+        concepto: "",
+        monto: "",
+        categoria: "otros",
+        proveedor: "",
+        numero_ticket: "",
+        notas: "",
       });
-      removeFile();
-      queryClient.invalidateQueries({ queryKey: ['gastos-cdmx'] });
-
-    } catch (err: any) {
-      console.error("Error saving gasto:", err);
-      toast.error("Error al registrar gasto", { description: err.message });
+      clearFile();
+      await queryClient.invalidateQueries({ queryKey: ["gastos-cdmx-rebuild"] });
+    } catch (error: any) {
+      toast.error("No se pudo guardar el gasto", { description: error?.message || "Error desconocido" });
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   };
 
   return (
     <div className="h-full flex flex-col p-6 overflow-auto bg-background">
-      {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Gastos Locales</h1>
-        <p className="text-sm text-muted-foreground">Registro de gastos de la Bodega CDMX</p>
+        <h1 className="text-2xl font-bold text-foreground">Gastos CDMX</h1>
+        <p className="text-sm text-muted-foreground">Separados de matriz por centro de costo ({TAG_CDMX}).</p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6 flex-1">
-        {/* Left: Form */}
-        <Card className="shadow-lg">
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Nuevo Gasto
-            </CardTitle>
-            <CardDescription>
-              Todos los gastos se asignan automáticamente al centro de costo de Bodega CDMX.
-            </CardDescription>
+            <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5" /> Nuevo gasto</CardTitle>
+            <CardDescription>Formulario con ticket drag and drop y auto-asignacion de centro de costo CDMX.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form className="space-y-4" onSubmit={submit}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <Label>Concepto *</Label>
-                  <Input
-                    placeholder="Ej: Comida para cargadores"
-                    value={formData.concepto}
-                    onChange={(e) => setFormData(prev => ({ ...prev, concepto: e.target.value }))}
-                  />
+                  <Label>Concepto</Label>
+                  <Input value={form.concepto} onChange={(e) => setForm((p) => ({ ...p, concepto: e.target.value }))} />
                 </div>
 
                 <div>
-                  <Label>Monto *</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      className="pl-7"
-                      value={formData.monto}
-                      onChange={(e) => setFormData(prev => ({ ...prev, monto: e.target.value }))}
-                    />
-                  </div>
+                  <Label>Monto</Label>
+                  <Input type="number" min={0} step="0.01" value={form.monto} onChange={(e) => setForm((p) => ({ ...p, monto: e.target.value }))} />
                 </div>
 
                 <div>
-                  <Label>Categoría</Label>
-                  <Select
-                    value={formData.categoria}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, categoria: value as CategoriaGasto }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                  <Label>Categoria</Label>
+                  <Select value={form.categoria} onValueChange={(v) => setForm((p) => ({ ...p, categoria: v as CategoriaGasto }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {CATEGORIAS.map(cat => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </SelectItem>
-                      ))}
+                      {CATEGORIAS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
                   <Label>Proveedor</Label>
-                  <Input
-                    placeholder="Opcional"
-                    value={formData.proveedor}
-                    onChange={(e) => setFormData(prev => ({ ...prev, proveedor: e.target.value }))}
-                  />
+                  <Input value={form.proveedor} onChange={(e) => setForm((p) => ({ ...p, proveedor: e.target.value }))} />
                 </div>
 
                 <div>
-                  <Label>No. Ticket / Factura</Label>
-                  <Input
-                    placeholder="Opcional"
-                    value={formData.numero_ticket}
-                    onChange={(e) => setFormData(prev => ({ ...prev, numero_ticket: e.target.value }))}
-                  />
+                  <Label>No. Ticket</Label>
+                  <Input value={form.numero_ticket} onChange={(e) => setForm((p) => ({ ...p, numero_ticket: e.target.value }))} />
                 </div>
 
                 <div className="col-span-2">
                   <Label>Notas</Label>
-                  <Textarea
-                    placeholder="Observaciones adicionales..."
-                    value={formData.notas}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notas: e.target.value }))}
-                  />
+                  <Textarea value={form.notas} onChange={(e) => setForm((p) => ({ ...p, notas: e.target.value }))} />
                 </div>
               </div>
 
-              {/* File upload with drag & drop styling */}
-              <div className="space-y-2">
-                <Label>Comprobante (Foto/PDF)</Label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,.pdf"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                
-                {!archivo ? (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
-                  >
-                    <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      Arrastra un archivo o haz clic para subir
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Imagen o PDF del ticket/factura
-                    </p>
-                  </div>
-                ) : (
-                  <div className="border rounded-lg p-4 flex items-center gap-4">
-                    {archivoPreview ? (
-                      <img src={archivoPreview} alt="Preview" className="h-20 w-20 object-cover rounded" />
-                    ) : (
-                      <div className="h-20 w-20 bg-muted rounded flex items-center justify-center">
-                        <FileImage className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{archivo.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(archivo.size / 1024).toFixed(1)} KB
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={removeFile}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => e.target.files?.[0] && setTicketFile(e.target.files[0])} />
 
-              <Button
-                type="submit"
-                className="w-full bg-[#1E5128] hover:bg-[#1E5128]/90"
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Guardando...</>
-                ) : (
-                  <><Receipt className="w-4 h-4 mr-2" /> Registrar Gasto</>
-                )}
+              {!file ? (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDrop={onDrop}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragging(true);
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  className={`rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${dragging ? "border-primary bg-primary/5" : "border-muted-foreground/30"}`}
+                >
+                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm">Arrastra ticket aqui o haz clic para subir</p>
+                  <p className="text-xs text-muted-foreground mt-1">Imagen o PDF</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg p-3 flex items-center gap-3">
+                  {preview ? <img src={preview} alt="ticket" className="h-16 w-16 rounded object-cover" /> : <FileImage className="h-8 w-8 text-muted-foreground" />}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                  <Button type="button" size="icon" variant="ghost" onClick={clearFile}><X className="h-4 w-4" /></Button>
+                </div>
+              )}
+
+              <Button type="submit" className="w-full" disabled={saving}>
+                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Guardando...</> : <><Receipt className="h-4 w-4 mr-2" /> Registrar gasto</>}
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        {/* Right: History */}
         <div className="space-y-4">
-          {/* Summary */}
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase">Gastos del Mes</p>
-                  <p className="text-3xl font-black text-red-600">
-                    ${totalGastosMes.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <Receipt className="h-8 w-8 text-red-600" />
-              </div>
+              <p className="text-xs uppercase text-muted-foreground font-bold">Gasto total del mes (CDMX)</p>
+              <p className="text-3xl font-black text-red-600">${totalMes.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
             </CardContent>
           </Card>
 
-          {/* List */}
-          <Card className="flex-1">
+          <Card>
             <CardHeader>
-              <CardTitle>Historial Reciente</CardTitle>
+              <CardTitle>Historial reciente</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : !gastos || gastos.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Sin gastos registrados</p>
+                <div className="py-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : !gastos?.length ? (
+                <p className="text-sm text-muted-foreground">Sin gastos CDMX.</p>
               ) : (
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {gastos.map((gasto) => (
-                    <div key={gasto.id} className="border rounded-lg p-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{gasto.concepto}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(gasto.fecha), "dd MMM yyyy", { locale: es })}
-                            {gasto.proveedor && ` • ${gasto.proveedor}`}
-                          </p>
+                <div className="space-y-3 max-h-[460px] overflow-auto pr-1">
+                  {gastos.map((g) => (
+                    <div key={g.id} className="border rounded-lg p-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <div>
+                          <p className="font-medium">{g.concepto}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(g.fecha).toLocaleDateString("es-MX")}</p>
                         </div>
-                        <div className="text-right ml-2">
-                          <p className="font-bold text-red-600 font-mono">
-                            -${gasto.monto.toFixed(2)}
-                          </p>
-                          <Badge variant="outline" className="text-[10px] mt-1">
-                            {CATEGORIAS.find(c => c.value === gasto.categoria)?.label || gasto.categoria}
-                          </Badge>
-                        </div>
+                        <p className="font-semibold text-red-600">-${g.monto.toFixed(2)}</p>
                       </div>
-                      {gasto.imagen_url && (
-                        <a
-                          href={gasto.imagen_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2"
-                        >
-                          <FileImage className="h-3 w-3" /> Ver comprobante
-                        </a>
-                      )}
+                      <div className="mt-2 flex items-center gap-2">
+                        <Badge variant="outline">{CATEGORIAS.find((x) => x.value === g.categoria)?.label || g.categoria}</Badge>
+                        {g.imagen_url && (
+                          <a href={g.imagen_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">Ver ticket</a>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

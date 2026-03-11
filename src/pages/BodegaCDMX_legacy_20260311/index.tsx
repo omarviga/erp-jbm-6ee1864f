@@ -1,52 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import {
+  ShoppingCart, Truck, Package, Calculator, Receipt, BarChart3,
+  ChevronLeft, ChevronRight, User, LogOut, ArrowLeft
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  ArrowLeft,
-  BarChart3,
-  Calculator,
-  ChevronLeft,
-  ChevronRight,
-  HandCoins,
-  LogOut,
-  Package,
-  Receipt,
-  ShoppingCart,
-  Truck,
-  User,
-} from "lucide-react";
 import logoJBM from "@/assets/logo-jbm.png";
 
+// Sub-modules
 import POSTab from "./POSTab";
 import RecepcionesTab from "./RecepcionesTab";
 import InventarioTab from "./InventarioTab";
 import CorteCajaTab from "./CorteCajaTab";
 import GastosTab from "./GastosTab";
-import ConciliacionTab from "./ConciliacionTab";
 import DashboardTab from "./DashboardTab";
 
-type TabId = "pos" | "recepciones" | "inventario" | "corte" | "gastos" | "conciliacion" | "dashboard";
-
-type Role = "admin" | "produccion" | "finanzas" | "ventas" | "almacen";
+type TabId = "pos" | "recepciones" | "inventario" | "corte" | "gastos" | "dashboard";
 
 interface TabConfig {
   id: TabId;
   label: string;
   icon: React.ElementType;
-  canAccess: (params: { isAdmin: boolean; hasRole: (role: Role) => boolean }) => boolean;
+  canAccess: (params: { isAdmin: boolean; hasRole: (role: "admin" | "produccion" | "finanzas" | "ventas" | "almacen") => boolean; }) => boolean;
 }
 
 const TABS: TabConfig[] = [
-  { id: "pos", label: "POS CDMX", icon: ShoppingCart, canAccess: ({ isAdmin, hasRole }) => isAdmin || hasRole("ventas") },
+  { id: "pos", label: "Punto de Venta", icon: ShoppingCart, canAccess: ({ isAdmin, hasRole }) => isAdmin || hasRole("ventas") },
   { id: "recepciones", label: "Recepciones", icon: Truck, canAccess: ({ isAdmin, hasRole }) => isAdmin || hasRole("almacen") },
   { id: "inventario", label: "Inventario", icon: Package, canAccess: ({ isAdmin, hasRole }) => isAdmin || hasRole("almacen") || hasRole("ventas") },
-  { id: "corte", label: "Corte de Caja", icon: Calculator, canAccess: ({ isAdmin, hasRole }) => isAdmin || hasRole("ventas") },
-  { id: "gastos", label: "Gastos CDMX", icon: Receipt, canAccess: ({ isAdmin, hasRole }) => isAdmin || hasRole("finanzas") },
-  { id: "conciliacion", label: "Conciliacion", icon: HandCoins, canAccess: ({ isAdmin, hasRole }) => isAdmin || hasRole("finanzas") },
-  { id: "dashboard", label: "Dashboard", icon: BarChart3, canAccess: ({ isAdmin }) => isAdmin },
+  { id: "corte", label: "Corte de Caja", icon: Calculator, canAccess: ({ isAdmin }) => isAdmin },
+  { id: "gastos", label: "Gastos Locales", icon: Receipt, canAccess: ({ isAdmin, hasRole }) => isAdmin || hasRole("finanzas") },
+  { id: "dashboard", label: "Rentabilidad", icon: BarChart3, canAccess: ({ isAdmin }) => isAdmin },
 ];
 
 export default function BodegaCDMX() {
@@ -54,11 +41,14 @@ export default function BodegaCDMX() {
   const { user, isAdmin, hasRole, signOut } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const visibleTabs = useMemo(() => TABS.filter((tab) => tab.canAccess({ isAdmin, hasRole })), [isAdmin, hasRole]);
+  const visibleTabs = TABS.filter((tab) => tab.canAccess({ isAdmin, hasRole }));
   const [activeTab, setActiveTab] = useState<TabId>(visibleTabs[0]?.id ?? "inventario");
 
+  const canAccessTab = (tabId: TabId) =>
+    visibleTabs.some((tab) => tab.id === tabId);
+
   useEffect(() => {
-    if (!visibleTabs.some((tab) => tab.id === activeTab) && visibleTabs[0]) {
+    if (!canAccessTab(activeTab) && visibleTabs[0]) {
       setActiveTab(visibleTabs[0].id);
     }
   }, [activeTab, visibleTabs]);
@@ -67,45 +57,60 @@ export default function BodegaCDMX() {
     <div className="h-full flex items-center justify-center bg-background p-6">
       <div className="max-w-md rounded-xl border bg-white p-6 text-center shadow-sm">
         <h2 className="text-lg font-bold text-foreground">Acceso restringido</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Tu usuario no tiene permisos para esta seccion.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Tu usuario no tiene permisos para esta sección del módulo Bodega CDMX.
+        </p>
       </div>
     </div>
   );
 
   const renderContent = () => {
-    if (!visibleTabs.some((tab) => tab.id === activeTab)) {
+    if (!canAccessTab(activeTab)) {
       return renderUnauthorized();
     }
 
-    if (activeTab === "pos") return <POSTab />;
-    if (activeTab === "recepciones") return <RecepcionesTab />;
-    if (activeTab === "inventario") return <InventarioTab />;
-    if (activeTab === "corte") return <CorteCajaTab />;
-    if (activeTab === "gastos") return <GastosTab />;
-    if (activeTab === "conciliacion") return <ConciliacionTab />;
-    if (activeTab === "dashboard") return isAdmin ? <DashboardTab /> : renderUnauthorized();
-
-    return renderUnauthorized();
+    switch (activeTab) {
+      case "pos":
+        return <POSTab />;
+      case "recepciones":
+        return <RecepcionesTab />;
+      case "inventario":
+        return <InventarioTab />;
+      case "corte":
+        return <CorteCajaTab />;
+      case "gastos":
+        return <GastosTab />;
+      case "dashboard":
+        return isAdmin ? <DashboardTab /> : renderUnauthorized();
+      default:
+        return renderUnauthorized();
+    }
   };
 
   return (
     <div className="h-screen flex bg-[#F0F2F5] overflow-hidden">
+      {/* ===== LEFT SIDEBAR ===== */}
       <aside
         className={cn(
           "flex flex-col bg-white border-r border-gray-200 transition-all duration-300 shrink-0",
           sidebarCollapsed ? "w-16" : "w-56"
         )}
       >
+        {/* Logo */}
         <div className="h-14 flex items-center justify-center border-b border-gray-100 px-3">
-          <img src={logoJBM} alt="JBM" className="h-9 w-9 rounded-full object-cover" />
+          <img
+            src={logoJBM}
+            alt="JBM"
+            className="h-9 w-9 rounded-full object-cover"
+          />
           {!sidebarCollapsed && (
             <div className="ml-2 flex flex-col">
-              <span className="text-sm font-bold text-[#1E5128] leading-tight">Nueva Bodega</span>
+              <span className="text-sm font-bold text-[#1E5128] leading-tight">Bodega</span>
               <span className="text-xs text-gray-500 leading-tight">CDMX</span>
             </div>
           )}
         </div>
-
+        {/* Admin: Back to main ERP */}
         {isAdmin && (
           <div className="px-2 pb-2 border-b border-gray-100">
             <Button
@@ -120,6 +125,7 @@ export default function BodegaCDMX() {
           </div>
         )}
 
+        {/* Navigation */}
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
@@ -141,47 +147,75 @@ export default function BodegaCDMX() {
                     {!sidebarCollapsed && <span className="truncate">{tab.label}</span>}
                   </button>
                 </TooltipTrigger>
-                {sidebarCollapsed && <TooltipContent side="right">{tab.label}</TooltipContent>}
+                {sidebarCollapsed && (
+                  <TooltipContent side="right" className="font-medium">
+                    {tab.label}
+                  </TooltipContent>
+                )}
               </Tooltip>
             );
           })}
         </nav>
 
+        {/* Bottom section */}
         <div className="border-t border-gray-100 p-3 space-y-2">
-          <div className={cn("flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-50", sidebarCollapsed && "justify-center")}>
+          {/* User info */}
+          <div className={cn(
+            "flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-50",
+            sidebarCollapsed && "justify-center"
+          )}>
             <div className="h-7 w-7 rounded-full bg-[#1E5128]/10 flex items-center justify-center shrink-0">
               <User className="h-4 w-4 text-[#1E5128]" />
             </div>
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-800 truncate">{user?.email?.split("@")[0] || "Operador"}</p>
-                <p className="text-[10px] text-gray-500">{isAdmin ? "Administrador" : "Operador CDMX"}</p>
+                <p className="text-xs font-semibold text-gray-800 truncate">
+                  {user?.email?.split('@')[0] || 'Operador'}
+                </p>
+                <p className="text-[10px] text-gray-500">
+                  {isAdmin ? 'Administrador' : 'Operador CDMX'}
+                </p>
               </div>
             )}
           </div>
 
+          {/* Collapse toggle */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setSidebarCollapsed((prev) => !prev)}
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="w-full justify-center text-gray-400 hover:text-gray-600"
           >
-            {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4 mr-2" /><span className="text-xs">Colapsar</span></>}
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <>
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                <span className="text-xs">Colapsar</span>
+              </>
+            )}
           </Button>
 
+          {/* Sign out */}
           <Button
             variant="ghost"
             size="sm"
             onClick={signOut}
-            className={cn("w-full text-gray-500 hover:text-red-600 hover:bg-red-50", sidebarCollapsed ? "justify-center" : "justify-start")}
+            className={cn(
+              "w-full text-gray-500 hover:text-red-600 hover:bg-red-50",
+              sidebarCollapsed ? "justify-center" : "justify-start"
+            )}
           >
             <LogOut className="h-4 w-4" />
-            {!sidebarCollapsed && <span className="ml-2 text-xs">Cerrar sesion</span>}
+            {!sidebarCollapsed && <span className="ml-2 text-xs">Cerrar Sesión</span>}
           </Button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden">{renderContent()}</main>
+      {/* ===== MAIN CONTENT ===== */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {renderContent()}
+      </main>
     </div>
   );
 }
