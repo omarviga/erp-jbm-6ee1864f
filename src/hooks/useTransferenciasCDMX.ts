@@ -57,6 +57,10 @@ export function useTransferenciasCDMX() {
       if (error) throw error;
       return data as TransferenciaBodega[];
     },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   // Obtener detalles de una transferencia específica
