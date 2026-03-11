@@ -92,12 +92,6 @@ export default function POSTab() {
       toast.error("El carrito está vacío");
       return;
     }
-    if (!clienteIdSeleccionado) {
-      toast.error("Selecciona un cliente para cobrar", {
-        description: "Configura al menos 'Público en general' antes de procesar la venta."
-      });
-      return;
-    }
     if (precioInvalido) {
       toast.error("Precio por debajo del costo", {
         description: "No puedes vender por debajo del precio base. Contacta al administrador para autorización."
@@ -324,7 +318,7 @@ export default function POSTab() {
             <div className="grid grid-cols-5 gap-2">
               <button className="col-span-2 flex items-center justify-center gap-1.5 py-3 bg-white rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">
                 <User className="h-3.5 w-3.5" />
-                {clienteSeleccionado?.nombre || "Público en general"}
+                {clienteSeleccionado?.nombre || "Venta mostrador"}
               </button>
               <button
                 onClick={onCobrar}

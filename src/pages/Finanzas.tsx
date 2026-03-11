@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DashboardDirectivo } from "@/components/finanzas/DashboardDirectivo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -683,12 +684,15 @@ export default function Finanzas() {
       </div>
 
       <Tabs defaultValue="liquidaciones" className="space-y-6">
-        <TabsList className="grid w-full max-w-2xl grid-cols-4 h-12 bg-muted p-1">
+        <TabsList className="grid w-full max-w-3xl grid-cols-5 h-12 bg-muted p-1">
           <TabsTrigger value="liquidaciones" className="text-base font-medium">
             <Calculator className="h-4 w-4 mr-2" /> Liquidaciones
           </TabsTrigger>
           <TabsTrigger value="resumen" className="text-base font-medium">
             <Wallet className="h-4 w-4 mr-2" /> Resumen
+          </TabsTrigger>
+          <TabsTrigger value="dashboard" className="text-base font-medium">
+            <Receipt className="h-4 w-4 mr-2" /> Dashboard
           </TabsTrigger>
           <TabsTrigger value="conciliacion" className="text-base font-medium">
             <CreditCard className="h-4 w-4 mr-2" /> Conciliación
@@ -831,7 +835,7 @@ export default function Finanzas() {
                                 ? `${lotesVisibles.length} tickets filtrados`
                                 : `${lotesVisibles.length} tickets recientes`}
                             </Badge>
-                            <span className="text-xs text-slate-500">Se liquida 1 nota a la vez</span>
+                            <span className="text-xs text-slate-500">Selección múltiple habilitada</span>
                             {filtrosFechaActivos && (
                               <Button
                                 type="button"
@@ -1290,6 +1294,10 @@ export default function Finanzas() {
               </Card>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="dashboard" className="space-y-6">
+          <DashboardDirectivo />
         </TabsContent>
 
         {/* --- PESTAÑA 2: CONCILIACIÓN BANCARIA (BBVA) --- */}

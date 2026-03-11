@@ -237,10 +237,6 @@ export function useVentas() {
 
             const clienteFinalId = clienteId || getClienteFallbackId();
 
-            if (!clienteFinalId) {
-                throw new Error("No existe un cliente válido para POS. Crea/configura 'Público en general'.");
-            }
-
             let data: any = null;
             let error: any = null;
 
@@ -249,7 +245,7 @@ export function useVentas() {
                 p_monto_total: montoTotal,
                 p_metodo_pago: metodoPago,
                 p_items: itemsPayload,
-                p_cliente_id: clienteFinalId,
+                p_cliente_id: clienteFinalId ?? null,
             }));
 
             if (error && (error.code === 'PGRST202' || String(error.message || '').includes('Could not find the function'))) {
@@ -266,7 +262,7 @@ export function useVentas() {
 
             if (error) throw error;
 
-            const rpcResult = Array.isArray(data) ? data[0] : null;
+            const rpcResult = Array.isArray(data) ? data[0] : data;
             if (!rpcResult?.success || !rpcResult?.venta_id) {
                 throw new Error(rpcResult?.mensaje || "No se pudo procesar la venta");
             }
