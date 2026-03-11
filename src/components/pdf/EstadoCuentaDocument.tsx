@@ -71,7 +71,9 @@ export const EstadoCuentaDocument = ({ productor, periodo, movimientos, resumen 
         <View style={styles.logoSection}>
           <Text style={styles.companyName}>{COMPANY_INFO.displayName}</Text>
           <Text style={styles.companyDetails}>{COMPANY_INFO.addressLine1}</Text>
-          <Text style={styles.companyDetails}>{COMPANY_INFO.addressLine2}</Text>
+          {COMPANY_INFO.addressLine2 ? (
+            <Text style={styles.companyDetails}>{COMPANY_INFO.addressLine2}</Text>
+          ) : null}
           <Text style={styles.companyDetails}>Tel: {COMPANY_INFO.phone}</Text>
         </View>
         <View style={styles.invoiceDetails}>

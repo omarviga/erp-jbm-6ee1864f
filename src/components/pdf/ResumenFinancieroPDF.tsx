@@ -231,8 +231,8 @@ export const ResumenFinancieroPDF = ({
 
         {/* FOOTER */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>JBM Cítricos — Reporte Financiero Interno</Text>
-          <Text style={styles.footerText}>Generado por Sistema JBM Cloud</Text>
+          <Text style={styles.footerText}>JBM Cítricos Premium — Reporte Financiero Interno</Text>
+          <Text style={styles.footerText}>Generado por el ERP de JBM</Text>
         </View>
 
       </Page>
