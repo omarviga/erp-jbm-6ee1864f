@@ -24,6 +24,8 @@ export interface Cliente {
     tipo: string;
 }
 
+const POS_PUBLIC_CLIENT_NAMES = ["publico en general", "público en general"];
+
 type InventarioCDMXRow = Pick<
     Database["public"]["Tables"]["inventario_bodega_cdmx"]["Row"],
     "id" | "cantidad_disponible" | "precio_base" | "precio_venta" | "presentacion_id"
@@ -115,6 +117,35 @@ export function useVentas() {
         } catch (error) {
             console.error("Error cargando clientes:", error);
         }
+    };
+
+    const resolveClienteIdForPos = async (clienteId: string | null) => {
+        if (clienteId) return clienteId;
+
+        const clientePublico = clientes.find((cliente) =>
+            POS_PUBLIC_CLIENT_NAMES.includes(cliente.nombre.trim().toLowerCase())
+        );
+
+        if (clientePublico?.id) {
+            return clientePublico.id;
+        }
+
+        const { data, error } = await supabase
+            .from("clientes")
+            .select("id, nombre")
+            .in("nombre", ["Público en general", "Publico en general"])
+            .limit(1)
+            .maybeSingle();
+
+        if (error) {
+            throw error;
+        }
+
+        if (!data?.id) {
+            throw new Error('No existe el cliente "Público en general" para registrar la venta');
+        }
+
+        return data.id;
     };
 
     const cargarStock = async (productosBase: Producto[] = []) => {
@@ -221,6 +252,7 @@ export function useVentas() {
         setLoading(true);
 
         try {
+            const clienteIdForPos = await resolveClienteIdForPos(_clienteId);
             const montoTotal = carrito.reduce((sum, item) => sum + (item.cantidad * item.precio_venta), 0);
 
             // Build payload by looking up inventory IDs (FIFO) for each cart item
@@ -259,7 +291,7 @@ export function useVentas() {
             }
 
             const { data, error } = await procesarVentaCDMX({
-                p_cliente_id: _clienteId ?? undefined,
+                p_cliente_id: clienteIdForPos,
                 p_monto_total: montoTotal,
                 p_metodo_pago: metodoPago,
                 p_items: itemsPayload
