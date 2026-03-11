@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,10 @@ import {
  * Utilidad Neta CDMX = (Suma de Ventas CDMX) - (Costo de Cajas Vendidas según precio_base) - (Gastos Centro de Costo CDMX)
  */
 
+type AuditoriaInventarioRow = Database["public"]["Tables"]["auditoria_inventario_cdmx"]["Row"] & {
+  inventario?: { precio_base: number | null } | null;
+};
+
 export default function DashboardTab() {
   const { isAdmin } = useAuth();
 
@@ -41,14 +46,12 @@ export default function DashboardTab() {
     queryKey: ['dashboard-ventas-cdmx', mesInicio],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('ventas')
+        .from('ventas_cdmx')
         .select(`
           id,
           total,
-          created_at,
-          venta_detalles(cantidad, precio_unitario)
+          created_at
         `)
-        .eq('tipo', 'pos_cdmx')
         .gte('created_at', mesInicio)
         .lte('created_at', mesFin);
 
@@ -118,8 +121,8 @@ export default function DashboardTab() {
   const totalGastos = gastosData?.reduce((sum, g) => sum + g.monto, 0) || 0;
   
   // Cost of goods sold (COGS) based on precio_base
-  const costoMercancia = auditoriaData?.reduce((sum, a) => {
-    const precioBase = (a.inventario as any)?.precio_base || 0;
+  const costoMercancia = auditoriaData?.reduce((sum, a: AuditoriaInventarioRow) => {
+    const precioBase = a.inventario?.precio_base || 0;
     return sum + (a.cantidad * precioBase);
   }, 0) || 0;
 

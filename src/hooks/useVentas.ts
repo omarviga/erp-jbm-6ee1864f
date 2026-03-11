@@ -190,18 +190,7 @@ export function useVentas() {
 
     const limpiarCarrito = () => setCarrito([]);
 
-    const getClienteFallbackId = () => {
-        if (clientes.length === 0) return null;
-        const publico = clientes.find((c) => {
-            const n = c.nombre.trim().toLowerCase();
-            return n === "público en general" || n === "publico en general";
-        });
-        return (clienteIdCache(publico?.id) || clienteIdCache(clientes[0]?.id));
-    };
-
-    const clienteIdCache = (id?: string | null) => id || null;
-
-    const cobrar = async (clienteId: string | null, _montoRecibido: number, metodoPago: string) => {
+    const cobrar = async (_clienteId: string | null, _montoRecibido: number, metodoPago: string) => {
         if (carrito.length === 0) return;
         setLoading(true);
 
@@ -243,13 +232,10 @@ export function useVentas() {
                 }
             }
 
-            const clienteFinalId = clienteId || getClienteFallbackId();
-
             const { data, error } = await supabase.rpc('procesar_venta_cdmx', {
                 p_monto_total: montoTotal,
                 p_metodo_pago: metodoPago,
-                p_items: itemsPayload,
-                p_cliente_id: clienteFinalId ?? null,
+                p_items: itemsPayload
             });
 
             if (error) throw error;
@@ -261,7 +247,7 @@ export function useVentas() {
 
             // Fetch the created sale to return it (for the ticket)
             const { data: ventaData } = await supabase
-                .from('ventas')
+                .from('ventas_cdmx')
                 .select('*')
                 .eq('id', rpcResult.venta_id)
                 .single();

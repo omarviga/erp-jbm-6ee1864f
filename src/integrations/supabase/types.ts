@@ -1570,6 +1570,52 @@ export type Database = {
           },
         ]
       }
+      venta_detalles_cdmx: {
+        Row: {
+          cantidad: number
+          created_at: string
+          descripcion: string
+          id: string
+          inventario_id: string | null
+          precio_unitario: number
+          subtotal: number | null
+          venta_id: string
+        }
+        Insert: {
+          cantidad: number
+          created_at?: string
+          descripcion: string
+          id?: string
+          inventario_id?: string | null
+          precio_unitario: number
+          venta_id: string
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          descripcion?: string
+          id?: string
+          inventario_id?: string | null
+          precio_unitario?: number
+          venta_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venta_detalles_cdmx_inventario_id_fkey"
+            columns: ["inventario_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_bodega_cdmx"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venta_detalles_cdmx_venta_id_fkey"
+            columns: ["venta_id"]
+            isOneToOne: false
+            referencedRelation: "ventas_cdmx"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ventas: {
         Row: {
           cliente_id: string | null
@@ -1613,6 +1659,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ventas_cdmx: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          fecha_venta: string
+          id: string
+          metodo_pago: Database["public"]["Enums"]["forma_pago"]
+          notas: string | null
+          numero_venta: string
+          pagado: boolean
+          total: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          fecha_venta?: string
+          id?: string
+          metodo_pago: Database["public"]["Enums"]["forma_pago"]
+          notas?: string | null
+          numero_venta: string
+          pagado?: boolean
+          total?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          fecha_venta?: string
+          id?: string
+          metodo_pago?: Database["public"]["Enums"]["forma_pago"]
+          notas?: string | null
+          numero_venta?: string
+          pagado?: boolean
+          total?: number
+        }
+        Relationships: []
       }
       ventas_exportacion: {
         Row: {
