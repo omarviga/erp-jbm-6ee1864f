@@ -13,36 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 type NumpadMode = "qty" | "precio" | "disc";
 
 export default function POSTab() {
-  const { productos, clientes, carrito, stock, loading, agregarAlCarrito, actualizarItem, eliminarDelCarrito, limpiarCarrito, cobrar } = useVentas();
+  const { productos, carrito, stock, loading, agregarAlCarrito, actualizarItem, eliminarDelCarrito, limpiarCarrito, cobrar } = useVentas();
   const { user } = useAuth();
   const [metodoPago, setMetodoPago] = useState<"efectivo" | "transferencia" | "cheque">("efectivo");
   const [busqueda, setBusqueda] = useState("");
   const [numpadMode, setNumpadMode] = useState<NumpadMode>("qty");
   const [numpadValue, setNumpadValue] = useState("");
   const [selectedCartItem, setSelectedCartItem] = useState<string | null>(null);
-
-  const [clienteIdSeleccionado, setClienteIdSeleccionado] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (clienteIdSeleccionado || clientes.length === 0) return;
-
-    const publicoGeneral = clientes.find((cliente) =>
-      cliente.nombre.trim().toLowerCase() === "público en general"
-      || cliente.nombre.trim().toLowerCase() === "publico en general"
-    );
-
-    if (publicoGeneral) {
-      setClienteIdSeleccionado(publicoGeneral.id);
-      return;
-    }
-
-    setClienteIdSeleccionado(clientes[0].id);
-  }, [clientes, clienteIdSeleccionado]);
-
-  const clienteSeleccionado = useMemo(() => {
-    if (!clienteIdSeleccionado) return null;
-    return clientes.find((cliente) => cliente.id === clienteIdSeleccionado) || null;
-  }, [clientes, clienteIdSeleccionado]);
 
   const total = useMemo(
     () => carrito.reduce((acc, item) => acc + item.cantidad * item.precio_venta, 0),
@@ -99,7 +76,8 @@ export default function POSTab() {
       });
       return;
     }
-    const venta = await cobrar(clienteIdSeleccionado, total, metodoPago);
+    // Siempre pasar null, la DB se encarga del cliente "Público en General"
+    const venta = await cobrar(null, total, metodoPago);
     if (venta) {
       setSelectedCartItem(null);
       setNumpadValue("");
@@ -318,31 +296,10 @@ export default function POSTab() {
 
             {/* Client + Pay */}
             <div className="grid grid-cols-5 gap-2">
-              <div className="col-span-2">
-                <Select
-                  value={clienteIdSeleccionado ?? undefined}
-                  onValueChange={setClienteIdSeleccionado}
-                  disabled={clientes.length === 0}
-                >
-                  <SelectTrigger className="h-[50px] bg-white text-xs font-medium text-gray-700">
-                    <div className="flex items-center gap-1.5 overflow-hidden">
-                      <User className="h-3.5 w-3.5 shrink-0" />
-                      <SelectValue placeholder="Venta mostrador" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientes.map((cliente) => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <button
                 onClick={onCobrar}
                 disabled={loading || carrito.length === 0 || precioInvalido}
-                className={`col-span-3 relative py-3 rounded-lg font-bold text-base text-white transition-all ${
+                className={`col-span-5 relative py-3 rounded-lg font-bold text-base text-white transition-all h-[50px] ${
                   precioInvalido
                     ? 'bg-red-400 cursor-not-allowed'
                     : carrito.length === 0
