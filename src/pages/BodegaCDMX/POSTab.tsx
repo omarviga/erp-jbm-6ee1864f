@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import logoJBM from "@/assets/logo-jbm.png";
 import limonImg from "@/assets/limon-producto.png";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type NumpadMode = "qty" | "precio" | "disc";
 
@@ -100,7 +101,8 @@ export default function POSTab() {
     }
     const venta = await cobrar(clienteIdSeleccionado, total, metodoPago);
     if (venta) {
-      toast.success("Venta registrada correctamente");
+      setSelectedCartItem(null);
+      setNumpadValue("");
     }
   };
 
@@ -316,10 +318,27 @@ export default function POSTab() {
 
             {/* Client + Pay */}
             <div className="grid grid-cols-5 gap-2">
-              <button className="col-span-2 flex items-center justify-center gap-1.5 py-3 bg-white rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50">
-                <User className="h-3.5 w-3.5" />
-                {clienteSeleccionado?.nombre || "Venta mostrador"}
-              </button>
+              <div className="col-span-2">
+                <Select
+                  value={clienteIdSeleccionado ?? undefined}
+                  onValueChange={setClienteIdSeleccionado}
+                  disabled={clientes.length === 0}
+                >
+                  <SelectTrigger className="h-[50px] bg-white text-xs font-medium text-gray-700">
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      <User className="h-3.5 w-3.5 shrink-0" />
+                      <SelectValue placeholder="Venta mostrador" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientes.map((cliente) => (
+                      <SelectItem key={cliente.id} value={cliente.id}>
+                        {cliente.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <button
                 onClick={onCobrar}
                 disabled={loading || carrito.length === 0 || precioInvalido}

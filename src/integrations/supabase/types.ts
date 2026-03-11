@@ -1697,7 +1697,12 @@ export type Database = {
         }[]
       }
       procesar_venta_cdmx: {
-        Args: { p_items: Json; p_metodo_pago: string; p_monto_total: number }
+        Args: {
+          p_cliente_id?: string
+          p_items: Json
+          p_metodo_pago: string
+          p_monto_total: number
+        }
         Returns: {
           mensaje: string
           success: boolean

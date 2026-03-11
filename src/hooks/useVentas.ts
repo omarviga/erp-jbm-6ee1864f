@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
 export interface Producto {
@@ -22,6 +23,13 @@ export interface Cliente {
     nombre: string;
     tipo: string;
 }
+
+type InventarioCDMXRow = Pick<
+    Database["public"]["Tables"]["inventario_bodega_cdmx"]["Row"],
+    "id" | "cantidad_disponible" | "precio_base" | "precio_venta" | "presentacion_id"
+>;
+
+type ProcesarVentaResult = Database["public"]["Functions"]["procesar_venta_cdmx"]["Returns"][number];
 
 export function useVentas() {
     const [productos, setProductos] = useState<Producto[]>([]);
@@ -105,7 +113,7 @@ export function useVentas() {
             const preciosBaseMap: Record<string, number> = {};
             const inventarioIdMap: Record<string, string> = {};
             
-            data?.forEach((item: any) => {
+            data?.forEach((item: InventarioCDMXRow) => {
                 const pId = item.presentacion_id;
                 if (pId) {
                     stockMap[pId] = (stockMap[pId] || 0) + (item.cantidad_disponible || 0);
@@ -193,7 +201,7 @@ export function useVentas() {
 
     const clienteIdCache = (id?: string | null) => id || null;
 
-    const cobrar = async (clienteId: string | null, montoRecibido: number, metodoPago: string) => {
+    const cobrar = async (clienteId: string | null, _montoRecibido: number, metodoPago: string) => {
         if (carrito.length === 0) return;
         setLoading(true);
 
@@ -237,32 +245,16 @@ export function useVentas() {
 
             const clienteFinalId = clienteId || getClienteFallbackId();
 
-            let data: any = null;
-            let error: any = null;
-
-            // Prefer the newer RPC signature with cliente_id; fall back if the DB is older.
-            ({ data, error } = await (supabase as any).rpc('procesar_venta_cdmx', {
+            const { data, error } = await supabase.rpc('procesar_venta_cdmx', {
                 p_monto_total: montoTotal,
                 p_metodo_pago: metodoPago,
                 p_items: itemsPayload,
                 p_cliente_id: clienteFinalId ?? null,
-            }));
-
-            if (error && (error.code === 'PGRST202' || String(error.message || '').includes('Could not find the function'))) {
-                ({ data, error } = await supabase.rpc('procesar_venta_cdmx', {
-                    p_monto_total: montoTotal,
-                    p_metodo_pago: metodoPago,
-                    p_items: itemsPayload
-                }));
-            }
-
-            if (error && (error.code === 'PGRST202' || String(error.message || '').includes('Could not find the function'))) {
-                throw new Error("Tu base de datos no tiene la migración POS más reciente. Aplica las migraciones para procesar ventas sin cliente_id nulo.");
-            }
+            });
 
             if (error) throw error;
 
-            const rpcResult = Array.isArray(data) ? data[0] : data;
+            const rpcResult: ProcesarVentaResult | null = Array.isArray(data) ? data[0] ?? null : data;
             if (!rpcResult?.success || !rpcResult?.venta_id) {
                 throw new Error(rpcResult?.mensaje || "No se pudo procesar la venta");
             }
@@ -282,10 +274,13 @@ export function useVentas() {
             cargarStock(); // Refresh stock
             return ventaData;
 
-        } catch (error: any) {
+        } catch (error) {
             console.error("Error al cobrar:", error);
+            const description = error instanceof Error
+                ? error.message
+                : "No se pudo procesar la venta";
             toast.error("Error al procesar la venta", {
-                description: error.data?.message || error.message
+                description
             });
         } finally {
             setLoading(false);
