@@ -30,6 +30,7 @@ type InventarioCDMXRow = Pick<
 >;
 
 type ProcesarVentaResult = Database["public"]["Functions"]["procesar_venta_cdmx"]["Returns"][number];
+type ProcesarVentaArgs = Database["public"]["Functions"]["procesar_venta_cdmx"]["Args"];
 
 export function useVentas() {
     const [productos, setProductos] = useState<Producto[]>([]);
@@ -38,6 +39,31 @@ export function useVentas() {
     const [loading, setLoading] = useState(false);
 
     const [stock, setStock] = useState<Record<string, number>>({});
+
+    const procesarVentaCDMX = async (args: ProcesarVentaArgs) => {
+        const { data, error } = await supabase.rpc("procesar_venta_cdmx", args);
+
+        if (!error) {
+            return { data, error: null };
+        }
+
+        const errorMessage = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+        const canRetryWithoutCliente =
+            "p_cliente_id" in args &&
+            (
+                errorMessage.includes("p_cliente_id") ||
+                errorMessage.includes("schema cache") ||
+                errorMessage.includes("function public.procesar_venta_cdmx") ||
+                errorMessage.includes("could not find the function")
+            );
+
+        if (!canRetryWithoutCliente) {
+            return { data: null, error };
+        }
+
+        const { p_cliente_id: _ignored, ...legacyArgs } = args;
+        return supabase.rpc("procesar_venta_cdmx", legacyArgs);
+    };
 
     // Cargar datos iniciales
     useEffect(() => {
@@ -232,7 +258,8 @@ export function useVentas() {
                 }
             }
 
-            const { data, error } = await supabase.rpc('procesar_venta_cdmx', {
+            const { data, error } = await procesarVentaCDMX({
+                p_cliente_id: _clienteId ?? undefined,
                 p_monto_total: montoTotal,
                 p_metodo_pago: metodoPago,
                 p_items: itemsPayload
