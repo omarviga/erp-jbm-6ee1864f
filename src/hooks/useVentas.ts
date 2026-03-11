@@ -34,6 +34,9 @@ type InventarioCDMXRow = Pick<
 type ProcesarVentaResult = Database["public"]["Functions"]["procesar_venta_cdmx"]["Returns"][number];
 type ProcesarVentaArgs = Database["public"]["Functions"]["procesar_venta_cdmx"]["Args"];
 
+const extractSupabaseErrorText = (error: { message?: string; details?: string; hint?: string }) =>
+    `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
+
 export function useVentas() {
     const [productos, setProductos] = useState<Producto[]>([]);
     const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -49,7 +52,7 @@ export function useVentas() {
             return { data, error: null };
         }
 
-        const errorMessage = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+        const errorMessage = extractSupabaseErrorText(error);
         const canRetryWithoutCliente =
             "p_cliente_id" in args &&
             (
@@ -64,7 +67,33 @@ export function useVentas() {
         }
 
         const { p_cliente_id: _ignored, ...legacyArgs } = args;
-        return supabase.rpc("procesar_venta_cdmx", legacyArgs);
+        const legacyResponse = await supabase.rpc("procesar_venta_cdmx", legacyArgs);
+
+        if (!legacyResponse.error) {
+            return legacyResponse;
+        }
+
+        const legacyErrorText = extractSupabaseErrorText(legacyResponse.error);
+        const requiresPosMigration =
+            legacyErrorText.includes("pagos_clientes") &&
+            legacyErrorText.includes("cliente_id") &&
+            (
+                legacyErrorText.includes("null value") ||
+                legacyErrorText.includes("not-null") ||
+                legacyErrorText.includes("violates not-null constraint")
+            );
+
+        if (!requiresPosMigration) {
+            return legacyResponse;
+        }
+
+        return {
+            data: null,
+            error: {
+                ...legacyResponse.error,
+                message: "La base de datos del POS CDMX esta desactualizada. Falta aplicar la migracion que corrige cliente_id en pagos_clientes.",
+            },
+        };
     };
 
     // Cargar datos iniciales
