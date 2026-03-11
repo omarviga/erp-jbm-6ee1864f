@@ -79,7 +79,6 @@ export default function CorteCajaCDMX() {
           fecha_fin: fechaFin,
           efectivo_teorico: teorico,
           efectivo_fisico: efectivo,
-          diferencia,
           total_ventas: teorico, // Simplified
           total_efectivo: teorico,
           total_tarjeta: 0,

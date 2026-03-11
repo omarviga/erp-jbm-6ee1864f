@@ -70,7 +70,6 @@ export default function CorteCajaTab() {
         estado: "cerrado",
         efectivo_teorico: valorTeorico,
         efectivo_fisico: fisico,
-        diferencia,
         total_ventas: valorTeorico,
         total_efectivo: valorTeorico,
         total_tarjeta: 0,
