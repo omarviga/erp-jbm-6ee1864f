@@ -726,6 +726,41 @@ export type Database = {
           },
         ]
       }
+      liquidacion_pagos: {
+        Row: {
+          created_at: string
+          forma_pago: Database["public"]["Enums"]["forma_pago"]
+          id: string
+          liquidacion_id: string
+          monto: number
+          referencia: string | null
+        }
+        Insert: {
+          created_at?: string
+          forma_pago: Database["public"]["Enums"]["forma_pago"]
+          id?: string
+          liquidacion_id: string
+          monto: number
+          referencia?: string | null
+        }
+        Update: {
+          created_at?: string
+          forma_pago?: Database["public"]["Enums"]["forma_pago"]
+          id?: string
+          liquidacion_id?: string
+          monto?: number
+          referencia?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidacion_pagos_liquidacion_id_fkey"
+            columns: ["liquidacion_id"]
+            isOneToOne: false
+            referencedRelation: "liquidaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       liquidaciones: {
         Row: {
           autorizado_por: string | null
@@ -1677,6 +1712,10 @@ export type Database = {
           p_monto_total: number
         }
         Returns: string
+      }
+      sync_productor_saldo_pendiente: {
+        Args: { p_productor_id: string }
+        Returns: number
       }
       validar_ruta: {
         Args: { p_dominio: string; p_ruta: string }

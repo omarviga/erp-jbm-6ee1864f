@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { ComprasTab } from "@/components/finanzas/ComprasTab";
 import { GastosResumenTab } from "@/components/finanzas/GastosResumenTab";
+import { ModalAbonoLiquidacion } from "@/components/finanzas/ModalAbonoLiquidacion";
 
 // Tipos basados en el esquema Supabase
 type Lote = Database['public']['Tables']['lotes']['Row'];
@@ -46,9 +47,12 @@ type Cliente = Database['public']['Tables']['clientes']['Row'];
 
 interface LiquidacionPasada {
   id: string;
+  productorId: string;
   fecha: string;
   productor: string;
-  monto: number;
+  montoTotal: number;
+  montoPagado: number;
+  saldoPendiente: number;
   estatus: string;
   ref: string;
 }
@@ -134,6 +138,7 @@ export default function Finanzas() {
   const [productores, setProductores] = useState<Productor[]>([]);
   const [lotesPendientes, setLotesPendientes] = useState<Lote[]>([]);
   const [liquidacionesPasadas, setLiquidacionesPasadas] = useState<LiquidacionPasada[]>([]);
+  const [liquidacionAbonoSeleccionada, setLiquidacionAbonoSeleccionada] = useState<LiquidacionPasada | null>(null);
   const [loadingLotes, setLoadingLotes] = useState(false);
   const [guardandoLiquidacion, setGuardandoLiquidacion] = useState(false);
 
@@ -224,43 +229,51 @@ export default function Finanzas() {
     cargarLotesPendientes();
   }, [productorId, toast]);
 
-  // Cargar liquidaciones pasadas
-  useEffect(() => {
-    const cargarLiquidacionesPasadas = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('liquidaciones')
-          .select(`
-            *,
-            productores:productor_id (
-              nombre
-            )
-          `)
-          .order('fecha_liquidacion', { ascending: false })
-          .limit(10);
+  const cargarLiquidacionesPasadas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('liquidaciones')
+        .select(`
+          *,
+          productores:productor_id (
+            nombre
+          )
+        `)
+        .order('fecha_liquidacion', { ascending: false })
+        .limit(10);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // Transformamos los datos para mantener compatibilidad
-        const liquidacionesTransformadas: LiquidacionPasada[] = (data || []).map(l => ({
+      const liquidacionesTransformadas: LiquidacionPasada[] = (data || []).map(l => {
+        const montoPagado = l.total_pagar || 0;
+        const saldoPendiente = l.saldo_pendiente_liq || 0;
+
+        return {
           id: l.id,
+          productorId: l.productor_id,
           fecha: new Date(l.fecha_liquidacion).toLocaleDateString('es-MX'),
           productor: l.productores?.nombre || 'N/A',
-          monto: l.total_pagar || 0,
-          estatus: 'pagado',
+          montoTotal: montoPagado + saldoPendiente,
+          montoPagado,
+          saldoPendiente,
+          estatus: l.estado_liq || (saldoPendiente > 0 ? 'AUTORIZADA' : 'PAGADA'),
           ref: l.referencia_pago || ''
-        }));
+        };
+      });
 
-        setLiquidacionesPasadas(liquidacionesTransformadas);
-      } catch (error) {
-        console.error('Error cargando liquidaciones pasadas:', error);
-      }
-    };
+      setLiquidacionesPasadas(liquidacionesTransformadas);
+    } catch (error) {
+      console.error('Error cargando liquidaciones pasadas:', error);
+    }
+  };
 
+  // Cargar liquidaciones pasadas
+  useEffect(() => {
     cargarLiquidacionesPasadas();
   }, []);
 
   const productorSeleccionado = productores.find(p => p.id === productorId);
+  const formatearMonto = (monto: number) => `$${monto.toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
 
   const construirEstadoCuentaMovimientos = (movimientosBase: Omit<EstadoCuentaMovimiento, "saldo">[]): EstadoCuentaMovimiento[] => {
     let saldoAcumulado = 0;
@@ -571,7 +584,7 @@ export default function Finanzas() {
 
         if (errorAnticipos) throw errorAnticipos;
 
-        const { error: errorSyncCxp } = await (supabase as any).rpc('sync_productor_saldo_pendiente', {
+        const { error: errorSyncCxp } = await supabase.rpc('sync_productor_saldo_pendiente', {
           p_productor_id: productorId,
         });
 
@@ -594,6 +607,7 @@ export default function Finanzas() {
       setDeducciones({ corte: "", flete: "", otros: "" });
       setReferenciaPago("");
       await refreshProductores();
+      await cargarLiquidacionesPasadas();
 
       // Recargar lotes pendientes
       setLotesPendientes(prev => prev.filter(l => !ticketsSeleccionados.includes(l.id)));
@@ -737,11 +751,7 @@ export default function Finanzas() {
                             <PDFDownloadLink
                               document={
                                 <EstadoCuentaDocument
-                                  productor={{
-                                    id: productorSeleccionado.id,
-                                    nombre: productorSeleccionado.nombre,
-                                    rfc: "XAXX010101000"
-                                  } as any}
+                                  productor={productorSeleccionado}
                                   periodo={{ inicio: "01/01/2026", fin: "31/01/2026" }} // Esto debería ser dinámico
                                   resumen={{
                                     saldoInicial: 0,
@@ -1208,11 +1218,7 @@ export default function Finanzas() {
                       <PDFDownloadLink
                         document={
                           <EstadoCuentaDocument
-                            productor={{
-                              nombre: productorSeleccionado.nombre,
-                              id: productorSeleccionado.id,
-                              rfc: "XAXX010101000",
-                            } as any}
+                            productor={productorSeleccionado}
                             periodo={{
                               inicio: new Date(Math.min(...ticketsData.map((ticket) => new Date(ticket.fecha_recepcion).getTime()))).toLocaleDateString('es-MX'),
                               fin: new Date(Math.max(...ticketsData.map((ticket) => new Date(ticket.fecha_recepcion).getTime()))).toLocaleDateString('es-MX')
@@ -1293,6 +1299,89 @@ export default function Finanzas() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+          <div className="mt-6">
+            <Card className="border-slate-200 shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">Liquidaciones recientes</CardTitle>
+                    <CardDescription>Consulta pagos aplicados y completa saldos pendientes.</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="bg-white text-slate-700">
+                    {liquidacionesPasadas.length} registros
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {liquidacionesPasadas.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 p-6 text-sm text-slate-500">
+                    Aun no hay liquidaciones registradas.
+                  </div>
+                ) : (
+                  liquidacionesPasadas.map((liquidacion) => {
+                    const estaPendiente = liquidacion.saldoPendiente > 0.009;
+
+                    return (
+                      <div
+                        key={liquidacion.id}
+                        className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-800">{liquidacion.productor}</p>
+                            <Badge className={cn(
+                              "border",
+                              estaPendiente
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            )}>
+                              {liquidacion.estatus}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {liquidacion.fecha}
+                            {liquidacion.ref ? ` • Ref. ${liquidacion.ref}` : " • Sin referencia inicial"}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 md:min-w-[340px]">
+                          <div className="rounded-lg bg-slate-50 p-3">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Total</p>
+                            <p className="font-mono font-semibold text-slate-800">{formatearMonto(liquidacion.montoTotal)}</p>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 p-3">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Pagado</p>
+                            <p className="font-mono font-semibold text-slate-800">{formatearMonto(liquidacion.montoPagado)}</p>
+                          </div>
+                          <div className="col-span-2 rounded-lg bg-slate-50 p-3">
+                            <p className="text-[11px] uppercase tracking-wide text-slate-500">Pendiente</p>
+                            <p className={cn(
+                              "font-mono font-semibold",
+                              estaPendiente ? "text-amber-700" : "text-emerald-700"
+                            )}>
+                              {formatearMonto(liquidacion.saldoPendiente)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button
+                            variant={estaPendiente ? "default" : "outline"}
+                            className={cn(estaPendiente && "bg-blue-600 hover:bg-blue-700")}
+                            disabled={!estaPendiente}
+                            onClick={() => setLiquidacionAbonoSeleccionada(liquidacion)}
+                          >
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            {estaPendiente ? "Registrar abono" : "Liquidada"}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -1417,6 +1506,21 @@ export default function Finanzas() {
           <ComprasTab />
         </TabsContent>
       </Tabs>
+
+      {liquidacionAbonoSeleccionada && (
+        <ModalAbonoLiquidacion
+          isOpen={Boolean(liquidacionAbonoSeleccionada)}
+          onClose={() => setLiquidacionAbonoSeleccionada(null)}
+          liquidacionId={liquidacionAbonoSeleccionada.id}
+          productorId={liquidacionAbonoSeleccionada.productorId}
+          productorNombre={liquidacionAbonoSeleccionada.productor}
+          saldoPendiente={liquidacionAbonoSeleccionada.saldoPendiente}
+          onSuccess={async () => {
+            await Promise.all([cargarLiquidacionesPasadas(), refreshProductores()]);
+            setLiquidacionAbonoSeleccionada(null);
+          }}
+        />
+      )}
     </MainLayout>
   );
 }

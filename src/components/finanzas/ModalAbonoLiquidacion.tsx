@@ -12,12 +12,13 @@ interface ModalAbonoProps {
   isOpen: boolean;
   onClose: () => void;
   liquidacionId: string;
+  productorId: string;
   productorNombre: string;
   saldoPendiente: number;
   onSuccess: () => void; // Función para recargar la tabla cuando terminemos
 }
 
-export function ModalAbonoLiquidacion({ isOpen, onClose, liquidacionId, productorNombre, saldoPendiente, onSuccess }: ModalAbonoProps) {
+export function ModalAbonoLiquidacion({ isOpen, onClose, liquidacionId, productorId, productorNombre, saldoPendiente, onSuccess }: ModalAbonoProps) {
   const { toast } = useToast();
   const [monto, setMonto] = useState("");
   const [formaPago, setFormaPago] = useState("transferencia");
@@ -68,6 +69,12 @@ export function ModalAbonoLiquidacion({ isOpen, onClose, liquidacionId, producto
         .eq('id', liquidacionId);
 
       if (errorActualizacion) throw errorActualizacion;
+
+      const { error: errorSyncCxp } = await supabase.rpc('sync_productor_saldo_pendiente', {
+        p_productor_id: productorId,
+      });
+
+      if (errorSyncCxp) throw errorSyncCxp;
 
       toast({
         title: "✅ Abono registrado",
