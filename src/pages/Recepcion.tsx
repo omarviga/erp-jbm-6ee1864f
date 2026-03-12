@@ -121,6 +121,23 @@ export default function Recepcion() {
 
   const pesoBrutoNum = parseFloat(pesoBruto) || 0;
   const canContinuarPropia = Boolean(productorId) && Boolean(huertoId) && pesoBrutoNum > 0;
+  const pasosRecepcion = [
+    {
+      numero: 1,
+      titulo: "Captura",
+      descripcion: "Origen, productor, peso y precio"
+    },
+    {
+      numero: 2,
+      titulo: "Calidad",
+      descripcion: "Defectos y dictamen"
+    },
+    {
+      numero: 3,
+      titulo: "Resumen",
+      descripcion: "Validacion final y guardado"
+    }
+  ] as const;
 
 
 
@@ -261,6 +278,50 @@ export default function Recepcion() {
         <div className="grid lg:grid-cols-12 gap-6">
         {/* --- COLUMNA IZQUIERDA: FLUJO (8 Cols) --- */}
         <div className="lg:col-span-8 space-y-6">
+          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <CardContent className="pt-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Flujo guiado</p>
+                  <h3 className="text-lg font-bold text-slate-900">Recepcion de materia prima</h3>
+                  <p className="text-sm text-slate-600">Completa la captura, valida calidad y confirma desde el resumen lateral.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {pasosRecepcion.map((item) => {
+                    const activo = paso === item.numero;
+                    const completado = paso > item.numero;
+                    return (
+                      <div
+                        key={item.numero}
+                        className={cn(
+                          "rounded-xl border px-4 py-3 transition-colors",
+                          activo && "border-emerald-300 bg-emerald-50",
+                          completado && "border-slate-200 bg-slate-50",
+                          !activo && !completado && "border-slate-200 bg-white"
+                        )}
+                      >
+                        <div className="mb-1 flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold",
+                              activo && "bg-emerald-500 text-emerald-950",
+                              completado && "bg-slate-800 text-white",
+                              !activo && !completado && "bg-slate-100 text-slate-500"
+                            )}
+                          >
+                            {item.numero}
+                          </div>
+                          <p className="font-semibold text-slate-900">{item.titulo}</p>
+                        </div>
+                        <p className="text-xs text-slate-600">{item.descripcion}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* TABS DE ORIGEN */}
           <Tabs value={origen} onValueChange={handleOrigenChange} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4 rounded-xl bg-slate-100 p-1">
@@ -286,6 +347,23 @@ export default function Recepcion() {
                 </CardHeader>
 
                 <CardContent className="pt-6 space-y-6">
+                  <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Origen</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{origen === "terceros" ? "Compra a terceros" : "Cosecha propia"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Productor</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{productorSeleccionado?.nombre || "Pendiente de seleccionar"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Estado actual</p>
+                      <p className="mt-1 text-sm font-semibold text-emerald-700">
+                        {paso === 1 ? "Capturando datos base" : paso === 2 ? "Revisando calidad" : "Listo para confirmar"}
+                      </p>
+                    </div>
+                  </div>
+
                   {/* NUEVO CAMPO: FOLIO TICKET BÁSCULA */}
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
                     <Label className="text-slate-700 font-bold flex items-center gap-2">
@@ -886,8 +964,8 @@ export default function Recepcion() {
 
         {/* --- COLUMNA DERECHA: BOLETA VIRTUAL (4 Cols) --- */}
         <div className="lg:col-span-4 space-y-6">
-          <Card className="border border-slate-800 bg-[#14151d] text-white shadow-2xl sticky top-4">
-            <CardHeader className="border-b border-white/10 pb-6">
+            <Card className="border border-slate-800 bg-[#14151d] text-white shadow-2xl sticky top-4">
+              <CardHeader className="border-b border-white/10 pb-6">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Resumen de liquidación</p>
@@ -903,10 +981,34 @@ export default function Recepcion() {
                 {estadoCalidad === "Observado" && <Badge variant="secondary" className="bg-amber-100 text-amber-800">OBSERVADO</Badge>}
                 {estadoCalidad === "Aceptado" && <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">ACEPTADO</Badge>}
               </div>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              {/* Resumen del Lote */}
-              <div className="space-y-4">
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/60">Estado del flujo</p>
+                    <span className="text-xs font-semibold text-emerald-300">Paso {paso} de 3</span>
+                  </div>
+                  <div className="grid gap-2">
+                    {pasosRecepcion.map((item) => (
+                      <div key={item.numero} className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2">
+                        <span className="text-sm text-white/80">{item.titulo}</span>
+                        <span
+                          className={cn(
+                            "text-xs font-semibold uppercase",
+                            paso === item.numero && "text-emerald-300",
+                            paso > item.numero && "text-white",
+                            paso < item.numero && "text-white/40"
+                          )}
+                        >
+                          {paso > item.numero ? "Completo" : paso === item.numero ? "Activo" : "Pendiente"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Resumen del Lote */}
+                <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-white/60">Folio Físico</p>

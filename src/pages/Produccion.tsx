@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Package, Factory,
-  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, Filter, Plus, Bell, TrendingUp,
+  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, TrendingUp,
   Warehouse, Snowflake, Truck
 } from "lucide-react";
 import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
@@ -369,6 +369,7 @@ export default function Produccion() {
   const totalDescarteKg = reporteDescarte.reduce((acc, row) => acc + row.kg, 0);
   const impactoPromedio = reporteDescarte.reduce((acc, row) => acc + row.impacto, 0) / reporteDescarte.length;
   const principalHallazgo = reporteDescarte[0];
+  const loteSeleccionadoDisponible = lotesFiltrados.length;
 
   // Función para registrar producción
   const registrarProduccion = useCallback(async () => {
@@ -492,10 +493,21 @@ export default function Produccion() {
   return (
     <MainLayout title="Clasificación de Producción" subtitle="Módulo de control de calidad e industrialización">
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="space-y-1">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Panel operativo</p>
-            <h2 className="text-2xl font-bold text-slate-900">Clasificación de Producción</h2>
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Panel operativo</p>
+              <h2 className="text-2xl font-bold text-slate-900">Clasificación de Producción</h2>
+              <p className="text-sm text-slate-600">Selecciona un lote con kilos disponibles, clasifica y registra sin salir del mismo panel.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+                {loteSeleccionadoDisponible} lotes visibles
+              </Badge>
+              <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                {loteSeleccionado ? `${loteSeleccionado.numero_lote} activo` : "Sin lote seleccionado"}
+              </Badge>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <CrearTransferenciaCDMXDialog
@@ -507,7 +519,6 @@ export default function Produccion() {
               }
             />
             <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700"><span className="mr-2 h-2 w-2 rounded-full bg-emerald-500" />En línea</Badge>
-            <Bell className="h-5 w-5 text-slate-500" />
           </div>
         </div>
 
@@ -544,23 +555,24 @@ export default function Produccion() {
           </Card>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={busquedaLote}
-              onChange={(e) => setBusquedaLote(e.target.value)}
-              placeholder="Buscar por lote, productor o variedad..."
-              className="h-12 rounded-xl bg-white pl-10"
-            />
-          </div>
-          <Button variant="outline" className="h-12 rounded-xl">
-            <Filter className="mr-2 h-4 w-4" /> Filtrar
-          </Button>
-          <Button className="h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700">
-            <Plus className="mr-2 h-4 w-4" /> Nuevo lote
-          </Button>
-        </div>
+        <Card className="border border-slate-200 bg-white shadow-sm">
+          <CardContent className="pt-6">
+            <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={busquedaLote}
+                  onChange={(e) => setBusquedaLote(e.target.value)}
+                  placeholder="Buscar por lote, productor o variedad..."
+                  className="h-12 rounded-xl bg-slate-50 pl-10"
+                />
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                {busquedaLote ? `Mostrando ${lotesFiltrados.length} coincidencias para "${busquedaLote}"` : "Busca un lote para iniciar la clasificación más rápido."}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid lg:grid-cols-12 gap-6">
 
