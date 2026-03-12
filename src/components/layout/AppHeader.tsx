@@ -32,30 +32,28 @@ export function AppHeader({ title, subtitle }: AppHeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-      <div className="flex h-16 items-center justify-between px-6">
-        <div className="flex flex-col">
-          <h1 className="text-xl font-bold text-foreground">{title}</h1>
-          <p className="text-sm text-muted-foreground capitalize">{subtitle || today}</p>
+    <header className="sticky top-0 z-30 border-b border-border/70 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+      <div className="mx-auto flex h-20 w-full max-w-[1680px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">ERP JBM</p>
+          <h1 className="truncate text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+          <p className="truncate text-sm text-muted-foreground capitalize">{subtitle || today}</p>
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Search */}
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar lotes, productores..."
-              className="w-64 pl-10 bg-muted/50 border-0 focus-visible:ring-1"
+              placeholder="Buscar módulos, lotes o productores..."
+              className="w-72 rounded-xl border-slate-200 bg-white pl-10 shadow-sm focus-visible:ring-2"
             />
           </div>
 
-          {/* Notifications */}
           <NotificationCenter />
 
-          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full bg-primary/10">
+              <Button variant="ghost" size="icon" className="rounded-full border border-primary/10 bg-primary/10">
                 <User className="h-5 w-5 text-primary" />
               </Button>
             </DropdownMenuTrigger>

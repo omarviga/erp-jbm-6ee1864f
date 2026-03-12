@@ -194,7 +194,7 @@ export default function Productores() {
   const isPending = createProductor.isPending || updateProductor.isPending;
 
   return (
-    <MainLayout title="Productores" subtitle="Gestión de proveedores de limón">
+    <MainLayout title="Productores" subtitle="Directorio, contacto y saldos de productores">
       <div className="space-y-6">
         <Card className="border border-slate-200 bg-white shadow-sm">
           <CardContent className="pt-6">

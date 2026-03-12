@@ -272,7 +272,7 @@ export default function Recepcion() {
   };
 
   return (
-     <MainLayout title="Recepción" subtitle="Gestión de entrada de materia prima">
+     <MainLayout title="Recepción" subtitle="Captura y validación de materia prima">
       <div className="space-y-6">
 
         <div className="grid lg:grid-cols-12 gap-6">

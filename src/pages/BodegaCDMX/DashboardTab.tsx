@@ -7,8 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Lock, ShieldAlert, TrendingDown, TrendingUp } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-const TAG_CDMX = "[CC:CDMX]";
-
 export default function DashboardTab() {
   const { isAdmin } = useAuth();
 
@@ -56,9 +54,10 @@ export default function DashboardTab() {
     queryKey: ["dashboard-cdmx-gastos-rebuild", monthStart],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("gastos")
-        .select("monto,fecha,notas")
-        .ilike("notas", `%${TAG_CDMX}%`);
+        .from("gastos_cdmx")
+        .select("monto,fecha")
+        .gte("fecha", monthStart)
+        .lte("fecha", monthEnd);
       if (error) throw error;
       return data || [];
     },

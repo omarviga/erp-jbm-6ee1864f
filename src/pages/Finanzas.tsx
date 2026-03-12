@@ -429,7 +429,7 @@ export default function Finanzas() {
   };
 
   return (
-    <MainLayout title="Control de Pagos" subtitle="Liquidaciones Semanales">
+    <MainLayout title="Control de Pagos" subtitle="Pagos, liquidaciones y seguimiento financiero">
       <Card className="mb-6 border border-slate-200 bg-white shadow-sm">
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

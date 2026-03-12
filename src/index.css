@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -131,10 +131,20 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-family: "Manrope", system-ui, sans-serif;
+    background-image:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.08), transparent 24%),
+      radial-gradient(circle at top right, hsl(var(--accent) / 0.06), transparent 20%);
+    min-height: 100vh;
   }
   
   html {
     scroll-behavior: smooth;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.22);
+    color: hsl(var(--foreground));
   }
 }
 
@@ -199,11 +209,27 @@
   
   /* Module cards */
   .module-card {
-    @apply bg-card rounded-xl border shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden;
+    @apply bg-card rounded-xl border border-border/80 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden;
   }
   
   .module-header {
     @apply bg-gradient-to-r from-primary to-primary/80 px-6 py-4 text-primary-foreground;
+  }
+
+  .page-panel {
+    @apply rounded-2xl border border-border/80 bg-card shadow-sm;
+  }
+
+  .page-heading-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground;
+  }
+
+  .page-heading-title {
+    @apply text-2xl font-bold tracking-tight text-foreground;
+  }
+
+  .page-heading-copy {
+    @apply text-sm text-muted-foreground;
   }
   
   /* Alert cards */

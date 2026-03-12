@@ -8,7 +8,7 @@ import { Scale, Package, Snowflake, Factory } from "lucide-react";
 
 const Dashboard = () => {
   return (
-    <MainLayout title="Dashboard" subtitle="Panel de control JBM Cítricos">
+    <MainLayout title="Dashboard" subtitle="Resumen operativo de JBM Cítricos">
       {/* KPIs Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KPICard

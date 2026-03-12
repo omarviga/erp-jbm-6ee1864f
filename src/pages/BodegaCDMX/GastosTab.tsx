@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileImage, Loader2, Plus, Receipt, Upload, X } from "lucide-react";
+import { FileImage, Loader2, Plus, Receipt, ScanLine, Upload, X } from "lucide-react";
 
 type CategoriaGasto = Database["public"]["Enums"]["categoria_gasto"];
 
@@ -26,8 +26,6 @@ const CATEGORIAS: { value: CategoriaGasto; label: string }[] = [
   { value: "otros", label: "Otros" },
 ];
 
-const TAG_CDMX = "[CC:CDMX]";
-
 export default function GastosTab() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -36,8 +34,10 @@ export default function GastosTab() {
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
+    fecha: new Date().toISOString().split("T")[0],
     concepto: "",
     monto: "",
     categoria: "otros" as CategoriaGasto,
@@ -50,9 +50,8 @@ export default function GastosTab() {
     queryKey: ["gastos-cdmx-rebuild"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("gastos")
+        .from("gastos_cdmx")
         .select("*")
-        .ilike("notas", `%${TAG_CDMX}%`)
         .order("fecha", { ascending: false })
         .limit(30);
 
@@ -95,6 +94,60 @@ export default function GastosTab() {
     setTicketFile(dropped);
   };
 
+  const handleOCR = async () => {
+    if (!file) {
+      toast.error("Primero sube una imagen del ticket");
+      return;
+    }
+
+    setOcrLoading(true);
+    try {
+      const imageBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result;
+          if (typeof result !== "string") {
+            reject(new Error("No se pudo leer el archivo"));
+            return;
+          }
+          resolve(result.split(",")[1] || "");
+        };
+        reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke("process-gasto-ocr", {
+        body: {
+          imageBase64,
+          fileName: file.name,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "No se pudo procesar el ticket");
+
+      const ocrData = data.data || {};
+
+      setForm((prev) => ({
+        ...prev,
+        fecha: ocrData.fecha || prev.fecha,
+        concepto: ocrData.concepto || prev.concepto,
+        categoria: ocrData.categoria || prev.categoria,
+        monto: ocrData.monto?.toString() || prev.monto,
+        proveedor: ocrData.proveedor || prev.proveedor,
+        numero_ticket: ocrData.numero_ticket || prev.numero_ticket,
+      }));
+
+      toast.success("Datos del ticket extraidos");
+    } catch (error: any) {
+      toast.error("No se pudo procesar el OCR", {
+        description: error?.message || "Error desconocido",
+      });
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -123,15 +176,14 @@ export default function GastosTab() {
         imagen_url = signed?.signedUrl || null;
       }
 
-      const notas = `${TAG_CDMX} ${form.notas}`.trim();
-
-      const { error } = await supabase.from("gastos").insert({
+      const { error } = await supabase.from("gastos_cdmx").insert({
+        fecha: form.fecha,
         concepto: form.concepto,
         monto,
         categoria: form.categoria,
         proveedor: form.proveedor || null,
         numero_ticket: form.numero_ticket || null,
-        notas,
+        notas: form.notas || null,
         imagen_url,
         usuario_id: user?.id || null,
       });
@@ -140,6 +192,7 @@ export default function GastosTab() {
 
       toast.success("Gasto registrado en centro de costo CDMX");
       setForm({
+        fecha: new Date().toISOString().split("T")[0],
         concepto: "",
         monto: "",
         categoria: "otros",
@@ -160,18 +213,66 @@ export default function GastosTab() {
     <div className="h-full flex flex-col p-6 overflow-auto bg-background">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Gastos CDMX</h1>
-        <p className="text-sm text-muted-foreground">Separados de matriz por centro de costo ({TAG_CDMX}).</p>
+        <p className="text-sm text-muted-foreground">Registrados en tabla exclusiva de CDMX, separados de matriz.</p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5" /> Nuevo gasto</CardTitle>
-            <CardDescription>Formulario con ticket drag and drop y auto-asignacion de centro de costo CDMX.</CardDescription>
+            <CardDescription>Formulario exclusivo para gastos operativos de Bodega CDMX.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={submit}>
+              <Card className="border-dashed">
+                <CardContent className="space-y-3 pt-4">
+                  <Label className="flex items-center gap-2">
+                    <ScanLine className="h-4 w-4" />
+                    Escanear ticket (OCR)
+                  </Label>
+
+                  {!file ? (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => fileInputRef.current?.click()}
+                      onDrop={onDrop}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragging(true);
+                      }}
+                      onDragLeave={() => setDragging(false)}
+                      className={`rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${dragging ? "border-primary bg-primary/5" : "border-muted-foreground/30"}`}
+                    >
+                      <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm">Arrastra ticket aqui o haz clic para subir</p>
+                      <p className="text-xs text-muted-foreground mt-1">Imagen o PDF</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="border rounded-lg p-3 flex items-center gap-3">
+                        {preview ? <img src={preview} alt="ticket" className="h-16 w-16 rounded object-cover" /> : <FileImage className="h-8 w-8 text-muted-foreground" />}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm truncate">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                        <Button type="button" size="icon" variant="ghost" onClick={clearFile}><X className="h-4 w-4" /></Button>
+                      </div>
+
+                      <Button type="button" variant="secondary" className="w-full" onClick={handleOCR} disabled={ocrLoading}>
+                        {ocrLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Procesando...</> : <><Upload className="h-4 w-4 mr-2" />Extraer datos del ticket</>}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Fecha</Label>
+                  <Input type="date" value={form.fecha} onChange={(e) => setForm((p) => ({ ...p, fecha: e.target.value }))} />
+                </div>
+
                 <div className="col-span-2">
                   <Label>Concepto</Label>
                   <Input value={form.concepto} onChange={(e) => setForm((p) => ({ ...p, concepto: e.target.value }))} />
@@ -209,34 +310,6 @@ export default function GastosTab() {
               </div>
 
               <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => e.target.files?.[0] && setTicketFile(e.target.files[0])} />
-
-              {!file ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => fileInputRef.current?.click()}
-                  onDrop={onDrop}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragging(true);
-                  }}
-                  onDragLeave={() => setDragging(false)}
-                  className={`rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${dragging ? "border-primary bg-primary/5" : "border-muted-foreground/30"}`}
-                >
-                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm">Arrastra ticket aqui o haz clic para subir</p>
-                  <p className="text-xs text-muted-foreground mt-1">Imagen o PDF</p>
-                </div>
-              ) : (
-                <div className="border rounded-lg p-3 flex items-center gap-3">
-                  {preview ? <img src={preview} alt="ticket" className="h-16 w-16 rounded object-cover" /> : <FileImage className="h-8 w-8 text-muted-foreground" />}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{file.name}</p>
-                    <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
-                  </div>
-                  <Button type="button" size="icon" variant="ghost" onClick={clearFile}><X className="h-4 w-4" /></Button>
-                </div>
-              )}
 
               <Button type="submit" className="w-full" disabled={saving}>
                 {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Guardando...</> : <><Receipt className="h-4 w-4 mr-2" /> Registrar gasto</>}

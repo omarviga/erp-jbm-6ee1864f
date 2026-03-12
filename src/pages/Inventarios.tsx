@@ -288,7 +288,7 @@ export default function Inventarios() {
   };
   return (
     <>
-      <MainLayout title="📦 Inventarios" subtitle="Cámara Fría, Piso Empaque, Directo a Transporte y Transferencias CDMX">
+    <MainLayout title="Inventarios" subtitle="Cámara fría, piso de empaque, transporte y transferencias CDMX">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card className="bg-blue-50/50 border-blue-100 shadow-sm">
             <CardContent className="p-4 flex items-center justify-between">

@@ -10,28 +10,19 @@ interface MainLayoutProps {
 
 export function MainLayout({ children, title, subtitle }: MainLayoutProps) {
   return (
-    // 1. El Provider envuelve TODO
     <SidebarProvider>
-
-      {/* 2. El Sidebar va primero */}
       <AppSidebar />
-
-      {/* 3. El Inset es el contenedor del resto de la página.
-          Automáticamente empuja el contenido cuando el menú se abre. */}
       <SidebarInset>
-
-        {/* Header con botón para abrir/cerrar menú (opcional) */}
-        <div className="flex items-center px-4 py-2 border-b md:hidden">
+        <div className="flex items-center border-b border-border/70 bg-background/95 px-4 py-2 md:hidden">
           <SidebarTrigger />
-          <span className="ml-2 font-semibold">Menú</span>
+          <span className="ml-2 text-sm font-semibold text-slate-700">Menú</span>
         </div>
 
         <AppHeader title={title} subtitle={subtitle} />
 
-        <main className="p-6">
+        <main className="mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </main>
-
       </SidebarInset>
     </SidebarProvider>
   );

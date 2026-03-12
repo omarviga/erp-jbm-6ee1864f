@@ -491,7 +491,7 @@ export default function Produccion() {
   }, [loteSeleccionado, loteId, calibre, color, destinoInfo, esIndustria, presentacionId, cantidadCajas, kilosSolicitados, sobrepasaKilosDisponibles, kilosDisponibles, queryClient, destinoFinal, opcionesDestino]);
 
   return (
-    <MainLayout title="Clasificación de Producción" subtitle="Módulo de control de calidad e industrialización">
+    <MainLayout title="Clasificación de Producción" subtitle="Clasificación, rendimiento y registro operativo">
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4">
           <div className="space-y-2">
