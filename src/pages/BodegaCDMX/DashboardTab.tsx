@@ -55,9 +55,9 @@ export default function DashboardTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("gastos_cdmx")
-        .select("monto,fecha")
-        .gte("fecha", monthStart)
-        .lte("fecha", monthEnd);
+        .select("monto,fecha_hora")
+        .gte("fecha_hora", monthStart)
+        .lte("fecha_hora", monthEnd);
       if (error) throw error;
       return data || [];
     },

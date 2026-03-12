@@ -429,42 +429,57 @@ export type Database = {
       }
       gastos_cdmx: {
         Row: {
-          categoria: Database["public"]["Enums"]["categoria_gasto"]
-          concepto: string
+          categoria: string
           created_at: string
+          descripcion: string
           fecha: string
+          fecha_hora: string
           id: string
+          id_cajero: string | null
+          id_gasto_cdmx: number
           imagen_url: string | null
+          metodo_pago: Database["public"]["Enums"]["metodo_pago_cdmx"]
           monto: number
           notas: string | null
+          concepto: string
           numero_ticket: string | null
           proveedor: string | null
           updated_at: string
           usuario_id: string | null
         }
         Insert: {
-          categoria?: Database["public"]["Enums"]["categoria_gasto"]
-          concepto: string
+          categoria?: string
           created_at?: string
+          descripcion?: string
           fecha?: string
+          fecha_hora?: string
           id?: string
+          id_cajero?: string | null
+          id_gasto_cdmx?: number
           imagen_url?: string | null
+          metodo_pago?: Database["public"]["Enums"]["metodo_pago_cdmx"]
           monto?: number
           notas?: string | null
+          concepto: string
           numero_ticket?: string | null
           proveedor?: string | null
           updated_at?: string
           usuario_id?: string | null
         }
         Update: {
-          categoria?: Database["public"]["Enums"]["categoria_gasto"]
-          concepto?: string
+          categoria?: string
           created_at?: string
+          descripcion?: string
           fecha?: string
+          fecha_hora?: string
           id?: string
+          id_cajero?: string | null
+          id_gasto_cdmx?: number
           imagen_url?: string | null
+          metodo_pago?: Database["public"]["Enums"]["metodo_pago_cdmx"]
           monto?: number
           notas?: string | null
+          concepto?: string
           numero_ticket?: string | null
           proveedor?: string | null
           updated_at?: string
@@ -1884,6 +1899,7 @@ export type Database = {
         | "refacciones"
         | "servicios"
         | "otros"
+      metodo_pago_cdmx: "efectivo_caja" | "transferencia"
       color_limon: "verde" | "alimonado" | "amarillo"
       destino_produccion:
         | "piso_empaque"
@@ -2068,6 +2084,7 @@ export const Constants = {
         "servicios",
         "otros",
       ],
+      metodo_pago_cdmx: ["efectivo_caja", "transferencia"],
       color_limon: ["verde", "alimonado", "amarillo"],
       destino_produccion: [
         "piso_empaque",

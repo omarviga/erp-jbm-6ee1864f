@@ -13,18 +13,41 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileImage, Loader2, Plus, Receipt, ScanLine, Upload, X } from "lucide-react";
 
-type CategoriaGasto = Database["public"]["Enums"]["categoria_gasto"];
+type MetodoPagoCDMX = Database["public"]["Enums"]["metodo_pago_cdmx"];
+type CategoriaGastoCDMX = "maniobras" | "propinas" | "alimentos" | "papeleria" | "transporte" | "otros";
 
-const CATEGORIAS: { value: CategoriaGasto; label: string }[] = [
-  { value: "viaticos", label: "Viaticos" },
-  { value: "combustible", label: "Combustible" },
-  { value: "mantenimiento", label: "Mantenimiento" },
-  { value: "limpieza", label: "Limpieza" },
+const CATEGORIAS: { value: CategoriaGastoCDMX; label: string }[] = [
+  { value: "maniobras", label: "Maniobras" },
+  { value: "propinas", label: "Propinas" },
+  { value: "alimentos", label: "Alimentos" },
   { value: "papeleria", label: "Papeleria" },
-  { value: "refacciones", label: "Refacciones" },
-  { value: "servicios", label: "Servicios" },
+  { value: "transporte", label: "Transporte" },
   { value: "otros", label: "Otros" },
 ];
+
+const METODOS_PAGO: { value: MetodoPagoCDMX; label: string }[] = [
+  { value: "efectivo_caja", label: "Efectivo de caja" },
+  { value: "transferencia", label: "Transferencia" },
+];
+
+const getDefaultFechaHora = () => {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
+
+const mapOCRCategoria = (value?: string): CategoriaGastoCDMX => {
+  switch (value) {
+    case "papeleria":
+      return "papeleria";
+    case "combustible":
+      return "transporte";
+    case "viaticos":
+      return "alimentos";
+    default:
+      return "otros";
+  }
+};
 
 export default function GastosTab() {
   const { user } = useAuth();
@@ -37,13 +60,11 @@ export default function GastosTab() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    fecha: new Date().toISOString().split("T")[0],
-    concepto: "",
+    fecha_hora: getDefaultFechaHora(),
+    descripcion: "",
     monto: "",
-    categoria: "otros" as CategoriaGasto,
-    proveedor: "",
-    numero_ticket: "",
-    notas: "",
+    categoria: "otros" as CategoriaGastoCDMX,
+    metodo_pago: "efectivo_caja" as MetodoPagoCDMX,
   });
 
   const { data: gastos, isLoading } = useQuery({
@@ -52,7 +73,7 @@ export default function GastosTab() {
       const { data, error } = await supabase
         .from("gastos_cdmx")
         .select("*")
-        .order("fecha", { ascending: false })
+        .order("fecha_hora", { ascending: false })
         .limit(30);
 
       if (error) throw error;
@@ -63,7 +84,7 @@ export default function GastosTab() {
   const totalMes = useMemo(() => {
     const now = new Date();
     return (gastos || []).reduce((acc, row) => {
-      const d = new Date(row.fecha);
+      const d = new Date(row.fecha_hora);
       if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
         return acc + row.monto;
       }
@@ -130,12 +151,10 @@ export default function GastosTab() {
 
       setForm((prev) => ({
         ...prev,
-        fecha: ocrData.fecha || prev.fecha,
-        concepto: ocrData.concepto || prev.concepto,
-        categoria: ocrData.categoria || prev.categoria,
+        fecha_hora: ocrData.fecha ? `${ocrData.fecha}T12:00` : prev.fecha_hora,
+        descripcion: ocrData.concepto || prev.descripcion,
+        categoria: mapOCRCategoria(ocrData.categoria),
         monto: ocrData.monto?.toString() || prev.monto,
-        proveedor: ocrData.proveedor || prev.proveedor,
-        numero_ticket: ocrData.numero_ticket || prev.numero_ticket,
       }));
 
       toast.success("Datos del ticket extraidos");
@@ -151,8 +170,8 @@ export default function GastosTab() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!form.concepto || !form.monto) {
-      toast.error("Captura concepto y monto");
+    if (!form.descripcion || !form.monto) {
+      toast.error("Captura descripcion y monto");
       return;
     }
 
@@ -177,28 +196,27 @@ export default function GastosTab() {
       }
 
       const { error } = await supabase.from("gastos_cdmx").insert({
-        fecha: form.fecha,
-        concepto: form.concepto,
+        fecha_hora: new Date(form.fecha_hora).toISOString(),
+        fecha: new Date(form.fecha_hora).toISOString(),
+        descripcion: form.descripcion,
+        concepto: form.descripcion,
         monto,
         categoria: form.categoria,
-        proveedor: form.proveedor || null,
-        numero_ticket: form.numero_ticket || null,
-        notas: form.notas || null,
+        metodo_pago: form.metodo_pago,
         imagen_url,
         usuario_id: user?.id || null,
+        id_cajero: user?.id || null,
       });
 
       if (error) throw error;
 
       toast.success("Gasto registrado en centro de costo CDMX");
       setForm({
-        fecha: new Date().toISOString().split("T")[0],
-        concepto: "",
+        fecha_hora: getDefaultFechaHora(),
+        descripcion: "",
         monto: "",
         categoria: "otros",
-        proveedor: "",
-        numero_ticket: "",
-        notas: "",
+        metodo_pago: "efectivo_caja",
       });
       clearFile();
       await queryClient.invalidateQueries({ queryKey: ["gastos-cdmx-rebuild"] });
@@ -213,14 +231,14 @@ export default function GastosTab() {
     <div className="h-full flex flex-col p-6 overflow-auto bg-background">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">Gastos CDMX</h1>
-        <p className="text-sm text-muted-foreground">Registrados en tabla exclusiva de CDMX, separados de matriz.</p>
+        <p className="text-sm text-muted-foreground">Salidas de dinero exclusivas de la Central, separadas de matriz.</p>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5" /> Nuevo gasto</CardTitle>
-            <CardDescription>Formulario exclusivo para gastos operativos de Bodega CDMX.</CardDescription>
+            <CardDescription>Registro operativo con fecha y hora, categoria local y metodo de pago.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={submit}>
@@ -269,13 +287,13 @@ export default function GastosTab() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Fecha</Label>
-                  <Input type="date" value={form.fecha} onChange={(e) => setForm((p) => ({ ...p, fecha: e.target.value }))} />
+                  <Label>Fecha y hora</Label>
+                  <Input type="datetime-local" value={form.fecha_hora} onChange={(e) => setForm((p) => ({ ...p, fecha_hora: e.target.value }))} />
                 </div>
 
                 <div className="col-span-2">
-                  <Label>Concepto</Label>
-                  <Input value={form.concepto} onChange={(e) => setForm((p) => ({ ...p, concepto: e.target.value }))} />
+                  <Label>Descripcion</Label>
+                  <Input value={form.descripcion} onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))} />
                 </div>
 
                 <div>
@@ -285,7 +303,7 @@ export default function GastosTab() {
 
                 <div>
                   <Label>Categoria</Label>
-                  <Select value={form.categoria} onValueChange={(v) => setForm((p) => ({ ...p, categoria: v as CategoriaGasto }))}>
+                  <Select value={form.categoria} onValueChange={(v) => setForm((p) => ({ ...p, categoria: v as CategoriaGastoCDMX }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {CATEGORIAS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
@@ -294,18 +312,13 @@ export default function GastosTab() {
                 </div>
 
                 <div>
-                  <Label>Proveedor</Label>
-                  <Input value={form.proveedor} onChange={(e) => setForm((p) => ({ ...p, proveedor: e.target.value }))} />
-                </div>
-
-                <div>
-                  <Label>No. Ticket</Label>
-                  <Input value={form.numero_ticket} onChange={(e) => setForm((p) => ({ ...p, numero_ticket: e.target.value }))} />
-                </div>
-
-                <div className="col-span-2">
-                  <Label>Notas</Label>
-                  <Textarea value={form.notas} onChange={(e) => setForm((p) => ({ ...p, notas: e.target.value }))} />
+                  <Label>Metodo de pago</Label>
+                  <Select value={form.metodo_pago} onValueChange={(v) => setForm((p) => ({ ...p, metodo_pago: v as MetodoPagoCDMX }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {METODOS_PAGO.map((metodo) => <SelectItem key={metodo.value} value={metodo.value}>{metodo.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -341,13 +354,14 @@ export default function GastosTab() {
                     <div key={g.id} className="border rounded-lg p-3">
                       <div className="flex justify-between items-start gap-2">
                         <div>
-                          <p className="font-medium">{g.concepto}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(g.fecha).toLocaleDateString("es-MX")}</p>
+                          <p className="font-medium">{g.descripcion}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(g.fecha_hora).toLocaleString("es-MX")}</p>
                         </div>
                         <p className="font-semibold text-red-600">-${g.monto.toFixed(2)}</p>
                       </div>
                       <div className="mt-2 flex items-center gap-2">
                         <Badge variant="outline">{CATEGORIAS.find((x) => x.value === g.categoria)?.label || g.categoria}</Badge>
+                        <Badge variant="secondary">{METODOS_PAGO.find((x) => x.value === g.metodo_pago)?.label || g.metodo_pago}</Badge>
                         {g.imagen_url && (
                           <a href={g.imagen_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">Ver ticket</a>
                         )}
