@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Package, Factory,
-  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, Filter, Plus, Bell, TrendingUp, Download,
+  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, Filter, Plus, Bell, TrendingUp,
   Warehouse, Snowflake, Truck
 } from "lucide-react";
 import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
@@ -368,6 +368,7 @@ export default function Produccion() {
 
   const totalDescarteKg = reporteDescarte.reduce((acc, row) => acc + row.kg, 0);
   const impactoPromedio = reporteDescarte.reduce((acc, row) => acc + row.impacto, 0) / reporteDescarte.length;
+  const principalHallazgo = reporteDescarte[0];
 
   // Función para registrar producción
   const registrarProduccion = useCallback(async () => {
@@ -1077,78 +1078,55 @@ export default function Produccion() {
               ))}
             </CardContent>
           </Card>
+
+          <Card className="overflow-hidden border border-slate-200">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-emerald-50/40 border-b pb-3">
+              <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                Calidad y descarte
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              <div className="grid gap-3">
+                <div className="rounded-xl border bg-white px-4 py-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total descarte</p>
+                  <p className="text-2xl font-bold text-slate-800">{totalDescarteKg} kg</p>
+                </div>
+                <div className="rounded-xl border bg-white px-4 py-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Impacto promedio</p>
+                  <p className="text-2xl font-bold text-amber-600">{impactoPromedio.toFixed(1)}%</p>
+                </div>
+                <div className="rounded-xl border bg-rose-50 px-4 py-3">
+                  <p className="text-xs uppercase tracking-wide text-rose-500">Foco principal</p>
+                  <p className="text-sm font-semibold text-rose-700">{principalHallazgo.tipo}</p>
+                  <p className="mt-1 text-xs text-rose-600">
+                    {principalHallazgo.kg} kg acumulados | Tendencia {principalHallazgo.tendencia.toLowerCase()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {reporteDescarte.map((row) => (
+                  <div key={row.tipo} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{row.tipo}</p>
+                      <p className="text-xs text-muted-foreground">{row.kg} kg afectados</p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        row.tendencia === "Alza" && "border-rose-300 text-rose-700 bg-rose-50",
+                        row.tendencia === "Baja" && "border-emerald-300 text-emerald-700 bg-emerald-50",
+                        row.tendencia === "Estable" && "border-slate-300 text-slate-700 bg-slate-50"
+                      )}
+                    >
+                      {row.tendencia}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
-
-
-
-        <Card className="rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-emerald-50/40 border-b space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <CardTitle className="text-xl">Reporte de Calidad y Descarte (Acumulado)</CardTitle>
-              <Button variant="outline" className="text-emerald-700 border-emerald-200 hover:bg-emerald-50">
-                <Download className="mr-2 h-4 w-4" /> Descargar CSV
-              </Button>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border bg-white px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Total descarte</p>
-                <p className="text-2xl font-bold text-slate-800">{totalDescarteKg} kg</p>
-              </div>
-              <div className="rounded-xl border bg-white px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Impacto promedio</p>
-                <p className="text-2xl font-bold text-amber-600">{impactoPromedio.toFixed(1)}%</p>
-              </div>
-              <div className="rounded-xl border bg-white px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Foco principal</p>
-                <p className="text-lg font-semibold text-rose-600">{reporteDescarte[0].tipo}</p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="overflow-x-auto rounded-xl border">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr className="border-b">
-                    <th className="py-3 px-4">Tipo de descarte</th>
-                    <th className="py-3 px-4">Frecuencia</th>
-                    <th className="py-3 px-4">Impacto</th>
-                    <th className="py-3 px-4">Tendencia</th>
-                    <th className="py-3 px-4 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reporteDescarte.map((row) => (
-                    <tr key={row.tipo} className="border-b last:border-0 hover:bg-slate-50/70 transition-colors">
-                      <td className="py-4 px-4 font-medium">{row.tipo}</td>
-                      <td className="py-4 px-4">
-                        <span className="font-semibold text-slate-700">{row.kg} kg</span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <Badge variant="secondary" className="bg-amber-100 text-amber-800">{row.impacto}%</Badge>
-                      </td>
-                      <td className="py-4 px-4">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            row.tendencia === "Alza" && "border-rose-300 text-rose-700 bg-rose-50",
-                            row.tendencia === "Baja" && "border-emerald-300 text-emerald-700 bg-emerald-50",
-                            row.tendencia === "Estable" && "border-slate-300 text-slate-700 bg-slate-50"
-                          )}
-                        >
-                          {row.tendencia}
-                        </Badge>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <Button size="sm" variant="outline" className="hover:bg-slate-100">Detalle</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
       </div>
       </div>
     </MainLayout>

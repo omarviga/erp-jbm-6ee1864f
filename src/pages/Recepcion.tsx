@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -236,11 +236,6 @@ export default function Recepcion() {
 
   const removeCortador = (id: string) => {
     setCortadoresLote(cortadoresLote.filter(c => c.id !== id));
-  };
-
-  // Función para encontrar productor por ID
-  const getProductorById = (id: string) => {
-    return productoresDB?.find(p => p.id === id);
   };
 
   const formatoMoneda = (valor: number) => `$${valor.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -661,51 +656,6 @@ export default function Recepcion() {
                 </Card>
               )}
 
-              {/* Historial de Precios */}
-              <Card className="module-card">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <History className="h-4 w-4" aria-hidden="true" />
-                    Últimos 3 Precios
-                  </CardTitle>
-                  <CardDescription>
-                    {productorSeleccionado ? `Para ${productorSeleccionado.nombre}` : "Selecciona un productor"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {productorId ? (
-                    <div className="space-y-3">
-                      {historialPrecios.map((h, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          className="w-full flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer text-left"
-                          onClick={() => setPrecio(h.precio.toString())}
-                          aria-label={`Aplicar precio de ${h.precio} del ${h.fecha}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Badge variant="outline" className="text-xs" aria-hidden="true">
-                              {idx + 1}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">{h.fecha}</span>
-                          </div>
-                          <span className="font-semibold font-mono">${h.precio.toFixed(2)}</span>
-                        </button>
-                      ))}
-                      <p className="text-xs text-muted-foreground text-center mt-4">
-                        Clic para aplicar precio
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <History className="h-12 w-12 mx-auto text-muted-foreground mb-3" aria-hidden="true" />
-                      <p className="text-sm text-muted-foreground">
-                        Selecciona un productor para ver su historial de precios
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </TabsContent>
 
             {/* Cosecha Propia */}
@@ -1090,16 +1040,57 @@ export default function Recepcion() {
 
           <Card className="rounded-2xl border border-slate-200 bg-white">
             <CardHeader className="pb-3">
-              <CardTitle className="text-xl">Ubicación de Descarga</CardTitle>
+              <CardTitle className="text-xl">Ayuda operativa</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-100 p-4">
-                <div className="mx-auto flex h-40 w-full max-w-xs items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white">
-                  <div className="text-center text-sm text-slate-500">
-                    <MapPin className="mx-auto mb-2 h-6 w-6 text-emerald-500" />
-                    ⚙️ Línea de Producción
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-lg bg-white p-2 shadow-sm">
+                    <MapPin className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Destino de descarga</p>
+                    <p className="text-sm text-slate-600">La recepción se dirige a línea de producción para inspección y pesaje.</p>
                   </div>
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <History className="h-4 w-4 text-slate-500" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Últimos 3 precios</p>
+                    <p className="text-xs text-muted-foreground">
+                      {productorSeleccionado ? `Referencia para ${productorSeleccionado.nombre}` : "Selecciona un productor para usar referencias rápidas"}
+                    </p>
+                  </div>
+                </div>
+                {productorId ? (
+                  <div className="space-y-2">
+                    {historialPrecios.map((h, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left transition-colors hover:bg-slate-100"
+                        onClick={() => setPrecio(h.precio.toString())}
+                        aria-label={`Aplicar precio de ${h.precio} del ${h.fecha}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px]" aria-hidden="true">
+                            {idx + 1}
+                          </Badge>
+                          <span className="text-sm text-slate-600">{h.fecha}</span>
+                        </div>
+                        <span className="font-mono text-sm font-semibold">${h.precio.toFixed(2)}</span>
+                      </button>
+                    ))}
+                    <p className="pt-1 text-center text-xs text-muted-foreground">Toca una referencia para llenar el precio.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
+                    <p className="text-sm text-muted-foreground">Aquí aparecerán las referencias de precio del productor seleccionado.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
