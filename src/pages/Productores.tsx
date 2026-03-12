@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useProductores, type Productor } from "@/hooks/useProductores";
+import type { Productor } from "@/hooks/useProductores";
 import { toast } from "sonner";
 import { Plus, Search, Loader2, UserPlus, Phone, FileText, Edit2, Trash2 } from "lucide-react";
 import { z } from "zod";
@@ -186,37 +186,80 @@ export default function Productores() {
     p.telefono?.includes(searchTerm) ||
     p.rfc?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const totalProductores = productores?.length || 0;
+  const productoresConAnticipo = productores?.filter((p) => (p.saldo_anticipos || 0) > 0).length || 0;
+  const productoresConSaldoPendiente = productores?.filter((p) => (p.saldo_pendiente || 0) > 0).length || 0;
+  const saldoPendienteTotal = productores?.reduce((sum, productor) => sum + (productor.saldo_pendiente || 0), 0) || 0;
 
   const isPending = createProductor.isPending || updateProductor.isPending;
 
   return (
     <MainLayout title="Productores" subtitle="Gestión de proveedores de limón">
       <div className="space-y-6">
-        {/* Header con búsqueda y botón */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nombre, teléfono o RFC..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+        <Card className="border border-slate-200 bg-white shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Directorio operativo</p>
+                <h2 className="text-2xl font-bold text-slate-900">Productores y saldos</h2>
+                <p className="text-sm text-slate-600">Consulta rápidamente contacto, RFC y situación financiera de cada productor.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">{totalProductores} registrados</Badge>
+                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">{productoresConAnticipo} con anticipos</Badge>
+                <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">{productoresConSaldoPendiente} con saldo pendiente</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) {
-              form.reset({ nombre: "", telefono: "", rfc: "" });
-              setEditingProductor(null);
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Nuevo Productor
-              </Button>
-            </DialogTrigger>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="border border-slate-200 shadow-sm">
+            <CardContent className="pt-6">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Total productores</p>
+              <p className="mt-2 text-3xl font-black text-slate-900">{totalProductores}</p>
+            </CardContent>
+          </Card>
+          <Card className="border border-amber-200 shadow-sm">
+            <CardContent className="pt-6">
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Con anticipos</p>
+              <p className="mt-2 text-3xl font-black text-amber-700">{productoresConAnticipo}</p>
+            </CardContent>
+          </Card>
+          <Card className="border border-blue-200 shadow-sm">
+            <CardContent className="pt-6">
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Saldo pendiente total</p>
+              <p className="mt-2 text-3xl font-black text-blue-700">${saldoPendienteTotal.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="border border-slate-200 bg-white shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative flex-1 sm:max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nombre, teléfono o RFC..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              <Dialog open={dialogOpen} onOpenChange={(open) => {
+                setDialogOpen(open);
+                if (!open) {
+                  form.reset({ nombre: "", telefono: "", rfc: "" });
+                  setEditingProductor(null);
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nuevo Productor
+                  </Button>
+                </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -302,8 +345,10 @@ export default function Productores() {
                 </form>
               </Form>
             </DialogContent>
-          </Dialog>
-        </div>
+              </Dialog>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Tabla de productores */}
         <Card>
@@ -334,15 +379,22 @@ export default function Productores() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Teléfono</TableHead>
                     <TableHead>RFC</TableHead>
-                    <TableHead className="text-right">Saldo Anticipos</TableHead>
-                    <TableHead className="text-right">Saldo Pendiente</TableHead>
+                    <TableHead className="text-right">Anticipos</TableHead>
+                    <TableHead className="text-right">Pendiente</TableHead>
                     <TableHead className="text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredProductores?.map((productor) => (
                     <TableRow key={productor.id}>
-                      <TableCell className="font-medium">{productor.nombre}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-slate-900">{productor.nombre}</span>
+                          {(productor.saldo_pendiente || 0) > 0 && (
+                            <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">Pendiente</Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {productor.telefono ? (
                           <span className="flex items-center gap-1">
@@ -357,10 +409,14 @@ export default function Productores() {
                         {productor.rfc || <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        ${(productor.saldo_anticipos || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                        <span className={(productor.saldo_anticipos || 0) > 0 ? "font-semibold text-amber-700" : "text-slate-600"}>
+                          ${(productor.saldo_anticipos || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        ${(productor.saldo_pendiente || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                        <span className={(productor.saldo_pendiente || 0) > 0 ? "font-semibold text-blue-700" : "text-slate-600"}>
+                          ${(productor.saldo_pendiente || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-2">

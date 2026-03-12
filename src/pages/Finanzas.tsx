@@ -11,7 +11,6 @@ import { useProductores } from "@/hooks/useProductores";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Wallet,
-  Users,
   AlertTriangle,
   Receipt,
   ArrowRight,
@@ -24,7 +23,6 @@ import {
   Upload,
   CheckCircle,
   Download,
-  Loader,
   ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -250,6 +248,9 @@ export default function Finanzas() {
   }, []);
 
   const productorSeleccionado = productores.find(p => p.id === productorId);
+  const productoresConAnticipo = productores.filter((p) => (p.saldo_anticipos || 0) > 0).length;
+  const productoresConSaldoPendiente = productores.filter((p) => (p.saldo_pendiente || 0) > 0).length;
+  const saldoPendienteGlobal = productores.reduce((sum, p) => sum + (p.saldo_pendiente || 0), 0);
 
   // --- LÓGICA DE CÁLCULO ---
   const toggleTicket = (id: string) => {
@@ -429,14 +430,37 @@ export default function Finanzas() {
 
   return (
     <MainLayout title="Control de Pagos" subtitle="Liquidaciones Semanales">
+      <Card className="mb-6 border border-slate-200 bg-white shadow-sm">
+        <CardContent className="pt-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Panel financiero</p>
+              <h2 className="text-2xl font-bold text-slate-900">Control de pagos y liquidaciones</h2>
+              <p className="text-sm text-slate-600">Selecciona productor, revisa lotes pendientes y genera el pago desde un flujo más claro.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+                {productores.length} productores cargados
+              </Badge>
+              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                {productoresConAnticipo} con anticipos
+              </Badge>
+              <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">
+                {productoresConSaldoPendiente} con saldo pendiente
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KPIs Superiores */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Kilos (Semana)</p>
-              <p className="text-2xl font-black text-slate-800">245,030 kg</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Notas seleccionadas</p>
+              <p className="text-2xl font-black text-slate-800">{ticketsSeleccionados.length}</p>
+              <p className="mt-1 text-xs text-slate-500">{lotesPendientes.length} pendientes del productor actual</p>
             </div>
             <div className="bg-slate-100 p-2 rounded-full"><Receipt className="h-6 w-6 text-slate-600" /></div>
           </CardContent>
@@ -444,8 +468,9 @@ export default function Finanzas() {
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pagado (Semana)</p>
-              <p className="text-2xl font-black text-green-600">$4,520,000</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total a pagar</p>
+              <p className="text-2xl font-black text-green-600">${Math.max(0, totalPagar).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+              <p className="mt-1 text-xs text-slate-500">{productorSeleccionado ? `Productor: ${productorSeleccionado.nombre}` : "Selecciona un productor para calcular"}</p>
             </div>
             <div className="bg-green-50 p-2 rounded-full"><Wallet className="h-6 w-6 text-green-600" /></div>
           </CardContent>
@@ -453,8 +478,9 @@ export default function Finanzas() {
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Flujo Operativo</p>
-              <p className="text-2xl font-black text-blue-600">$12,450</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Saldo pendiente global</p>
+              <p className="text-2xl font-black text-blue-600">${saldoPendienteGlobal.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+              <p className="mt-1 text-xs text-slate-500">Cartera viva con productores</p>
             </div>
             <div className="bg-blue-50 p-2 rounded-full"><Calculator className="h-6 w-6 text-blue-600" /></div>
           </CardContent>
@@ -494,6 +520,21 @@ export default function Finanzas() {
               <Card className="shadow-md border-l-4 border-l-blue-600">
                 <CardHeader className="pb-3"><CardTitle className="text-lg">1. Seleccionar Productor</CardTitle></CardHeader>
                 <CardContent>
+                  <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Productor</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{productorSeleccionado?.nombre || "Sin seleccionar"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notas pendientes</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{lotesPendientes.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Seleccionadas</p>
+                      <p className="mt-1 text-sm font-semibold text-emerald-700">{ticketsSeleccionados.length}</p>
+                    </div>
+                  </div>
+
                   <Select
                     value={productorId}
                     onValueChange={(v) => {
@@ -504,63 +545,15 @@ export default function Finanzas() {
                     disabled={cargandoProductores} // CORREGIDO: Usa cargandoProductores en lugar de loadingProductores
                   >
                     <SelectTrigger className="h-12 bg-slate-50 font-medium">
-                      {cargandoProductores ? ( // CORREGIDO: Usa cargandoProductores
-                        <div className="flex gap-3 pt-2">
-                          <Button onClick={handleGenerarLiquidacion} className="flex-1 h-12 text-lg font-bold bg-green-600 hover:bg-green-700" disabled={totalPagar < 0 || excedeAnticipo}>
-                            Generar Pago
-                          </Button>
-
-                          {/* Botón de PDF Dinámico */}
-                          {productorSeleccionado && (
-                            <PDFDownloadLink
-                              document={
-                                <EstadoCuentaDocument
-                                  productor={{
-                                    id: productorSeleccionado.id,
-                                    nombre: productorSeleccionado.nombre,
-                                    rfc: "XAXX010101000"
-                                  } as any}
-                                  periodo={{ inicio: "01/01/2026", fin: "31/01/2026" }} // Esto debería ser dinámico
-                                  resumen={{
-                                    saldoInicial: 0,
-                                    totalAbonos: importeBruto,
-                                    totalCargos: totalDeduccionesOp + cobroAnticipo,
-                                    saldoFinal: totalPagar
-                                  }}
-                                  movimientos={[
-                                    // Convertimos tus tickets a formato de movimiento para el PDF
-                                    ...ticketsData.map(t => ({
-                                      fecha: t.fecha_recepcion,
-                                      folio: t.numero_lote,
-                                      concepto: `Entrega de Fruta (${t.peso_neto}kg x $${t.precio_pactado_kg})`,
-                                      cargos: 0,
-                                      abonos: (t.peso_neto || 0) * (t.precio_pactado_kg || 0),
-                                      saldo: 0
-                                    })),
-                                    // Agregamos las deducciones como movimientos de cargo
-                                    ...(cobroAnticipo > 0 ? [{
-                                      fecha: new Date().toLocaleDateString(),
-                                      folio: "ANT-AMORT",
-                                      concepto: "Amortización de Anticipo",
-                                      cargos: cobroAnticipo,
-                                      abonos: 0,
-                                      saldo: 0
-                                    }] : [])
-                                  ]}
-                                />
-                              }
-                              fileName={`EstadoCuenta_${productorSeleccionado.nombre.replace(/\s+/g, '_')}.pdf`}
-                            >
-                              {/* El componente render props de PDFDownloadLink nos dice si está cargando.
-         Si loading es true, mostramos "Generando...", si no, el icono.
-      */}
-                              {({ loading }) => (
-                                <Button variant="outline" className="h-12 w-12 p-0" title="Descargar PDF Detallado" disabled={loading}>
-                                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5 text-red-600" />}
-                                </Button>
-                              )}
-                            </PDFDownloadLink>
-                          )}
+                      {cargandoProductores ? (
+                        <div className="flex items-center gap-2 text-slate-500">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Cargando productores...</span>
+                        </div>
+                      ) : errorProductores ? (
+                        <div className="flex items-center gap-2 text-amber-600">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>Error cargando productores</span>
                         </div>
                       ) : (
                         <SelectValue placeholder="Buscar por Nombre o Alias..." />
