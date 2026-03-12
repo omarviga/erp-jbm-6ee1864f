@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Scale, Printer, Plus, Trash2, History, Truck, Leaf, QrCode, AlertOctagon, Save, Loader2, CheckCircle, Calculator, DollarSign, Search, User, AlertCircle, MapPin, Download } from "lucide-react";
+import { Scale, Printer, Plus, Trash2, History, Truck, Leaf, QrCode, AlertOctagon, Save, Loader2, CheckCircle, Calculator, DollarSign, Search, AlertCircle, MapPin, Download } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -371,47 +371,12 @@ export default function Recepcion() {
                                   value={p.id}
                                   className="text-base py-3"
                                 >
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{p.nombre}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                      Anticipos: ${p.saldo_anticipos?.toLocaleString() || "0"}
-                                    </span>
-                                  </div>
+                                  <span className="font-medium">{p.nombre}</span>
                                 </SelectItem>
                               ))
                           )}
                         </SelectContent>
                       </Select>
-
-                      {/* Información del productor seleccionado */}
-                      {productorSeleccionado && (
-                        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg" role="region" aria-label="Información del productor seleccionado">
-                          <div className="flex items-center gap-2 mb-2">
-                            <User className="h-4 w-4 text-blue-600" />
-                            <span className="font-semibold text-blue-800">
-                              {productorSeleccionado.nombre}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Saldo anticipos:</span>
-                              <span className={cn(
-                                "ml-2 font-bold",
-                                productorSeleccionado.saldo_anticipos > 0
-                                  ? "text-green-600"
-                                  : "text-gray-600"
-                              )}>
-                                ${productorSeleccionado.saldo_anticipos?.toLocaleString() || "0"}
-                              </span>
-                            </div>
-                            <div className="text-right">
-                              <Badge variant="outline" className="text-xs">
-                                {productoresDB?.length || 0} productores en lista
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
 
