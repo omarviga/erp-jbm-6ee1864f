@@ -218,20 +218,49 @@ export const useLogistica = () => {
         }
     });
 
-    // Mutation to persist a generated Carta Porte as a guia (sin afectar inventario)
+    // Mutation to persist a generated Carta Porte as a guia (con detalles e inventario)
     const persistirCartaPorteMutation = useMutation({
-        mutationFn: async (datos: Database['public']['Tables']['guias_salida']['Insert']) => {
-            const { data, error } = await supabase
+        mutationFn: async (vars: {
+            guia: Database['public']['Tables']['guias_salida']['Insert'];
+            detalles: Omit<Database['public']['Tables']['guia_detalles']['Insert'], 'guia_id'>[];
+        }) => {
+            const { data: guia, error: errorGuia } = await supabase
                 .from('guias_salida')
-                .insert(datos)
+                .insert(vars.guia)
                 .select()
                 .single();
 
-            if (error) throw error;
-            return data;
+            if (errorGuia) throw errorGuia;
+
+            const detallesConId = vars.detalles.map(d => ({ ...d, guia_id: guia.id }));
+            const { error: errorDetalles } = await supabase
+                .from('guia_detalles')
+                .insert(detallesConId);
+
+            if (errorDetalles) throw errorDetalles;
+
+            for (const detalle of vars.detalles) {
+                if (detalle.camara_fria_id) {
+                    const { data: current } = await supabase
+                        .from('camara_fria')
+                        .select('cantidad_disponible')
+                        .eq('id', detalle.camara_fria_id)
+                        .single();
+
+                    if (current) {
+                        await supabase
+                            .from('camara_fria')
+                            .update({ cantidad_disponible: current.cantidad_disponible - detalle.cantidad })
+                            .eq('id', detalle.camara_fria_id);
+                    }
+                }
+            }
+
+            return guia;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['guias_salida'] });
+            queryClient.invalidateQueries({ queryKey: ['inventario_logistica'] });
         },
         onError: (error: unknown) => {
             const message = error && typeof error === 'object' && 'message' in error
@@ -245,9 +274,33 @@ export const useLogistica = () => {
         }
     });
 
-    // Mutation to cancel a guia/carta porte
+    // Mutation to cancel a guia/carta porte (restaura el inventario descontado)
     const cancelarGuiaMutation = useMutation({
         mutationFn: async (guiaId: string) => {
+            const { data: detalles, error: errorDetalles } = await supabase
+                .from('guia_detalles')
+                .select('*')
+                .eq('guia_id', guiaId);
+
+            if (errorDetalles) throw errorDetalles;
+
+            for (const detalle of (detalles || [])) {
+                if (detalle.camara_fria_id) {
+                    const { data: current } = await supabase
+                        .from('camara_fria')
+                        .select('cantidad_disponible')
+                        .eq('id', detalle.camara_fria_id)
+                        .single();
+
+                    if (current) {
+                        await supabase
+                            .from('camara_fria')
+                            .update({ cantidad_disponible: current.cantidad_disponible + detalle.cantidad })
+                            .eq('id', detalle.camara_fria_id);
+                    }
+                }
+            }
+
             const { data, error } = await supabase
                 .from('guias_salida')
                 .update({ estado: 'cancelada' })
@@ -260,9 +313,10 @@ export const useLogistica = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['guias_salida'] });
+            queryClient.invalidateQueries({ queryKey: ['inventario_logistica'] });
             toast({
                 title: "Carta Porte cancelada",
-                description: "El estado se actualizó a cancelada.",
+                description: "El estado se actualizó a cancelada y el inventario se restableció.",
             });
         },
         onError: (error: unknown) => {

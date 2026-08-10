@@ -687,21 +687,28 @@ export default function Logistica() {
       // Persistir la carta porte en guias_salida para que aparezca en el historial y pueda cancelarse
       try {
         const guardada = await persistirCartaPorte({
-          numero_guia: nuevoFolio,
-          folio: nuevoFolio,
-          estado: "generada",
-          cliente_id: clienteId,
-          destino: clienteSeleccionado?.nombre || null,
-          lugar_origen: lugarOrigen,
-          lugar_destino: lugarDestino,
-          peso_total: totalPesoCartaPorte,
-          total_cajas: totalCajasCartaPorte,
-          valor_total: valorMercanciaCartaPorte,
-          transportista_id: transportistaId || null,
-          notas: observacionesCartaPorte || null,
-          carta_porte: true,
-          documentacion_completa: true,
-          fecha_salida: new Date(fechaSalida).toISOString(),
+          guia: {
+            numero_guia: nuevoFolio,
+            folio: nuevoFolio,
+            estado: "generada",
+            cliente_id: clienteId,
+            destino: clienteSeleccionado?.nombre || null,
+            lugar_origen: lugarOrigen,
+            lugar_destino: lugarDestino,
+            peso_total: totalPesoCartaPorte,
+            total_cajas: totalCajasCartaPorte,
+            valor_total: valorMercanciaCartaPorte,
+            transportista_id: transportistaId || null,
+            notas: observacionesCartaPorte || null,
+            carta_porte: true,
+            documentacion_completa: true,
+            fecha_salida: new Date(fechaSalida).toISOString(),
+          },
+          detalles: lotesCartaPorte.map(item => ({
+            camara_fria_id: item.id,
+            cantidad: item.cajas,
+            precio_unitario: item.valorUnitario || 0,
+          })),
         });
         setCartaPorteGuiaId(guardada.id);
       } catch {
