@@ -8,6 +8,12 @@ type Huerto = Database['public']['Tables']['huertos']['Row'];
 type Cortador = Database['public']['Tables']['cortadores']['Row'];
 type ErrorLike = { message?: string };
 
+const esRpcNoDisponible = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const errorLike = error as { code?: string; message?: string };
+  return errorLike.code === "PGRST202" || String(errorLike.message || "").includes("Could not find the function");
+};
+
 export interface DatosRecepcion {
   productor_id: string;
   peso_bruto: number;
@@ -115,12 +121,19 @@ export function useRecepcion() {
 
       if (error) throw error;
 
-      // Sincronizar CxP de forma segura en backend (evita bloqueos por RLS en productores)
+      // Sincronizar CxP de forma segura en backend (evita bloqueos por RLS en productores).
+      // Si el RPC aún no está desplegado, no se debe bloquear el guardado del lote.
       const { error: errorSyncCxp } = await supabase.rpc("sync_productor_saldo_pendiente" as never, {
         p_productor_id: datos.productor_id,
       } as never);
 
-      if (errorSyncCxp) throw errorSyncCxp;
+      if (errorSyncCxp) {
+        if (esRpcNoDisponible(errorSyncCxp)) {
+          console.warn("sync_productor_saldo_pendiente no disponible; la CxP se recalculará en backend", errorSyncCxp);
+        } else {
+          throw errorSyncCxp;
+        }
+      }
 
       return data;
     } catch (err: unknown) {

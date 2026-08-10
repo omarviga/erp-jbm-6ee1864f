@@ -1020,14 +1020,20 @@ export type Database = {
           created_at: string
           destino: string | null
           documentacion_completa: boolean | null
+          estado: string
           fda_prior_notice: boolean | null
           fecha_salida: string
           finalizada: boolean | null
+          folio: string | null
           id: string
+          lugar_destino: string | null
+          lugar_origen: string | null
           notas: string | null
           numero_guia: string
+          peso_total: number | null
           temperatura_precarga: number | null
           total_cajas: number | null
+          transportista_id: string | null
           updated_at: string
           valor_total: number | null
         }
@@ -1038,14 +1044,20 @@ export type Database = {
           created_at?: string
           destino?: string | null
           documentacion_completa?: boolean | null
+          estado?: string
           fda_prior_notice?: boolean | null
           fecha_salida?: string
           finalizada?: boolean | null
+          folio?: string | null
           id?: string
+          lugar_destino?: string | null
+          lugar_origen?: string | null
           notas?: string | null
           numero_guia: string
+          peso_total?: number | null
           temperatura_precarga?: number | null
           total_cajas?: number | null
+          transportista_id?: string | null
           updated_at?: string
           valor_total?: number | null
         }
@@ -1056,14 +1068,20 @@ export type Database = {
           created_at?: string
           destino?: string | null
           documentacion_completa?: boolean | null
+          estado?: string
           fda_prior_notice?: boolean | null
           fecha_salida?: string
           finalizada?: boolean | null
+          folio?: string | null
           id?: string
+          lugar_destino?: string | null
+          lugar_origen?: string | null
           notas?: string | null
           numero_guia?: string
+          peso_total?: number | null
           temperatura_precarga?: number | null
           total_cajas?: number | null
+          transportista_id?: string | null
           updated_at?: string
           valor_total?: number | null
         }
@@ -1073,6 +1091,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guias_salida_transportista_id_fkey"
+            columns: ["transportista_id"]
+            isOneToOne: false
+            referencedRelation: "transportistas"
             referencedColumns: ["id"]
           },
         ]
@@ -2004,6 +2029,48 @@ export type Database = {
           origen?: string
           placas?: string | null
           recibido_por?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transportistas: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string
+          numero_permiso: string | null
+          placas: string | null
+          poliza_seguro: string | null
+          rfc: string | null
+          seguro_responsabilidad_civil: boolean | null
+          telefono: string | null
+          tipo_permiso: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nombre: string
+          numero_permiso?: string | null
+          placas?: string | null
+          poliza_seguro?: string | null
+          rfc?: string | null
+          seguro_responsabilidad_civil?: boolean | null
+          telefono?: string | null
+          tipo_permiso?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string
+          numero_permiso?: string | null
+          placas?: string | null
+          poliza_seguro?: string | null
+          rfc?: string | null
+          seguro_responsabilidad_civil?: boolean | null
+          telefono?: string | null
+          tipo_permiso?: string | null
           updated_at?: string
         }
         Relationships: []

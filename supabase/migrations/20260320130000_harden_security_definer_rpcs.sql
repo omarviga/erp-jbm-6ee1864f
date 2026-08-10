@@ -315,8 +315,9 @@ $$;
 GRANT EXECUTE ON FUNCTION public.registrar_envio_cdmx_transporte_directo(UUID, UUID, NUMERIC, NUMERIC, TEXT, UUID) TO authenticated;
 
 -- ----------------------------------------------------------
--- 5) sync_productor_saldo_pendiente (admin / produccion / finanzas)
---    Se invoca desde recepción de lotes (produccion) y desde
+-- 5) sync_productor_saldo_pendiente
+--    (admin / produccion / finanzas / almacen)
+--    Se invoca desde recepción de lotes (almacen) y desde
 --    RPCs de finanzas.
 -- ----------------------------------------------------------
 DROP FUNCTION IF EXISTS public.sync_productor_saldo_pendiente(UUID);
@@ -335,6 +336,7 @@ BEGIN
     public.has_role(auth.uid(), 'admin'::app_role)
     OR public.has_role(auth.uid(), 'produccion'::app_role)
     OR public.has_role(auth.uid(), 'finanzas'::app_role)
+    OR public.has_role(auth.uid(), 'almacen'::app_role)
   ) THEN
     RAISE EXCEPTION 'No autorizado';
   END IF;
@@ -370,8 +372,9 @@ $$;
 GRANT EXECUTE ON FUNCTION public.sync_productor_saldo_pendiente(UUID) TO authenticated;
 
 -- ----------------------------------------------------------
--- 6) calcular_efectivo_teorico_corte (admin / ventas / finanzas)
---    Usado por la pantalla de corte de caja CDMX (ventas).
+-- 6) calcular_efectivo_teorico_corte
+--    (admin / ventas / almacen / finanzas)
+--    Usado por el corte de caja CDMX (ventas y almacen).
 -- ----------------------------------------------------------
 DROP FUNCTION IF EXISTS public.calcular_efectivo_teorico_corte(TIMESTAMPTZ, TIMESTAMPTZ);
 CREATE OR REPLACE FUNCTION public.calcular_efectivo_teorico_corte(
@@ -389,6 +392,7 @@ BEGIN
   IF NOT (
     public.has_role(auth.uid(), 'admin'::app_role)
     OR public.has_role(auth.uid(), 'ventas'::app_role)
+    OR public.has_role(auth.uid(), 'almacen'::app_role)
     OR public.has_role(auth.uid(), 'finanzas'::app_role)
   ) THEN
     RAISE EXCEPTION 'No autorizado';

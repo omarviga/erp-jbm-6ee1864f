@@ -9,8 +9,13 @@ export type GuiaDetalle = Tables<'guia_detalles'>;
 export interface Transportista {
     id: string;
     nombre: string;
-    telefono?: string;
+    rfc?: string;
     placas?: string;
+    numeroPermiso?: string;
+    telefono?: string;
+    tipoPermiso?: "federal" | "estatal" | "internacional";
+    seguroResponsabilidadCivil?: boolean;
+    polizaSeguro?: string;
 }
 
 type GuiaReciente = GuiaSalida & {
@@ -45,16 +50,33 @@ type InventarioLogisticaItem = {
 
 type ErrorLike = { message?: string };
 
+type TransportistaRow = Database['public']['Tables']['transportistas']['Row'];
+
 export const useLogistica = () => {
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
-    // Transportistas - hardcoded since table doesn't exist
+    // Transportistas
     const { data: transportistas, isLoading: loadingTransportistas } = useQuery({
         queryKey: ['transportistas'],
         queryFn: async (): Promise<Transportista[]> => {
-            // Table doesn't exist yet, return empty
-            return [];
+            const { data, error } = await supabase
+                .from('transportistas')
+                .select('*')
+                .order('nombre');
+            if (error) throw error;
+
+            return ((data || []) as TransportistaRow[]).map(t => ({
+                id: t.id,
+                nombre: t.nombre,
+                rfc: t.rfc || undefined,
+                placas: t.placas || undefined,
+                numeroPermiso: t.numero_permiso || undefined,
+                telefono: t.telefono || undefined,
+                tipoPermiso: (t.tipo_permiso as Transportista['tipoPermiso']) || undefined,
+                seguroResponsabilidadCivil: t.seguro_responsabilidad_civil || false,
+                polizaSeguro: t.poliza_seguro || undefined,
+            }));
         },
     });
 
@@ -156,6 +178,105 @@ export const useLogistica = () => {
         }
     });
 
+    // Mutation to create a transportista
+    const crearTransportistaMutation = useMutation({
+        mutationFn: async (datos: Omit<Transportista, 'id'>) => {
+            const { data, error } = await supabase
+                .from('transportistas')
+                .insert({
+                    nombre: datos.nombre,
+                    rfc: datos.rfc || null,
+                    placas: datos.placas || null,
+                    numero_permiso: datos.numeroPermiso || null,
+                    telefono: datos.telefono || null,
+                    tipo_permiso: datos.tipoPermiso || null,
+                    seguro_responsabilidad_civil: datos.seguroResponsabilidadCivil ?? false,
+                    poliza_seguro: datos.polizaSeguro || null,
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['transportistas'] });
+            toast({
+                title: "Transportista registrado",
+                description: data.nombre,
+            });
+        },
+        onError: (error: unknown) => {
+            const message = error && typeof error === 'object' && 'message' in error
+                ? String((error as ErrorLike).message || 'Error desconocido')
+                : 'Error desconocido';
+            toast({
+                title: "Error",
+                description: message,
+                variant: "destructive",
+            });
+        }
+    });
+
+    // Mutation to persist a generated Carta Porte as a guia (sin afectar inventario)
+    const persistirCartaPorteMutation = useMutation({
+        mutationFn: async (datos: Database['public']['Tables']['guias_salida']['Insert']) => {
+            const { data, error } = await supabase
+                .from('guias_salida')
+                .insert(datos)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['guias_salida'] });
+        },
+        onError: (error: unknown) => {
+            const message = error && typeof error === 'object' && 'message' in error
+                ? String((error as ErrorLike).message || 'Error desconocido')
+                : 'Error desconocido';
+            toast({
+                title: "Error",
+                description: `No se pudo guardar la carta porte: ${message}`,
+                variant: "destructive",
+            });
+        }
+    });
+
+    // Mutation to cancel a guia/carta porte
+    const cancelarGuiaMutation = useMutation({
+        mutationFn: async (guiaId: string) => {
+            const { data, error } = await supabase
+                .from('guias_salida')
+                .update({ estado: 'cancelada' })
+                .eq('id', guiaId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['guias_salida'] });
+            toast({
+                title: "Carta Porte cancelada",
+                description: "El estado se actualizó a cancelada.",
+            });
+        },
+        onError: (error: unknown) => {
+            const message = error && typeof error === 'object' && 'message' in error
+                ? String((error as ErrorLike).message || 'Error desconocido')
+                : 'Error desconocido';
+            toast({
+                title: "Error",
+                description: message,
+                variant: "destructive",
+            });
+        }
+    });
+
     return {
         transportistas,
         guiasRecientes,
@@ -164,6 +285,12 @@ export const useLogistica = () => {
         loadingGuias,
         loadingInventario,
         crearGuia: crearGuiaMutation.mutateAsync,
-        isCreando: crearGuiaMutation.isPending
+        isCreando: crearGuiaMutation.isPending,
+        crearTransportista: crearTransportistaMutation.mutateAsync,
+        isCreandoTransportista: crearTransportistaMutation.isPending,
+        persistirCartaPorte: persistirCartaPorteMutation.mutateAsync,
+        isPersistiendoCartaPorte: persistirCartaPorteMutation.isPending,
+        cancelarGuia: cancelarGuiaMutation.mutateAsync,
+        isCancelandoGuia: cancelarGuiaMutation.isPending
     };
 };

@@ -23,9 +23,9 @@ import {
   Truck, Package, X, Search, ShieldAlert, Lock, Unlock, Thermometer,
   Map, Factory, Calendar, User, FileText, Phone, MapPin, Download,
   Printer, Check, AlertCircle, Loader2, FileSignature, ClipboardCheck,
-  Scale, Weight, Route, Building, Mail, ExternalLink, Copy, Eye,
+  Scale, Weight,   Route, Building, Mail, ExternalLink, Copy, Eye,
   MoreVertical, Tag, Hash, BarChart3, AlertTriangle, TruckIcon,
-  Users, CheckCircle, Clock, Filter, ArrowRight, DollarSign
+  Users, CheckCircle, Clock, Filter, ArrowRight, DollarSign, UserPlus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -420,7 +420,13 @@ export default function Logistica() {
     loadingInventario,
     loadingGuias,
     crearGuia,
-    isCreando
+    isCreando,
+    crearTransportista,
+    isCreandoTransportista,
+    persistirCartaPorte,
+    isPersistiendoCartaPorte,
+    cancelarGuia,
+    isCancelandoGuia
   } = useLogistica();
 
   const { clientes = [] } = useFacturacion();
@@ -457,9 +463,21 @@ export default function Logistica() {
   const [costoTransporte, setCostoTransporte] = useState("");
   const [isGenerandoCartaPorte, setIsGenerandoCartaPorte] = useState(false);
   const [cartaPorteGenerada, setCartaPorteGenerada] = useState<CartaPorte | null>(null);
+  const [cartaPorteGuiaId, setCartaPorteGuiaId] = useState<string | null>(null);
   const [detalleCartaPorteOpen, setDetalleCartaPorteOpen] = useState(false);
   const [guiaDetalleSeleccionada, setGuiaDetalleSeleccionada] = useState<GuiaRecienteRow | null>(null);
   const [detalleGuiaOpen, setDetalleGuiaOpen] = useState(false);
+  const [nuevoTransportistaOpen, setNuevoTransportistaOpen] = useState(false);
+  const [nuevoTransportista, setNuevoTransportista] = useState({
+    nombre: "",
+    rfc: "",
+    placas: "",
+    numeroPermiso: "",
+    telefono: "",
+    tipoPermiso: "federal" as "federal" | "estatal" | "internacional",
+    seguroResponsabilidadCivil: true,
+    polizaSeguro: "",
+  });
 
   const clienteSeleccionado = clientes.find(c => c.id === clienteId);
   const transportistaSeleccionado = transportistas.find(t => t.id === transportistaId);
@@ -471,11 +489,11 @@ export default function Logistica() {
       nombre: transportistaSeleccionado.nombre,
       telefono: transportistaSeleccionado.telefono || "Sin registrar",
       placas: transportistaSeleccionado.placas || "Sin registrar",
-      rfc: "Sin registrar",
-      numeroPermiso: "Sin registrar",
-      tipoPermiso: "federal",
-      seguroResponsabilidadCivil: false,
-      polizaSeguro: "N/A",
+      rfc: transportistaSeleccionado.rfc || "Sin registrar",
+      numeroPermiso: transportistaSeleccionado.numeroPermiso || "Sin registrar",
+      tipoPermiso: transportistaSeleccionado.tipoPermiso || "federal",
+      seguroResponsabilidadCivil: transportistaSeleccionado.seguroResponsabilidadCivil || false,
+      polizaSeguro: transportistaSeleccionado.polizaSeguro || "N/A",
     };
   }, [transportistaSeleccionado]);
   const esExportacionUSA = clienteSeleccionado?.tipo === "exportacion_usa";
@@ -560,6 +578,8 @@ export default function Logistica() {
 
     const guia: Database["public"]["Tables"]["guias_salida"]["Insert"] = {
       numero_guia: numeroGuia,
+      folio: numeroGuia,
+      estado: "generada",
       cliente_id: clienteId,
       destino: clienteSeleccionado?.nombre || null,
       certificado_fitosanitario: documentos.find(d => d.id === "fitosanitario")?.checked ?? false,
@@ -568,6 +588,7 @@ export default function Logistica() {
       temperatura_precarga: temperaturaPrecarga ? parseFloat(temperaturaPrecarga) : null,
       documentacion_completa: requisitosCumplidos,
       total_cajas: totalCajas,
+      peso_total: totalPeso,
       valor_total: lotesEnLista.reduce((acc, item) => acc + item.cajas * (item.valorUnitario || 0), 0),
       notas: null,
       finalizada: true,
@@ -585,7 +606,7 @@ export default function Logistica() {
     } catch {
       // El error ya se muestra en el onError de la mutación
     }
-  }, [requisitosCumplidos, clienteId, clienteSeleccionado, documentos, temperaturaPrecarga, totalCajas, lotesEnLista, crearGuia, toast]);
+  }, [requisitosCumplidos, clienteId, clienteSeleccionado, documentos, temperaturaPrecarga, totalCajas, totalPeso, lotesEnLista, crearGuia, toast]);
 
   const handleGenerarCartaPorte = useCallback(async () => {
     if (!cartaPorteValida) {
@@ -603,7 +624,7 @@ export default function Logistica() {
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       const nuevoFolio = `CP-${format(new Date(), 'yyyy')}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      const cartaPorteQrUrl = `https://portal.jbmcitricos.com/logistica/carta-porte/${encodeURIComponent(nuevoFolio)}`;
+      const cartaPorteQrUrl = `https://erp.jbm.com.mx/logistica/carta-porte/${encodeURIComponent(nuevoFolio)}`;
 
       // Crear objeto de Carta Porte
       const nuevaCartaPorte: CartaPorte = {
@@ -663,6 +684,30 @@ export default function Logistica() {
 
       // Aquí normalmente enviarías la carta porte a tu API
       console.log("Carta Porte generada:", nuevaCartaPorte);
+      // Persistir la carta porte en guias_salida para que aparezca en el historial y pueda cancelarse
+      try {
+        const guardada = await persistirCartaPorte({
+          numero_guia: nuevoFolio,
+          folio: nuevoFolio,
+          estado: "generada",
+          cliente_id: clienteId,
+          destino: clienteSeleccionado?.nombre || null,
+          lugar_origen: lugarOrigen,
+          lugar_destino: lugarDestino,
+          peso_total: totalPesoCartaPorte,
+          total_cajas: totalCajasCartaPorte,
+          valor_total: valorMercanciaCartaPorte,
+          transportista_id: transportistaId || null,
+          notas: observacionesCartaPorte || null,
+          carta_porte: true,
+          documentacion_completa: true,
+          fecha_salida: new Date(fechaSalida).toISOString(),
+        });
+        setCartaPorteGuiaId(guardada.id);
+      } catch {
+        // No bloquea la vista previa; el error se reporta en el onError de la mutación
+      }
+
       setCartaPorteGenerada(nuevaCartaPorte);
       setDetalleCartaPorteOpen(true);
 
@@ -692,6 +737,8 @@ export default function Logistica() {
   }, [
     cartaPorteValida,
     clienteSeleccionado,
+    clienteId,
+    transportistaId,
     tipoTransporte,
     tipoOperacion,
     lugarOrigen,
@@ -699,6 +746,7 @@ export default function Logistica() {
     fechaSalida,
     fechaLlegada,
     lotesCartaPorte,
+    totalCajasCartaPorte,
     totalPesoCartaPorte,
     totalVolumenCartaPorte,
     valorMercanciaCartaPorte,
@@ -708,6 +756,7 @@ export default function Logistica() {
     observacionesCartaPorte,
     costoTransporte,
     transportistaCartaPorte,
+    persistirCartaPorte,
     toast
   ]);
 
@@ -735,19 +784,21 @@ export default function Logistica() {
     );
   }, []);
 
+  const getGuiaFolio = useCallback((guia: GuiaRecienteRow) => guia.folio || guia.numero_guia, []);
+
   const handleDescargarPDF = useCallback((folio: string) => {
-    const guia = (guiasRecientes as GuiaRecienteRow[]).find((item) => item.folio === folio);
+    const guia = (guiasRecientes as GuiaRecienteRow[]).find((item) => item.folio === folio || item.numero_guia === folio);
 
     if (guia) {
       abrirDocumentoCartaPorte({
-        folio: guia.folio,
+        folio: getGuiaFolio(guia),
         fecha: format(new Date(guia.created_at), "dd/MM/yyyy HH:mm", { locale: es }),
         cliente: guia.clientes?.nombre || "Sin cliente",
         estado: String(guia.estado).toUpperCase(),
         origen: guia.lugar_origen,
         destino: guia.lugar_destino,
         pesoTotalKg: Number(guia.peso_total || 0),
-        urlValidacion: `https://portal.jbmcitricos.com/logistica/carta-porte/${encodeURIComponent(guia.folio)}`,
+        urlValidacion: `https://erp.jbm.com.mx/logistica/carta-porte/${encodeURIComponent(getGuiaFolio(guia))}`,
         totalCajas: guia.total_cajas,
         valorMercancia: guia.valor_total,
         temperaturaPrecarga: guia.temperatura_precarga,
@@ -783,25 +834,25 @@ export default function Logistica() {
       description: `No fue posible preparar la Carta Porte ${folio}.`,
       variant: "destructive",
     });
-  }, [abrirDocumentoCartaPorte, cartaPorteGenerada, guiasRecientes, toast]);
+  }, [abrirDocumentoCartaPorte, cartaPorteGenerada, getGuiaFolio, guiasRecientes, toast]);
 
   const handleImprimirGuia = useCallback((guia: GuiaRecienteRow) => {
     abrirDocumentoCartaPorte({
-      folio: guia.folio,
+      folio: getGuiaFolio(guia),
       fecha: format(new Date(guia.created_at), "dd/MM/yyyy HH:mm", { locale: es }),
       cliente: guia.clientes?.nombre || "Sin cliente",
       estado: String(guia.estado).toUpperCase(),
       origen: guia.lugar_origen,
       destino: guia.lugar_destino,
       pesoTotalKg: Number(guia.peso_total || 0),
-      urlValidacion: `https://portal.jbmcitricos.com/logistica/carta-porte/${encodeURIComponent(guia.folio)}`,
+      urlValidacion: `https://erp.jbm.com.mx/logistica/carta-porte/${encodeURIComponent(getGuiaFolio(guia))}`,
       totalCajas: guia.total_cajas,
       valorMercancia: guia.valor_total,
       temperaturaPrecarga: guia.temperatura_precarga,
       notas: guia.notas,
       documentosAdjuntos: guia.carta_porte ? ["carta-porte.pdf"] : [],
     });
-  }, [abrirDocumentoCartaPorte]);
+  }, [abrirDocumentoCartaPorte, getGuiaFolio]);
 
   const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -815,6 +866,77 @@ export default function Logistica() {
     setGuiaDetalleSeleccionada(guia);
     setDetalleGuiaOpen(true);
   }, []);
+
+  const handleGuardarTransportista = useCallback(async () => {
+    if (!nuevoTransportista.nombre.trim()) {
+      toast({
+        title: "Nombre requerido",
+        description: "Captura el nombre del transportista.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const data = await crearTransportista({
+        nombre: nuevoTransportista.nombre.trim(),
+        rfc: nuevoTransportista.rfc.trim() || undefined,
+        placas: nuevoTransportista.placas.trim() || undefined,
+        numeroPermiso: nuevoTransportista.numeroPermiso.trim() || undefined,
+        telefono: nuevoTransportista.telefono.trim() || undefined,
+        tipoPermiso: nuevoTransportista.tipoPermiso,
+        seguroResponsabilidadCivil: nuevoTransportista.seguroResponsabilidadCivil,
+        polizaSeguro: nuevoTransportista.polizaSeguro.trim() || undefined,
+      });
+      setTransportistaId(data.id);
+      setNuevoTransportistaOpen(false);
+      setNuevoTransportista({
+        nombre: "",
+        rfc: "",
+        placas: "",
+        numeroPermiso: "",
+        telefono: "",
+        tipoPermiso: "federal",
+        seguroResponsabilidadCivil: true,
+        polizaSeguro: "",
+      });
+    } catch {
+      // El error ya se muestra en onError de la mutación
+    }
+  }, [crearTransportista, nuevoTransportista, toast]);
+
+  const handleCancelarGuia = useCallback((guia: GuiaRecienteRow) => {
+    const estado = String(guia.estado || "generada").toLowerCase();
+    if (estado === "cancelada") {
+      toast({
+        title: "Ya está cancelada",
+        description: "Esta carta porte ya fue cancelada.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const folio = getGuiaFolio(guia);
+    if (!window.confirm(`¿Cancelar la carta porte ${folio}? Esta acción no se puede deshacer.`)) return;
+
+    cancelarGuia(guia.id);
+  }, [cancelarGuia, getGuiaFolio, toast]);
+
+  const handleCancelarCartaPorteGenerada = useCallback(async () => {
+    if (!cartaPorteGenerada || cartaPorteGenerada.estado === "cancelada") return;
+
+    if (!window.confirm(`¿Cancelar la carta porte ${cartaPorteGenerada.folio}? Esta acción no se puede deshacer.`)) return;
+
+    if (cartaPorteGuiaId) {
+      try {
+        await cancelarGuia(cartaPorteGuiaId);
+      } catch {
+        // El error ya se muestra en onError de la mutación
+      }
+    }
+
+    setCartaPorteGenerada(prev => prev ? { ...prev, estado: "cancelada" } : prev);
+  }, [cartaPorteGenerada, cartaPorteGuiaId, cancelarGuia]);
 
   return (
     <MainLayout title="Logística" subtitle="Gestión de embarques, guías de salida y Cartas Porte">
@@ -882,6 +1004,15 @@ export default function Logistica() {
               </div>
 
               <div className="flex justify-end gap-2">
+                {cartaPorteGenerada.estado !== "cancelada" && (
+                  <Button
+                    variant="outline"
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={handleCancelarCartaPorteGenerada}
+                  >
+                    <X className="mr-2 h-4 w-4" /> Cancelar Carta Porte
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => setDetalleCartaPorteOpen(false)}>
                   Cerrar
                 </Button>
@@ -909,14 +1040,14 @@ export default function Logistica() {
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div className="space-y-2">
                     <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Guía de salida</p>
-                    <p className="text-2xl font-black text-slate-900">{guiaDetalleSeleccionada.folio}</p>
+                    <p className="text-2xl font-black text-slate-900">{getGuiaFolio(guiaDetalleSeleccionada)}</p>
                     <p className="text-sm text-slate-500">
                       {format(new Date(guiaDetalleSeleccionada.created_at), "dd/MM/yyyy HH:mm", { locale: es })}
                     </p>
                   </div>
                   <div className="rounded-xl border bg-white p-3">
                     <QRCodeSVG
-                      value={`https://portal.jbmcitricos.com/logistica/carta-porte/${encodeURIComponent(guiaDetalleSeleccionada.folio)}`}
+                      value={`https://erp.jbm.com.mx/logistica/carta-porte/${encodeURIComponent(getGuiaFolio(guiaDetalleSeleccionada))}`}
                       size={120}
                       level="M"
                       includeMargin={false}
@@ -957,6 +1088,116 @@ export default function Logistica() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={nuevoTransportistaOpen} onOpenChange={setNuevoTransportistaOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-blue-600" /> Agregar Transportista
+            </DialogTitle>
+            <DialogDescription>
+              Registra los datos del transportista. Podrás seleccionarlo al generar la Carta Porte.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="font-semibold">Nombre *</Label>
+              <Input
+                value={nuevoTransportista.nombre}
+                onChange={(e) => setNuevoTransportista(prev => ({ ...prev, nombre: e.target.value }))}
+                placeholder="Ej: Transportes Norte S.A. de C.V."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>RFC</Label>
+                <Input
+                  value={nuevoTransportista.rfc}
+                  onChange={(e) => setNuevoTransportista(prev => ({ ...prev, rfc: e.target.value }))}
+                  placeholder="AAA010101AAA"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Teléfono</Label>
+                <Input
+                  value={nuevoTransportista.telefono}
+                  onChange={(e) => setNuevoTransportista(prev => ({ ...prev, telefono: e.target.value }))}
+                  placeholder="+52 81 0000 0000"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Placas</Label>
+                <Input
+                  value={nuevoTransportista.placas}
+                  onChange={(e) => setNuevoTransportista(prev => ({ ...prev, placas: e.target.value }))}
+                  placeholder="ABC-123"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>N° Permiso</Label>
+                <Input
+                  value={nuevoTransportista.numeroPermiso}
+                  onChange={(e) => setNuevoTransportista(prev => ({ ...prev, numeroPermiso: e.target.value }))}
+                  placeholder="PER-0000"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tipo de Permiso</Label>
+                <Select
+                  value={nuevoTransportista.tipoPermiso}
+                  onValueChange={(value) => setNuevoTransportista(prev => ({ ...prev, tipoPermiso: value as "federal" | "estatal" | "internacional" }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="federal">Federal</SelectItem>
+                    <SelectItem value="estatal">Estatal</SelectItem>
+                    <SelectItem value="internacional">Internacional</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Póliza de Seguro</Label>
+                <Input
+                  value={nuevoTransportista.polizaSeguro}
+                  onChange={(e) => setNuevoTransportista(prev => ({ ...prev, polizaSeguro: e.target.value }))}
+                  placeholder="N° de póliza"
+                />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                checked={nuevoTransportista.seguroResponsabilidadCivil}
+                onCheckedChange={(checked) => setNuevoTransportista(prev => ({ ...prev, seguroResponsabilidadCivil: Boolean(checked) }))}
+              />
+              <span className="text-sm font-medium">Cuenta con seguro de responsabilidad civil</span>
+            </label>
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setNuevoTransportistaOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleGuardarTransportista} disabled={isCreandoTransportista}>
+              {isCreandoTransportista ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...</>
+              ) : (
+                <><UserPlus className="mr-2 h-4 w-4" /> Guardar transportista</>
+              )}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1294,10 +1535,21 @@ export default function Logistica() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="font-semibold">Transportista *</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="font-semibold">Transportista *</Label>
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="h-6 px-0 text-xs text-blue-600"
+                          onClick={() => setNuevoTransportistaOpen(true)}
+                        >
+                          <UserPlus className="h-3.5 w-3.5 mr-1" /> Nuevo
+                        </Button>
+                      </div>
                       <Select value={transportistaId} onValueChange={setTransportistaId}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar transportista..." />
+                          <SelectValue placeholder={loadingTransportistas ? "Cargando transportistas..." : "Seleccionar transportista..."} />
                         </SelectTrigger>
                         <SelectContent>
                           {transportistas.map((t) => (
@@ -1308,6 +1560,11 @@ export default function Logistica() {
                               </div>
                             </SelectItem>
                           ))}
+                          {!loadingTransportistas && transportistas.length === 0 && (
+                            <div className="px-2 py-3 text-center text-sm text-muted-foreground">
+                              No hay transportistas. Usa "+ Nuevo" para registrar uno.
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1662,7 +1919,7 @@ export default function Logistica() {
 
                     return (
                       <TableRow key={guia.id}>
-                        <TableCell className="font-medium">{guia.folio}</TableCell>
+                        <TableCell className="font-medium">{getGuiaFolio(guia)}</TableCell>
                         <TableCell>{guia.clientes?.nombre || "Cargando..."}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
@@ -1701,7 +1958,7 @@ export default function Logistica() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => handleDescargarPDF(guia.folio)}
+                              onClick={() => handleDescargarPDF(getGuiaFolio(guia))}
                               title="Descargar PDF"
                             >
                               <Download className="h-4 w-4" />
@@ -1722,7 +1979,10 @@ export default function Logistica() {
                                 <DropdownMenuItem onClick={() => handleImprimirGuia(guia)}>
                                   <Printer className="h-4 w-4 mr-2" /> Imprimir
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600">
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => handleCancelarGuia(guia)}
+                                >
                                   <X className="h-4 w-4 mr-2" /> Cancelar
                                 </DropdownMenuItem>
                               </DropdownMenuContent>

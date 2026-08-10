@@ -28,6 +28,21 @@ const historialPrecios = [
 const extraerMensajeError = (error: unknown) =>
   (error as { message?: string })?.message || "Por favor, intenta nuevamente";
 
+interface TicketImpresion {
+  folioFisico: string;
+  numeroLote: string;
+  productorNombre: string;
+  origen: string;
+  huertoNombre: string;
+  pesoBruto: number;
+  tara: number;
+  pesoNeto: number;
+  precio: number;
+  costoBascula: number;
+  total: number;
+  fecha: string;
+}
+
 export default function Recepcion() {
   const [folioTicket, setFolioTicket] = useState("");
   const [pesoBruto, setPesoBruto] = useState("");
@@ -49,6 +64,7 @@ export default function Recepcion() {
     costoBascula: 50
   });
   const ticketPrintRef = useRef<HTMLDivElement>(null);
+  const [ultimoTicket, setUltimoTicket] = useState<TicketImpresion | null>(null);
 
   // IDs únicos para cada campo de formulario
   const fieldIds = {
@@ -135,7 +151,7 @@ export default function Recepcion() {
     pesoBrutoNum === 0 &&
     taraNum === 0 &&
     parseFloat(calculos.totalEstimado) === 0;
-  const ticketStatusUrl = `https://portal.jbmcitricos.com/status/${encodeURIComponent(folioTicket || "nuevo")}`;
+  const ticketStatusUrl = `https://erp.jbm.com.mx/status/${encodeURIComponent(folioTicket || "nuevo")}`;
   const canContinuarPropia = Boolean(productorId) && Boolean(huertoId) && pesoBrutoNum > 0;
 
 
@@ -227,6 +243,24 @@ export default function Recepcion() {
         }
       });
 
+      // Conservar el folio/ticket impreso aunque el formulario se reinicie
+      setUltimoTicket({
+        folioFisico: resultado?.folio_fisico || folioTicket,
+        numeroLote: resultado?.numero_lote || "",
+        productorNombre:
+          (resultado as { productores?: { nombre?: string | null } | null } | null)
+            ?.productores?.nombre || getProductorById(productorId)?.nombre || "SIN ASIGNAR",
+        origen: origen === "terceros" ? "Compra externa" : "Cosecha propia",
+        huertoNombre: huertoSeleccionado?.nombre || "--",
+        pesoBruto: pesoBrutoNum,
+        tara: taraNum,
+        pesoNeto: parseFloat(calculos.pesoPagable) || 0,
+        precio: parseFloat(precio) || 0,
+        costoBascula: formData.incluirCostoBascula ? formData.costoBascula : 0,
+        total: parseFloat(calculos.totalEstimado) || 0,
+        fecha: fechaTicket,
+      });
+
       // Limpiar formulario después de guardar exitosamente
       resetFormulario();
 
@@ -268,6 +302,22 @@ export default function Recepcion() {
     second: "2-digit"
   });
   const subtotalTicket = (parseFloat(calculos.pesoPagable) || 0) * (parseFloat(precio) || 0);
+
+  // El ticket impreso usa el último lote guardado cuando el formulario está vacío
+  const ticketImpresion = resumenVacio && ultimoTicket !== null ? ultimoTicket : null;
+  const folioImpresion = ticketImpresion?.folioFisico || folioTicket || "";
+  const productorImpresion = ticketImpresion?.productorNombre ?? productorSeleccionado?.nombre ?? "SIN ASIGNAR";
+  const origenImpresion = ticketImpresion?.origen ?? (origen === "terceros" ? "Compra externa" : "Cosecha propia");
+  const huertoImpresion = ticketImpresion?.huertoNombre ?? huertoSeleccionado?.nombre ?? "--";
+  const pesoBrutoImpresion = ticketImpresion?.pesoBruto ?? pesoBrutoNum;
+  const taraImpresion = ticketImpresion?.tara ?? taraNum;
+  const netoImpresion = ticketImpresion?.pesoNeto ?? (parseFloat(calculos.pesoPagable) || 0);
+  const precioImpresion = ticketImpresion?.precio ?? (parseFloat(precio) || 0);
+  const subtotalImpresion = ticketImpresion ? netoImpresion * precioImpresion : subtotalTicket;
+  const costoBasculaImpresion = ticketImpresion?.costoBascula ?? (formData.incluirCostoBascula ? formData.costoBascula : 0);
+  const totalImpresion = ticketImpresion?.total ?? (parseFloat(calculos.totalEstimado) || 0);
+  const fechaImpresion = ticketImpresion?.fecha ?? fechaTicket;
+  const ticketStatusUrlImpresion = `https://erp.jbm.com.mx/status/${encodeURIComponent(folioImpresion || "nuevo")}`;
 
   const handleImprimirTicket = () => {
     if (!ticketPrintRef.current) return;
@@ -1172,37 +1222,37 @@ export default function Recepcion() {
                 <p className="text-[15px] font-black tracking-wide leading-none">JBM CÍTRICOS</p>
                 <p className="mt-1 text-[10px] font-semibold tracking-[0.18em]">BARRAGÁN</p>
                 <p className="mt-2 text-[9px] uppercase tracking-[0.25em] text-slate-500">Folio de báscula</p>
-                <p className="mt-1 text-[24px] font-black leading-none">#{folioTicket || "PENDIENTE"}</p>
-                <p className="mt-1 text-[10px] text-slate-500">{fechaTicket}</p>
+                <p className="mt-1 text-[24px] font-black leading-none">#{folioImpresion || "PENDIENTE"}</p>
+                <p className="mt-1 text-[10px] text-slate-500">{fechaImpresion}</p>
               </div>
 
               <div className="my-2.5 space-y-1.5 border-b border-dashed border-slate-300 pb-2 text-[10px]">
-                <div className="flex justify-between gap-2"><span className="font-semibold">PRODUCTOR</span><span className="max-w-[58%] text-right">{productorSeleccionado?.nombre || "SIN ASIGNAR"}</span></div>
-                <div className="flex justify-between gap-2"><span className="font-semibold">ORIGEN</span><span className="text-right">{origen === "terceros" ? "Compra externa" : "Cosecha propia"}</span></div>
-                <div className="flex justify-between gap-2"><span className="font-semibold">HUERTO</span><span className="text-right">{huertoSeleccionado?.nombre || "--"}</span></div>
+                <div className="flex justify-between gap-2"><span className="font-semibold">PRODUCTOR</span><span className="max-w-[58%] text-right">{productorImpresion}</span></div>
+                <div className="flex justify-between gap-2"><span className="font-semibold">ORIGEN</span><span className="text-right">{origenImpresion}</span></div>
+                <div className="flex justify-between gap-2"><span className="font-semibold">HUERTO</span><span className="text-right">{huertoImpresion}</span></div>
               </div>
 
               <div className="space-y-1.5 text-[11px]">
                 <p className="text-center text-[10px] font-semibold tracking-wide">DETALLE DE PESO (KG)</p>
-                <div className="flex justify-between"><span>BRUTO</span><span>{(parseFloat(pesoBruto) || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span></div>
-                <div className="flex justify-between"><span>TARA</span><span>- {(parseFloat(tara) || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span></div>
-                <div className="mt-1 flex justify-between border-t border-dashed border-slate-300 pt-1.5 text-[16px] font-black"><span>NETO</span><span>{(parseFloat(calculos.pesoPagable) || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span></div>
+                <div className="flex justify-between"><span>BRUTO</span><span>{pesoBrutoImpresion.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span></div>
+                <div className="flex justify-between"><span>TARA</span><span>- {taraImpresion.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span></div>
+                <div className="mt-1 flex justify-between border-t border-dashed border-slate-300 pt-1.5 text-[16px] font-black"><span>NETO</span><span>{netoImpresion.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span></div>
               </div>
 
               <div className="my-2.5 space-y-1.5 border-t border-b border-dashed border-slate-300 py-2 text-[11px]">
-                <div className="flex justify-between"><span>PRECIO/KG</span><span>{formatoMoneda(parseFloat(precio) || 0)}</span></div>
-                <div className="flex justify-between"><span>SUBTOTAL</span><span>{formatoMoneda(subtotalTicket)}</span></div>
-                <div className="flex justify-between"><span>BÁSCULA</span><span>{formatoMoneda(formData.incluirCostoBascula ? formData.costoBascula : 0)}</span></div>
+                <div className="flex justify-between"><span>PRECIO/KG</span><span>{formatoMoneda(precioImpresion)}</span></div>
+                <div className="flex justify-between"><span>SUBTOTAL</span><span>{formatoMoneda(subtotalImpresion)}</span></div>
+                <div className="flex justify-between"><span>BÁSCULA</span><span>{formatoMoneda(costoBasculaImpresion)}</span></div>
                 <div className="mt-2 flex items-center justify-between bg-slate-900 px-2 py-1.5 text-[15px] font-black text-white">
                   <span>TOTAL</span>
-                  <span>{formatoMoneda(parseFloat(calculos.totalEstimado) || 0)}</span>
+                  <span>{formatoMoneda(totalImpresion)}</span>
                 </div>
               </div>
 
               <div className="mb-3 rounded-lg border border-dashed border-slate-300 px-3 py-3 text-center text-[9px]">
                 <div className="mx-auto mb-2 flex h-20 w-20 items-center justify-center rounded-lg border border-slate-300 bg-slate-50">
                   <QRCodeSVG
-                    value={ticketStatusUrl}
+                    value={ticketStatusUrlImpresion}
                     size={64}
                     level="M"
                     includeMargin={false}
@@ -1211,7 +1261,7 @@ export default function Recepcion() {
                   />
                 </div>
                 <p className="font-semibold tracking-wide uppercase">Consulta tu pago</p>
-                <p className="mt-1 break-all text-slate-500">{ticketStatusUrl}</p>
+                <p className="mt-1 break-all text-slate-500">{ticketStatusUrlImpresion}</p>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-4 text-center text-[9px]">
