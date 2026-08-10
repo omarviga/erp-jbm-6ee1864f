@@ -1,0 +1,440 @@
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 1
+Guía de Usuario — Sistema JBM
+ ERP
+ Manual operativo por rol · Limones Barragán
+ v1.1 · Mayo 2026
+ Manual operativo paso a paso · Capturas reales del sistema
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 2
+Tabla de contenidos
+ 1. Introducción al sistema JBM ERP
+ 2. Recepción / Báscula
+ 3. Producción / Empaque
+ 4. Inventarios / Cámara Fría
+ 5. Logística / Embarques
+ 6. Bodega CDMX (POS, Recepciones, Inventario, Corte, Gastos, Rentabilidad)
+ 7. Finanzas — Cuentas por Pagar y Liquidaciones
+ 8. Reglas de negocio críticas
+ 9. Flujo end-to-end
+ 10. Errores comunes y solución
+ 11. Glosario
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 3
+1. Introducción al sistema JBM ERP
+JBM ERP es el sistema integral de Limones Barragán. Cubre desde la llegada del camión a báscula en
+Michoacán hasta la venta final al cliente en Bodega CDMX, pasando por producción, cámara fría, logística,
+cuentas por pagar a productores y facturación.
+Inicio de sesión
+Acceda a la URL del ERP, ingrese correo y contraseña, presione INICIAR SESIÓN. Si no tiene
+credenciales contacte al administrador.
+[Imagen no encontrada: pant-login.png]
+Dashboard general
+Tras autenticarse el usuario llega al Dashboard, donde se muestran KPIs del día (kilos recibidos, cajas
+empacadas, stock en inventarios, stock molino), alertas de lotes por vencer, documentación faltante,
+merma controlada y un panel de acciones rápidas.
+ Dashboard principal con KPIs y acciones rápidas
+Mapa de roles
+Rol
+Módulos accesibles
+Restricciones
+admin_owner
+TODOS
+Único que ve Rentabilidad
+CDMX y Usuarios
+bascula
+Recepción, Productores
+Sin acceso a precios de venta
+produccion
+Producción, Inventarios
+(lectura)
+No modifica precios
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 4
+Rol
+Módulos accesibles
+Restricciones
+almacen / logistica
+Inventarios, Logística
+No vende
+cdmx_operator
+Bodega CDMX (sin
+Rentabilidad)
+Cotejo ciego activo
+finanzas
+Finanzas, Facturación, Gastos
+No modifica producción
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 5
+2. Recepción / Báscula
+Primer eslabón. Cada camión que llega del campo se pesa y se genera un ticket de recepción que da
+nacimiento a la deuda con el productor.
+ Pantalla de Recepción — paso 1: Origen y Control
+Cómo capturar una recepción (paso a paso)
+
+1. En el menú lateral abrir RECEPCIÓN.
+
+2. Elegir la pestaña 'Compra a Terceros' (o 'Cosecha Propia' si es del huerto propio).
+
+3. En 'Folio del Ticket Físico (Báscula)' capturar el folio del ticket impreso por la báscula. Ej: B-10293.
+
+4. En 'Productor *' usar el buscador para localizarlo por nombre, o seleccionarlo del dropdown. Si es
+nuevo, presionar el botón + para alta rápida.
+
+5. Capturar 'Peso Bruto (kg)' — el peso total del camión cargado.
+
+6. Capturar 'Tara (kg)' — peso del camión vacío. El sistema calcula automáticamente el 'Peso Neto
+Real'.
+
+7. Capturar 'Precio por kilo' acordado en campo (en pesos).
+
+8. Pulsar 'Siguiente' y completar Calidad/Origen, Documentación y Línea de Producción asignada.
+
+9. Verificar el resumen de liquidación en el panel oscuro de la derecha (Ticket #, total $).
+
+10. Pulsar 'CONFIRMAR INGRESO'. Se imprime el ticket y se genera la cuenta por pagar.
+Reglas críticas
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 6
+
+Una vez confirmado, el ticket es INMUTABLE. Los errores se corrigen con un ajuste autorizado por
+admin (PIN).
+
+El precio capturado se congela en el ticket — define la deuda con el productor.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 7
+3. Producción / Empaque
+Toma los lotes recibidos y los clasifica por calibre, generando cajas etiquetadas con QR para trazabilidad.
+ Pantalla de Clasificación de Producción
+Cómo registrar producción
+
+1. Abrir PRODUCCIÓN. Verá KPIs: Lotes Activos, Rendimiento Actual, Procesado (Hoy), Estado Planta.
+
+2. En 'LOTE EN LÍNEA' seleccionar el lote recibido a procesar (viene de Recepción).
+
+3. En 'CALIBRE' elegir primero el color (Verde / Alimonado / Amarillo) y luego la talla (V-4, V-5, V-X,
+V-XX, V-XXX, V-EXT, etc.).
+
+4. Capturar la cantidad de cajas producidas en cada calibre.
+
+5. Indicar la presentación (Caja Plástica 20kg, 10kg o Arpilla 17kg).
+
+6. Capturar mermas (kg de fruta rechazada).
+
+7. Pulsar 'Imprimir etiquetas' para sacar las etiquetas QR de cada caja.
+
+8. GUARDAR. Las cajas se mueven automáticamente a Inventarios → Cámara Fría y la merma se
+descuenta del rendimiento.
+Calibres oficiales (no usar otros nombres)
+Color
+Calibres válidos
+Verde
+V-4, V-5, V-X, V-XX, V-XXX, V-EXT
+Alimonado
+AL-4, AL-5, AL-X, AL-XX, AL-XXX, AL-EXT
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 8
+Color
+Calibres válidos
+Amarillo
+AM-X, AM-XX, AM-XXX, AM-EXT
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 9
+4. Inventarios / Cámara Fría
+Controla el stock físico en Michoacán: cámara fría, piso de empaque, fruta directa a transporte y
+transferencias hacia Bodega CDMX.
+ Cuadrícula de rotación de cámara fría con condiciones (Temperatura, Humedad, Capacidad)
+Lectura de la pantalla
+
+Tarjetas superiores: temperatura actual, humedad relativa, capacidad usada y semáforo de rotación.
+
+Pestañas: Cámara Fría · Piso Empaque · Directo a Transporte · Enviar a CDMX.
+
+Cuadrícula: cada celda (A-01, A-02, ...) representa un slot físico de la cámara. Si está vacío aparece
+'Vacío'; si tiene lote muestra el número de lote y calibre.
+
+Panel derecho 'Acciones': buscar lote por número o calibre, dar de baja por merma.
+Cómo dar de baja una caja por merma
+
+1. Localizar la celda en la cuadrícula y darle clic.
+
+2. En el panel derecho pulsar 'Dar de baja por merma'.
+
+3. Capturar cantidad y motivo (golpe, hongo, deshidratación, etc.).
+
+4. Confirmar. Queda registrado en el kardex del lote.
+Cómo enviar inventario a Bodega CDMX
+
+1. Pestaña 'Enviar a CDMX' → 'Nueva transferencia'.
+
+2. Seleccionar lotes/cajas con su calibre y presentación.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 10
+
+3. Capturar PRECIO BASE por caja (Ej: $450/caja para V-EXT 20kg). Solo admin/finanzas lo ven.
+
+4. Capturar transportista, placas y chofer.
+
+5. GUARDAR. Genera la Carta Porte y deja la transferencia 'En tránsito'.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 11
+5. Logística / Embarques
+Gestión de embarques, guías de salida y cartas porte para clientes externos y para Bodega CDMX.
+ Pantalla de Logística — Configuración de Embarque
+Cómo crear un embarque
+
+1. Botón verde superior derecho: 'Enviar a Bodega CDMX' (o usar el formulario para clientes externos).
+
+2. En 'Cliente / Destino' seleccionar al destinatario.
+
+3. En 'Folio Salida' capturar o aceptar el folio sugerido (Ej: GS-2024-001).
+
+4. En 'Carga Asignada' pulsar 'Agregar Productos' y elegir cajas desde Cámara o Piso.
+
+5. El panel derecho calcula automáticamente: Total Cajas, Peso Total, Volumen y Lotes incluidos.
+
+6. Pestaña 'Carta Porte': capturar transportista, placas, conductor y origen/destino.
+
+7. Pulsar 'Completar Requisitos' (se habilita al cumplir todos los campos).
+
+8. Imprimir la Carta Porte y entregársela al chofer.
+La pestaña 'Historial' muestra todos los embarques pasados, su estado y permite reimprimir
+documentación.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 12
+6. Bodega CDMX (POS, Recepciones, Inventario,
+Corte, Gastos, Rentabilidad)
+Sucursal de alta seguridad. Tiene su propio sidebar con 6 sub-módulos. La pestaña 'Rentabilidad' SOLO la
+ve el admin.
+ Punto de Venta CDMX — catálogo de productos, carrito y numpad
+A) Cómo hacer una venta en el POS
+
+1. Sidebar: 'Punto de Venta'.
+
+2. Filtrar por Granel, Cajas o Arpillas (chips superiores). El sistema muestra disponibilidad de granel del
+día.
+
+3. Tocar la tarjeta del producto (Limón a granel, Arpilla 16/18/26 kg, Caja Reja 20 kg). Se agrega al
+carrito.
+
+4. En el numpad de la derecha: con QTY captura cantidad; con PRECIO sobreescribe (admin lo autoriza
+por PIN si baja el base); con DISC aplica descuento.
+
+5. Verificar Subtotal y TOTAL en la parte inferior derecha.
+
+6. Elegir método de pago: Efectivo · Transferencia · Cheque.
+
+7. Asociar cliente con 'Público en general' o buscar uno existente.
+
+8. Pulsar PAGAR (verde). Se imprime ticket y se descuenta inventario.
+B) Recepciones (cotejo ciego)
+
+1. Sidebar: 'Recepciones'. Llega el camión de Michoacán.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 13
+
+2. El sistema NO muestra cuánto se envió. El operador cuenta físicamente cada calibre y captura
+cantidades.
+
+3. Al confirmar, el sistema compara con lo enviado. Si hay discrepancia mayor al margen, marca
+ALERTA y exige PIN admin + foto evidencia.
+
+4. Confirmado: el inventario CDMX se actualiza.
+C) Inventario
+Vista del stock CDMX por lote y calibre. Solo se muestra el precio_venta (público); el precio_base (costo)
+está oculto al operador.
+D) Corte de Caja (cierre de día)
+
+1. Sidebar: 'Corte de Caja' al cerrar la jornada.
+
+2. El operador declara CIEGAMENTE el efectivo físico contado en caja (sin ver el esperado).
+
+3. Al confirmar, el sistema muestra la diferencia vs el esperado. Faltantes/sobrantes mayores al umbral
+requieren PIN admin + nota.
+E) Gastos Locales
+Capturar gastos del centro de costo CDMX (rentas, comidas, fletes, combustible). Cada gasto requiere foto
+del ticket. La IA OCR extrae proveedor, monto e IVA. Se restan en Rentabilidad.
+F) Rentabilidad (solo admin)
+Utilidad Neta CDMX =
+Ventas Totales (precio_venta)
+− Costo Fruta (cajas vendidas × precio_base)
+− Gastos Locales CDMX
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 14
+7. Finanzas — Cuentas por Pagar y Liquidaciones
+Centraliza el ciclo de cuentas por pagar a productores en 4 fases (nacimiento → anticipos → liquidación
+semanal → pago y conciliación).
+ Control de Pagos — pestaña CxP con deuda viva por productor
+Lectura de la pantalla
+
+Pestañas: CxP · Liquidaciones · Resumen · Conciliación · Compras.
+
+Tarjetas superiores: Deuda Total Viva (suma de saldos), Productores con saldo, Tickets pendientes.
+
+Tabla 'Cuentas por Pagar por Productor': lista ordenada por mayor deuda. Click en la fila despliega los
+tickets pendientes.
+
+Panel derecho 'REGISTRAR ADELANTO': permite capturar un anticipo (efectivo, cheque, transferencia).
+Cómo registrar un anticipo a un productor
+
+1. Ir a Finanzas → CxP.
+
+2. Hacer clic en la fila del productor para expandir sus tickets.
+
+3. En el panel derecho 'REGISTRAR ADELANTO' seleccionar la forma de pago (Cheque, Efectivo,
+Transferencia).
+
+4. Capturar No. de Cheque/Transferencia y monto.
+
+5. Pulsar 'Registrar adelanto a [Productor]'. El saldo vivo disminuye al instante.
+Cómo liquidar la semana
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 15
+
+1. Pestaña 'Liquidaciones'. El sistema cruza tickets de la semana vs anticipos.
+
+2. Revisar el saldo neto por productor.
+
+3. Generar PDF del estado de cuenta (botón Imprimir) y enviar por WhatsApp.
+
+4. Al pagar, registrar el comprobante en pestaña 'Conciliación'.
+La pestaña 'Compras' integra facturas de proveedores con OCR — sube la foto del ticket y la IA captura
+proveedor, RFC, monto e IVA.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 16
+8. Reglas de negocio críticas
+8.1 Doble precio por caja
+
+precio_base: costo interno al salir de Michoacán. Solo admin/finanzas.
+
+precio_venta: precio público. Visible al POS.
+8.2 Cotejo ciego CDMX
+El operador NUNCA ve la cantidad enviada hasta haber capturado lo recibido. Aplica a recepciones, corte
+de caja y gastos.
+8.3 Inmutabilidad
+Tickets de báscula, ventas POS y cortes son inmutables. Las correcciones son asientos de ajuste con PIN.
+8.4 FIFO en CDMX
+Las ventas POS descuentan stock siguiendo estricto FIFO sobre los lotes locales más antiguos.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 17
+9. Flujo end-to-end
+[Báscula] Recepción
+↓ kilos × precio = deuda al productor
+[Producción] Clasificación por calibre + QR
+↓
+[Inventarios] Cámara Fría / Piso Empaque
+↓ admin captura precio_base por caja
+[Logística] Transferencia a CDMX (en tránsito)
+↓ cotejo ciego
+[Bodega CDMX] Recepción confirmada
+↓
+[POS] Venta (precio_venta)
+↓
+[Corte de Caja] Conciliación efectivo
+↓
+[Rentabilidad] Ventas − Costo − Gastos
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 18
+10. Errores comunes y solución
+Error
+Causa
+Solución
+'No hay inventario para Caja'
+al vender
+La transferencia a CDMX no
+fue cotejada
+Ir a Recepciones CDMX y
+confirmar
+No puedo crear traslado
+Falta precio_base o lote sin
+stock
+Capturar precio por caja
+Calibre no aparece
+Mal escrito en catálogo
+Configuración → Calibres
+Login falla
+Cuenta sin rol asignado
+Admin asigna rol en
+/admin/usuarios
+Corte no cuadra
+Venta o gasto sin registrar
+Revisar tickets y gastos del día
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 19
+11. Glosario
+Término
+Significado
+Lote
+Conjunto de fruta de un mismo productor
+recibido en una fecha
+Calibre
+Clasificación de tamaño/calidad del limón
+Cotejo ciego
+Recepción sin conocer la cantidad enviada
+Precio base
+Costo interno de la caja
+Precio venta
+Precio público al cliente
+FIFO
+First In First Out — sale primero el más antiguo
+PIN admin
+Código del admin para acciones sensibles
+Carta Porte
+Documento legal de transporte
+Kardex
+Historial cronológico de movimientos de un lote
