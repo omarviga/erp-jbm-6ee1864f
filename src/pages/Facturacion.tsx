@@ -802,6 +802,9 @@ const InvoiceStatusBadgeTable = ({ status }: { status: InvoiceStatus }) => {
     pagada: {
       className: "border-green-200 bg-green-50 text-green-700"
     },
+    pendiente: {
+      className: "border-amber-200 bg-amber-50 text-amber-700"
+    },
     vencida: {
       className: "border-red-200 bg-red-50 text-red-700"
     },
@@ -810,7 +813,7 @@ const InvoiceStatusBadgeTable = ({ status }: { status: InvoiceStatus }) => {
     },
   } as const;
 
-  const config = statusConfigs[status];
+  const config = statusConfigs[status] ?? statusConfigs.borrador;
 
   return (
     <Badge variant="outline" className={cn(config.className)}>
@@ -820,10 +823,6 @@ const InvoiceStatusBadgeTable = ({ status }: { status: InvoiceStatus }) => {
 };
 
 // --- CATALOGOS DE FACTURACION ---
-
-const cajasProducidas: Producto[] = [];
-
-
 
 export default function Facturacion() {
   const { toast } = useToast();
@@ -835,6 +834,9 @@ export default function Facturacion() {
     loadingProductos,
     loadingClientes,
     crearFactura,
+    actualizarEstadoFactura,
+    anularFactura,
+    cargarDetallesFactura,
     isProcessing: isHookProcessing
   } = useFacturacion();
 
@@ -853,7 +855,10 @@ export default function Facturacion() {
     }
   ]);
   const [clienteId, setClienteId] = useState<string>("");
-  const [folio] = useState<string>("F-2026-004");
+  const [folio] = useState<string>(() => {
+    const hoy = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    return `F-${hoy}-${String(Math.floor(Math.random() * 100000)).padStart(5, "0")}`;
+  });
   const [status, setStatus] = useState<InvoiceStatus>("borrador");
   const [fechaEmision, setFechaEmision] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [fechaVencimiento, setFechaVencimiento] = useState<string>(
@@ -971,10 +976,49 @@ export default function Facturacion() {
     openPrintDocument(`Factura_${folio}.pdf`, renderFacturaHtml(facturaPrintData));
   }, [facturaPrintData, folio]);
 
-  const abrirFacturaDesdeHistorial = useCallback((factura: FacturaDB) => {
-    const moneda = factura.clientes?.moneda || "MXN";
-    const subtotalEstimado = factura.total / 1.16;
-    const ivaEstimado = factura.total - subtotalEstimado;
+  const abrirFacturaDesdeHistorial = useCallback(async (factura: FacturaDB) => {
+    const moneda = factura.moneda || factura.clientes?.moneda || "MXN";
+
+    const usoCfdiLabelMap: Record<string, string> = {
+      G01: "Adquisicion de mercancias",
+      G02: "Devoluciones, descuentos o bonificaciones",
+      G03: "Gastos en general",
+      P01: "Por definir",
+    };
+    const metodoPagoLabelMap: Record<string, string> = {
+      transferencia: "Transferencia",
+      efectivo: "Efectivo",
+      tarjeta: "Tarjeta",
+      cheque: "Cheque",
+      credito: "Credito",
+      por_definir: "Por definir (PPD)",
+    };
+
+    let items: Array<{
+      descripcion: string;
+      cantidad: number;
+      unidad: string;
+      precio: number;
+      descuento: number;
+      importe: number;
+    }> = [];
+    try {
+      const detalles = await cargarDetallesFactura(factura.id);
+      items = detalles.map(d => {
+        const descuento = d.descuento ?? 0;
+        const precioConDescuento = d.precio_unitario * (1 - descuento / 100);
+        return {
+          descripcion: d.descripcion,
+          cantidad: d.cantidad,
+          unidad: d.unidad || "PZA",
+          precio: d.precio_unitario,
+          descuento,
+          importe: d.cantidad * precioConDescuento,
+        };
+      });
+    } catch (e) {
+      console.error("Error cargando detalles de factura:", e);
+    }
 
     openPrintDocument(
       `Factura_${factura.numero_factura || factura.id}.pdf`,
@@ -984,56 +1028,74 @@ export default function Facturacion() {
         fechaEmision: factura.fecha_emision
           ? format(new Date(factura.fecha_emision), "dd/MM/yyyy", { locale: es })
           : format(new Date(), "dd/MM/yyyy", { locale: es }),
-        fechaVencimiento: factura.fecha_emision
-          ? format(new Date(factura.fecha_emision), "dd/MM/yyyy", { locale: es })
-          : format(new Date(), "dd/MM/yyyy", { locale: es }),
+        fechaVencimiento: factura.fecha_vencimiento
+          ? format(new Date(factura.fecha_vencimiento), "dd/MM/yyyy", { locale: es })
+          : "Sin registrar",
         cliente: {
-          nombre: factura.clientes?.nombre || "Cliente sin registrar",
-          rfc: "Por definir",
-          direccion: "Sin registrar",
-          email: "Sin registrar",
+          nombre: factura.receptor_nombre || factura.clientes?.nombre || "Cliente sin registrar",
+          rfc: factura.receptor_rfc || "Por definir",
+          direccion: factura.receptor_direccion || "Sin registrar",
+          email: factura.receptor_email || "Sin registrar",
           telefono: "Sin registrar",
           moneda,
         },
         pago: {
-          usoCfdi: "Por definir",
-          formaPago: "Sin registrar",
-          metodoPago: "Sin registrar",
+          usoCfdi: (factura.uso_cfdi && usoCfdiLabelMap[factura.uso_cfdi]) || factura.uso_cfdi || "Por definir",
+          formaPago: factura.forma_pago || "Sin registrar",
+          metodoPago: (factura.metodo_pago && metodoPagoLabelMap[factura.metodo_pago]) || factura.metodo_pago || "Sin registrar",
         },
-        items: [
+        items: items.length > 0 ? items : [
           {
             descripcion: "Conceptos de la factura",
             cantidad: 1,
             unidad: "Servicio",
-            precio: subtotalEstimado,
+            precio: factura.subtotal,
             descuento: 0,
-            importe: subtotalEstimado,
+            importe: factura.subtotal,
           },
         ],
         resumen: {
-          subtotal: subtotalEstimado,
+          subtotal: factura.subtotal,
           descuentos: 0,
-          iva: ivaEstimado,
-          ieps: 0,
+          iva: factura.iva,
+          ieps: factura.ieps || 0,
           total: factura.total,
         },
-        notas: "Vista generada desde el historial de facturas.",
-        terminos: "Algunos datos no estan disponibles en este registro historico.",
+        notas: factura.notas || "",
+        terminos: factura.terminos || "",
       }),
     );
-  }, []);
+  }, [cargarDetallesFactura]);
 
   const detallesFactura = useMemo(
     () =>
       items
         .filter((item) => item.descripcion && item.cantidad > 0)
         .map((item) => ({
+          producto_id: item.productoId || null,
           descripcion: item.descripcion,
           cantidad: item.cantidad,
           precio_unitario: item.precio,
+          unidad: item.unidad || "Caja",
+          iva_aplicable: item.iva,
+          ieps_aplicable: item.ieps ?? 0,
+          descuento: item.descuento ?? 0,
         })),
     [items],
   );
+
+  const facturaParams = useMemo(() => ({
+    cliente_id: clienteId,
+    fecha_vencimiento: fechaVencimiento
+      ? new Date(fechaVencimiento).toISOString()
+      : null,
+    uso_cfdi: usoCFDI,
+    forma_pago: formaPago,
+    metodo_pago: metodoPago,
+    moneda: clienteSeleccionado?.moneda || "MXN",
+    notas,
+    terminos,
+  }), [clienteId, fechaVencimiento, usoCFDI, formaPago, metodoPago, clienteSeleccionado?.moneda, notas, terminos]);
 
   // --- HANDLERS ---
   const addItem = useCallback(() => {
@@ -1161,11 +1223,7 @@ export default function Facturacion() {
     setIsProcessing(true);
     try {
       await crearFactura({
-        factura: {
-          cliente_id: clienteId,
-          total: calculos.total,
-          notas,
-        },
+        factura: facturaParams,
         detalles: detallesFactura,
       });
 
@@ -1185,7 +1243,7 @@ export default function Facturacion() {
     } finally {
       setIsProcessing(false);
     }
-  }, [satValidation, crearFactura, clienteId, calculos.total, notas, detallesFactura, toast]);
+  }, [satValidation, crearFactura, facturaParams, detallesFactura, toast]);
 
   const handleTimbrar = useCallback(async () => {
     if (!satValidation.isValid) {
@@ -1199,14 +1257,14 @@ export default function Facturacion() {
 
     setIsProcessing(true);
     try {
-      await crearFactura({
-        factura: {
-          cliente_id: clienteId,
-          total: calculos.total,
-          notas,
-        },
+      const resultado = await crearFactura({
+        factura: facturaParams,
         detalles: detallesFactura,
       });
+
+      if (resultado?.factura_id) {
+        await actualizarEstadoFactura(resultado.factura_id, "enviada");
+      }
 
       setStatus("enviada");
       toast({
@@ -1225,7 +1283,7 @@ export default function Facturacion() {
     } finally {
       setIsProcessing(false);
     }
-  }, [satValidation, crearFactura, clienteId, calculos.total, notas, detallesFactura, toast, abrirDocumentoFactura]);
+  }, [satValidation, crearFactura, facturaParams, detallesFactura, actualizarEstadoFactura, toast, abrirDocumentoFactura]);
 
   const handleDuplicarFactura = useCallback(() => {
     setClienteId("");
@@ -1260,6 +1318,16 @@ export default function Facturacion() {
   const handleExportarFactura = useCallback(() => {
     abrirDocumentoFactura();
   }, [abrirDocumentoFactura]);
+
+  const handleCancelarFactura = useCallback(async (factura: FacturaDB) => {
+    if (!window.confirm(`¿Cancelar la factura ${factura.numero_factura}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    const resultado = await anularFactura(factura.id);
+    if (resultado?.success) {
+      setActiveTab("lista");
+    }
+  }, [anularFactura]);
 
   return (
     <MainLayout title="Facturación" subtitle="Crea y gestiona tus facturas">
@@ -1473,7 +1541,7 @@ export default function Facturacion() {
                   <CardContent>
                     <InvoiceItemsTable
                       items={items}
-                      productos={cajasProducidas}
+                      productos={productosDB}
                       onUpdateItem={updateItem}
                       onRemoveItem={removeItem}
                       onDuplicateItem={duplicarItem}
@@ -1756,9 +1824,9 @@ export default function Facturacion() {
                         <TableCell className="font-medium">{factura.numero_factura || factura.id}</TableCell>
                         <TableCell>{factura.clientes?.nombre || 'N/A'}</TableCell>
                         <TableCell>{factura.fecha_emision ? format(new Date(factura.fecha_emision), 'dd/MM/yyyy', { locale: es }) : 'N/A'}</TableCell>
-                        <TableCell>N/A</TableCell>
-                        <TableCell><Badge variant="outline" className="text-xs">N/A</Badge></TableCell>
-                        <TableCell><Badge variant="outline" className="text-xs">N/A</Badge></TableCell>
+                        <TableCell>{factura.fecha_vencimiento ? format(new Date(factura.fecha_vencimiento), 'dd/MM/yyyy', { locale: es }) : 'N/A'}</TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">{factura.forma_pago || 'N/A'}</Badge></TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">{factura.metodo_pago || 'N/A'}</Badge></TableCell>
                         <TableCell>
                           <InvoiceStatusBadgeTable status={(factura.estado?.toLowerCase() || 'borrador') as InvoiceStatus} />
                         </TableCell>
@@ -1766,9 +1834,16 @@ export default function Facturacion() {
                           {new Intl.NumberFormat('es-MX', { style: 'currency', currency: factura.clientes?.moneda || 'MXN', minimumFractionDigits: 2 }).format(factura.total)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" type="button" onClick={() => abrirFacturaDesdeHistorial(factura)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" type="button" onClick={() => abrirFacturaDesdeHistorial(factura)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {factura.estado !== 'cancelada' && (
+                              <Button variant="ghost" size="sm" type="button" className="text-red-500 hover:text-red-700" onClick={() => handleCancelarFactura(factura)}>
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
