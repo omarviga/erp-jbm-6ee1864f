@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,13 +14,10 @@ import {
   Users,
   AlertTriangle,
   Receipt,
-  ArrowRight,
   Calculator,
   Printer,
   Loader2,
   CreditCard,
-  Upload,
-  CheckCircle,
   Download,
   Loader,
   ShoppingCart,
@@ -51,22 +48,6 @@ interface LiquidacionPasada {
   monto: number;
   estatus: string;
   ref: string;
-}
-
-interface MovimientoBanco {
-  fecha: string;
-  concepto: string;
-  retiro: number;
-  deposito: number;
-  ref: string;
-}
-
-interface PagoEnTransito {
-  id: number;
-  productor: string;
-  fecha: string;
-  referencia: string;
-  monto: number;
 }
 
 interface CxPTicketDetalle {
@@ -123,7 +104,6 @@ const getEstadoAplicacionTicket = (ticket: CxPTicketDetalle) => {
   };
 };
 
-const pagosEnTransito: PagoEnTransito[] = [];
 export const CXP_LOTES_SELECT_FIELDS =
   'id, productor_id, numero_lote, fecha_recepcion, peso_neto, precio_pactado_kg, costo_bascula, estado_calidad';
 
@@ -138,7 +118,6 @@ const getWeekNumber = (date: Date): number => {
 
 export default function Finanzas() {
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- ESTADOS LIQUIDACIONES ---
   const [productorId, setProductorId] = useState("");
@@ -161,10 +140,6 @@ export default function Finanzas() {
     flete: "",
     otros: ""
   });
-
-  // --- ESTADOS CONCILIACIÓN ---
-  const [movimientosBanco, setMovimientosBanco] = useState<MovimientoBanco[]>([]);
-  const [procesandoPDF, setProcesandoPDF] = useState(false);
 
   // --- ESTADOS PARA DATOS DE SUPABASE ---
   // CORREGIDO: Ya no declaramos loadingProductores aquí, viene del hook
@@ -847,9 +822,32 @@ export default function Finanzas() {
     }
   };
 
+  const liquidacionMensajeFriendly = (mensaje: string): string => {
+    const m = (mensaje || "").toLowerCase();
+    if (m.includes("ya fue liquidado")) {
+      return "Una o más notas ya fueron liquidadas en otro proceso. Se actualizó la lista; revisa y reintenta.";
+    }
+    if (m.includes("amortizacion excede") || m.includes("excede el saldo de anticipos")) {
+      return "La amortización excede el saldo de anticipos disponible para este productor.";
+    }
+    if (m.includes("no existe") || m.includes("no pertenece") || m.includes("esta rechazado")) {
+      return "Una o más notas ya no son válidas (rechazadas, de otro productor o inexistentes). Se actualizó la lista.";
+    }
+    if (m.includes("no autorizado")) {
+      return "No autorizado. Se requiere rol de Admin o Finanzas para liquidar.";
+    }
+    if (m.includes("no puede ser negativo")) {
+      return "El cálculo resulta en saldo negativo. Ajusta las deducciones.";
+    }
+    if (m.includes("al menos un lote")) {
+      return "Selecciona al menos una nota para liquidar.";
+    }
+    return mensaje;
+  };
+
   const handleGenerarLiquidacion = async () => {
     if (ticketsData.length === 0) {
-      toast({ title: "⚠️ Sin lotes seleccionados", description: "Selecciona al menos un lote para liquidar", variant: "destructive" });
+      toast({ title: "⚠️ Sin notas seleccionadas", description: "Selecciona al menos una nota para liquidar", variant: "destructive" });
       return;
     }
 
@@ -863,8 +861,32 @@ export default function Finanzas() {
       return;
     }
 
+    if (cobroAnticipo > saldoDeudaAnticipo) {
+      toast({ title: "⚠️ Excede Saldo de Anticipo", description: "La amortización no puede ser mayor al saldo de anticipos.", variant: "destructive" });
+      return;
+    }
+
     try {
       setGuardandoLiquidacion(true);
+
+      // Re-verificación anti doble liquidación: consulta fresca
+      const { data: yaLiquidados, error: errYaLiquidados } = await supabase
+        .from('liquidacion_lotes')
+        .select('lote_id')
+        .in('lote_id', ticketsData.map((lote) => lote.id));
+
+      if (errYaLiquidados) throw errYaLiquidados;
+
+      const yaLiquidadosIds = new Set((yaLiquidados || []).map((r) => r.lote_id));
+      if (yaLiquidadosIds.size > 0) {
+        const numeros = ticketsData
+          .filter((lote) => yaLiquidadosIds.has(lote.id))
+          .map((lote) => lote.numero_lote)
+          .join(", ");
+        setLotesPendientes(prev => prev.filter(l => !yaLiquidadosIds.has(l.id)));
+        setTicketsSeleccionados(prev => prev.filter(id => !yaLiquidadosIds.has(id)));
+        throw new Error(`La(s) nota(s) ${numeros} ya fue(ron) liquidadas en otro proceso. Se actualizó la lista; revisa y reintenta.`);
+      }
 
       const { data, error } = await supabase.rpc('procesar_liquidacion_productor' as never, {
         p_productor_id: productorId,
@@ -928,9 +950,10 @@ export default function Finanzas() {
 
     } catch (error) {
       console.error('Error al guardar liquidación:', error);
-      const errorMessage = error instanceof Error ? error.message : "No se pudo guardar la liquidación";
+      const rawMessage = error instanceof Error ? error.message : "No se pudo guardar la liquidación";
+      const errorMessage = liquidacionMensajeFriendly(rawMessage);
       toast({
-        title: "❌ Error al guardar",
+        title: "❌ No se pudo registrar la liquidación",
         description: errorMessage,
         variant: "destructive"
       });
@@ -939,40 +962,11 @@ export default function Finanzas() {
     }
   };
 
-  // --- LÓGICA CONCILIACIÓN BANCARIA ---
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setProcesandoPDF(true);
-
-    setTimeout(() => {
-      setMovimientosBanco([]);
-      setProcesandoPDF(false);
-
-      toast({
-        title: "Archivo recibido",
-        description: `Se cargó ${file.name}. Ya puedes usar este espacio para revisar y conciliar movimientos.`,
-        className: "bg-blue-600 text-white"
-      });
-
-      // Limpiar input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }, 1500);
-  };
-
-  const esMatch = (montoRetiro: number, montoPago: number) => {
-    // Comparación con tolerancia de 1 peso por redondeos
-    return Math.abs(montoRetiro - montoPago) < 1;
-  };
-
   return (
     <MainLayout title="Control de Pagos" subtitle="Liquidaciones Semanales">
 
       <Tabs defaultValue="cxp" className="space-y-6">
-        <TabsList className="grid w-full max-w-4xl grid-cols-5 h-12 bg-muted p-1">
+        <TabsList className="grid w-full max-w-4xl grid-cols-4 h-12 bg-muted p-1">
           <TabsTrigger value="cxp" className="text-base font-medium">
             <Receipt className="h-4 w-4 mr-2" /> CxP
           </TabsTrigger>
@@ -982,15 +976,15 @@ export default function Finanzas() {
           <TabsTrigger value="resumen" className="text-base font-medium">
             <Wallet className="h-4 w-4 mr-2" /> Resumen
           </TabsTrigger>
-          <TabsTrigger value="conciliacion" className="text-base font-medium">
-            <CreditCard className="h-4 w-4 mr-2" /> Conciliación
-          </TabsTrigger>
           <TabsTrigger value="compras" className="text-base font-medium">
             <ShoppingCart className="h-4 w-4 mr-2" /> Compras
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="cxp" className="space-y-6">
+          <p className="text-sm text-muted-foreground">
+            Consulta las cuentas por pagar pendientes por productor y aplica pagos parciales a sus notas.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center justify-between">
@@ -1015,7 +1009,7 @@ export default function Finanzas() {
             <Card className="bg-white border-slate-200 shadow-sm">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tickets Pendientes</p>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Notas Pendientes</p>
                   <p className="text-2xl font-black text-slate-800">{ticketsPendientesCxp}</p>
                 </div>
                 <div className="bg-green-50 p-2 rounded-full"><Receipt className="h-6 w-6 text-green-600" /></div>
@@ -1048,7 +1042,7 @@ export default function Finanzas() {
                           <th className="px-4 py-3 text-right font-medium">Deuda Total</th>
                           <th className="px-4 py-3 text-right font-medium">Pagado</th>
                           <th className="px-4 py-3 text-right font-medium">Saldo Vivo</th>
-                          <th className="px-4 py-3 text-center font-medium">Tickets</th>
+                          <th className="px-4 py-3 text-center font-medium">Notas</th>
                           <th className="px-4 py-3 text-center font-medium">M&aacute;s Antiguo</th>
                         </tr>
                       </thead>
@@ -1091,13 +1085,13 @@ export default function Finanzas() {
                         <div className="mb-3 flex items-center justify-between">
                           <div>
                             <p className="text-sm font-semibold text-slate-800">{productorCxpDetalle.productor}</p>
-                            <p className="text-xs text-slate-500">Detalle de tickets pendientes ordenados por antigüedad.</p>
+                            <p className="text-xs text-slate-500">Detalle de notas pendientes ordenadas por antigüedad.</p>
                           </div>
-                          <Badge variant="secondary">{productorCxpDetalle.tickets} tickets</Badge>
+                          <Badge variant="secondary">{productorCxpDetalle.tickets} notas</Badge>
                         </div>
                         <div className="space-y-3">
                           {productorCxpDetalle.detalleTickets.length === 0 ? (
-                            <p className="text-sm text-slate-500">Sin tickets pendientes.</p>
+                            <p className="text-sm text-slate-500">Sin notas pendientes.</p>
                           ) : (
                             productorCxpDetalle.detalleTickets.map((ticket) => (
                               <div key={ticket.id} className="rounded-md border bg-slate-50 p-3">
@@ -1147,8 +1141,8 @@ export default function Finanzas() {
                       <div className="rounded-lg border p-4">
                         <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
                           <div className="flex items-center justify-between text-xs font-bold uppercase text-blue-800">
-                            <span>Registrar adelanto</span>
-                            <span className="text-slate-500 normal-case">Disponible desde CxP</span>
+                            <span>Aplicar pago parcial</span>
+                            <span className="text-slate-500 normal-case">Abona a las notas seleccionadas del productor</span>
                           </div>
                           <div className="grid gap-2 md:grid-cols-3">
                             <Select value={metodoPagoCxp} onValueChange={(value: "cheque" | "transferencia" | "efectivo") => setMetodoPagoCxp(value)}>
@@ -1172,19 +1166,19 @@ export default function Finanzas() {
                               type="number"
                               min="0"
                               step="0.01"
-                              placeholder="Monto del adelanto"
+                              placeholder="Monto del pago"
                               value={montoAdelantoCxp}
                               onChange={(e) => setMontoAdelantoCxp(e.target.value)}
                             />
                           </div>
                           <p className="text-xs text-slate-600">
-                            Saldo seleccionado:
+                            Saldo seleccionado: (se aplica primero a la nota más antigua)
                             <span className="ml-1 font-semibold text-slate-800">
                               ${saldoSeleccionadoCxp.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
                             </span>
                           </p>
                           <p className="text-xs text-slate-600">
-                            Saldo proyectado después del adelanto:
+                            Saldo proyectado después del pago:
                             <span className="ml-1 font-semibold text-slate-800">
                               ${saldoProyectadoCxp.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
                             </span>
@@ -1201,7 +1195,7 @@ export default function Finanzas() {
                               ((metodoPagoCxp === "cheque" || metodoPagoCxp === "transferencia") && !referenciaPagoCxp.trim())
                             }
                           >
-                            {registrandoAdelanto ? "Registrando..." : `Registrar adelanto a ${productorCxpDetalle.productor}`}
+                            {registrandoAdelanto ? "Registrando..." : `Aplicar pago parcial a ${productorCxpDetalle.productor}`}
                           </Button>
                         </div>
                         <div className="mt-6 rounded-lg bg-slate-50 p-4">
@@ -1256,6 +1250,14 @@ export default function Finanzas() {
         </TabsContent>
 
         <TabsContent value="liquidaciones" className="space-y-6">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm text-muted-foreground">
+              Genera liquidaciones semanales agrupando notas por productor.
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              Selecciona las notas que quieres cubrir, ajusta los gastos aplicables y registra el pago (efectivo, cheque o transferencia).
+            </p>
+          </div>
           <div className="grid lg:grid-cols-12 gap-6">
 
             {/* --- COLUMNA IZQUIERDA: SELECCIÓN Y GASTOS (7 cols) --- */}
@@ -1275,28 +1277,7 @@ export default function Finanzas() {
                     disabled={cargandoProductores} // CORREGIDO: Usa cargandoProductores en lugar de loadingProductores
                   >
                     <SelectTrigger className="h-12 bg-slate-50 font-medium">
-                      {cargandoProductores ? ( // CORREGIDO: Usa cargandoProductores
-                        <div className="flex gap-3 pt-2">
-                          <Button onClick={handleGenerarLiquidacion} className="flex-1 h-12 text-lg font-bold bg-green-600 hover:bg-green-700" disabled={totalPagar < 0 || excedeAnticipo}>
-                            Generar Pago
-                          </Button>
-
-                          {/* Botón de PDF Dinámico */}
-                          {productorPdf && (
-                            <Button
-                              variant="outline"
-                              className="h-12 w-12 p-0"
-                              title="Descargar PDF Detallado"
-                              disabled={generandoEstadoCuentaPdf}
-                              onClick={() => void handleDescargarEstadoCuenta()}
-                            >
-                              {generandoEstadoCuentaPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5 text-red-600" />}
-                            </Button>
-                          )}
-                        </div>
-                      ) : (
-                        <SelectValue placeholder="Buscar por Nombre o Alias..." />
-                      )}
+                      <SelectValue placeholder="Buscar por Nombre o Alias..." />
                     </SelectTrigger>
                     <SelectContent>
                       {productores.map((p) => (
@@ -1492,8 +1473,8 @@ export default function Finanzas() {
 
                     <div className="space-y-2 rounded-md border border-blue-200 bg-white p-3">
                       <div className="flex items-center justify-between text-xs font-bold uppercase text-blue-800">
-                        <span>Registrar Adelanto</span>
-                        <span className="text-slate-500 normal-case">Pago parcial / anticipo</span>
+                        <span>Registrar adelanto</span>
+                        <span className="text-slate-500 normal-case">Pago parcial / anticipo al productor</span>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         <Input
@@ -1519,7 +1500,7 @@ export default function Finanzas() {
                   </div>
 
                   {/* BOTONES */}
-                  <div className="flex gap-3 pt-2">
+                  <div className="flex gap-2 pt-2">
                     <Button
                       onClick={handleGenerarLiquidacion}
                       className="flex-1 h-12 text-lg font-bold bg-green-600 hover:bg-green-700"
@@ -1535,136 +1516,30 @@ export default function Finanzas() {
                       )}
                     </Button>
 
-                    {productorPdf && ticketsData.length > 0 ? (
+                    <div className="flex flex-col gap-2">
                       <Button
                         variant="outline"
-                        className="h-12 w-12 p-0"
-                        title="Imprimir Recibo"
-                        disabled={generandoLiquidacionPdf}
+                        className="h-6 px-2 text-xs"
+                        title="Descargar Estado de Cuenta del productor"
+                        disabled={generandoEstadoCuentaPdf || !productorPdf || ticketsData.length === 0}
+                        onClick={() => void handleDescargarEstadoCuenta()}
+                      >
+                        {generandoEstadoCuentaPdf ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Estado
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-6 px-2 text-xs"
+                        title="Imprimir Recibo de Liquidación"
+                        disabled={generandoLiquidacionPdf || !productorPdf || ticketsData.length === 0}
                         onClick={() => void handleDescargarLiquidacionPdf()}
                       >
-                        {generandoLiquidacionPdf ? <Loader2 className="h-5 w-5 animate-spin" /> : <Printer className="h-5 w-5 text-slate-700" />}
+                        {generandoLiquidacionPdf ? <Loader2 className="h-3 w-3 animate-spin" /> : <Printer className="h-3 w-3" />} Recibo
                       </Button>
-                    ) : (
-                      <Button variant="outline" className="h-12 w-12 p-0" disabled><Printer className="h-5 w-5" /></Button>
-                    )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </div>
-        </TabsContent>
-
-        {/* --- PESTAÑA 2: CONCILIACIÓN BANCARIA (BBVA) --- */}
-        <TabsContent value="conciliacion" className="space-y-6">
-          <div className="grid lg:grid-cols-2 gap-6">
-
-            {/* IZQUIERDA: CARGA DE PDF */}
-            <Card className="h-full border-blue-200 shadow-md">
-              <CardHeader className="bg-blue-50/50 pb-4 border-b">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2"><Wallet className="h-5 w-5 text-blue-600" /><CardTitle className="text-base">Movimientos Bancarios</CardTitle></div>
-                  <div className="flex gap-2">
-                    <input
-                      type="file"
-                      accept=".pdf"
-                      className="hidden"
-                      ref={fileInputRef}
-                      onChange={handleFileUpload}
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={procesandoPDF}
-                    >
-                      {procesandoPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-                      Subir Estado de Cuenta
-                    </Button>
-                  </div>
-                </div>
-                <CardDescription>Carga el PDF de BBVA para revisar movimientos bancarios en esta vista.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                {movimientosBanco.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                    <Upload className="h-12 w-12 mb-2 opacity-20" />
-                    <p>Sin archivo cargado</p>
-                  </div>
-                ) : (
-                  <div className="divide-y max-h-[500px] overflow-y-auto">
-                    {movimientosBanco.map((mov, idx) => (
-                      <div key={idx} className="p-3 hover:bg-slate-50 flex justify-between items-center text-sm">
-                        <div className="flex items-center gap-3">
-                          <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", mov.retiro > 0 ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600")}>
-                            {mov.retiro > 0 ? <ArrowRight className="h-3 w-3 rotate-45" /> : <ArrowRight className="h-3 w-3 -rotate-135" />}
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-700">{mov.concepto}</p>
-                            <p className="text-[10px] text-muted-foreground">{mov.fecha} • {mov.ref}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className={cn("font-mono font-bold", mov.retiro > 0 ? "text-red-600" : "text-green-600")}>
-                            {mov.retiro > 0 ? `-$${mov.retiro.toLocaleString()}` : `+$${mov.deposito.toLocaleString()}`}
-                          </p>
-                          {pagosEnTransito.some(p => esMatch(mov.retiro, p.monto)) && (
-                            <Badge className="bg-green-100 text-green-800 border-green-200 mt-1 h-4 text-[10px]">Coincide</Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* DERECHA: ERP */}
-            <Card className="h-full border-slate-200">
-              <CardHeader className="pb-4 border-b">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Receipt className="h-5 w-5 text-slate-500" /> Pagos en ERP
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                {pagosEnTransito.length > 0 ? (
-                  <div className="divide-y">
-                    {pagosEnTransito.map((pago) => {
-                      const match = movimientosBanco.find(m => esMatch(m.retiro, pago.monto));
-                      return (
-                        <div key={pago.id} className={cn("p-4 flex justify-between items-center transition-colors", match ? "bg-green-50/50" : "bg-white")}>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-bold text-slate-800">{pago.productor}</p>
-                              {match && <CheckCircle className="h-4 w-4 text-green-600" />}
-                            </div>
-                            <p className="text-xs text-muted-foreground">{pago.fecha} • {pago.referencia}</p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <p className="font-mono font-medium text-slate-700">${pago.monto.toLocaleString()}</p>
-                            {match ? (
-                              <Button
-                                size="sm"
-                                className="bg-green-600 hover:bg-green-700 text-white h-7 text-xs"
-                                onClick={() => toast({ title: "Conciliado" })}
-                              >
-                                Conciliar
-                              </Button>
-                            ) : (
-                              <Badge variant="outline" className="text-slate-400">Pendiente</Badge>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="px-6 py-12 text-center text-sm text-slate-500">
-                    No hay pagos del ERP disponibles para conciliar en este momento.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
         </TabsContent>
 
