@@ -330,7 +330,7 @@ export default function AdminUsuarios() {
                   <div className="text-sm text-muted-foreground">
                     {role === 'admin' && 'Acceso completo a todas las funciones del sistema.'}
                     {role === 'produccion' && 'Gestión de lotes, cortadores, huertos y producción.'}
-                    {role === 'finanzas' && 'Gestión de productores, anticipos, liquidaciones y pagos.'}
+                    {role === 'finanzas' && 'Gestión de productores, anticipos y cuentas por pagar.'}
                     {role === 'ventas' && 'Gestión de clientes, ventas y presentaciones.'}
                     {role === 'almacen' && 'Gestión de inventario, insumos y cámara fría.'}
                   </div>

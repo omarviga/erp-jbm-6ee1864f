@@ -14,6 +14,14 @@ const esRpcNoDisponible = (error: unknown) => {
   return errorLike.code === "PGRST202" || String(errorLike.message || "").includes("Could not find the function");
 };
 
+// El recálculo de saldo/CxP es un paso auxiliar: si el RPC aún no está
+// desplegado con el rol correcto, no debe bloquear el guardado del lote.
+const esRpcNoAutorizado = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const errorLike = error as { code?: string; message?: string };
+  return String(errorLike.message || "").includes("No autorizado");
+};
+
 export interface DatosRecepcion {
   productor_id: string;
   peso_bruto: number;
@@ -130,6 +138,8 @@ export function useRecepcion() {
       if (errorSyncCxp) {
         if (esRpcNoDisponible(errorSyncCxp)) {
           console.warn("sync_productor_saldo_pendiente no disponible; la CxP se recalculará en backend", errorSyncCxp);
+        } else if (esRpcNoAutorizado(errorSyncCxp)) {
+          console.warn("sync_productor_saldo_pendiente sin permiso; el lote se guardó y la CxP se recalculará en backend", errorSyncCxp);
         } else {
           throw errorSyncCxp;
         }
