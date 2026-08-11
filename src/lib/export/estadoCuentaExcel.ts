@@ -115,22 +115,20 @@ async function pintarEncabezado(worksheet: ExcelJS.Worksheet, titulo: string, su
   telCell.value = `Tel: ${COMPANY_INFO.phone}`;
   telCell.font = { size: 9, color: { argb: COLOR.grisTexto } };
 
-  worksheet.mergeCells(1, anchoTotal + 2, 4, anchoTotal + 2);
-
-  const docCell = worksheet.getCell(1, anchoTotal + 2);
+  const colDoc = anchoTotal + 1;
+  worksheet.getColumn(colDoc).width = 26;
+  const docCell = worksheet.getCell(1, colDoc);
   docCell.value = titulo;
   docCell.font = { bold: true, size: 15, color: { argb: COLOR.verdeOscuro } };
   docCell.alignment = { horizontal: "right", vertical: "middle" };
 
-  worksheet.getCell(2, anchoTotal + 2).value = subtitulo;
-  worksheet.getCell(2, anchoTotal + 2).font = { size: 10, color: { argb: COLOR.grisTexto } };
-  worksheet.getCell(2, anchoTotal + 2).alignment = { horizontal: "right" };
+  worksheet.getCell(2, colDoc).value = subtitulo;
+  worksheet.getCell(2, colDoc).font = { size: 10, color: { argb: COLOR.grisTexto } };
+  worksheet.getCell(2, colDoc).alignment = { horizontal: "right" };
 
-  worksheet.getCell(3, anchoTotal + 2).value = `Generado: ${new Date().toLocaleDateString("es-MX")}`;
-  worksheet.getCell(3, anchoTotal + 2).font = { size: 9, color: { argb: COLOR.grisTexto } };
-  worksheet.getCell(3, anchoTotal + 2).alignment = { horizontal: "right" };
-
-  worksheet.getCell(4, anchoTotal + 2).value = "";
+  worksheet.getCell(3, colDoc).value = `Generado: ${new Date().toLocaleDateString("es-MX")}`;
+  worksheet.getCell(3, colDoc).font = { size: 9, color: { argb: COLOR.grisTexto } };
+  worksheet.getCell(3, colDoc).alignment = { horizontal: "right" };
 }
 
 function hojaProductor(workbook: ExcelJS.Workbook, p: EstadoCuentaExcelProductor) {
@@ -180,17 +178,32 @@ function hojaProductor(workbook: ExcelJS.Workbook, p: EstadoCuentaExcelProductor
 
   kpis.forEach((kpi, idx) => {
     const colIni = idx * 3 + 1;
-    ws.mergeCells(10, colIni, 10, colIni + 2);
-    const cell = ws.getCell(10, colIni);
-    cell.value = `${kpi.label}: `;
-    cell.font = { size: 9, color: { argb: COLOR.grisTexto } };
-    const rv = ws.getCell(10, colIni + 2);
-    rv.value = kpi.value;
-    rv.numFmt = CURRENCY;
-    rv.font = { bold: true, size: 11, color: { argb: kpi.color } };
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR.grisFondo } };
-    ws.mergeCells(10, colIni, 10, colIni + 2);
-    ws.getCell(10, colIni).border = { top: { style: "thin", color: { argb: COLOR.borde } }, bottom: { style: "thin", color: { argb: COLOR.borde } } };
+    const colLabel = colIni;
+    const colValor = colIni + 2;
+
+    const labelCell = ws.getCell(10, colLabel);
+    labelCell.value = `${kpi.label}: `;
+    labelCell.font = { size: 9, color: { argb: COLOR.grisTexto } };
+    labelCell.alignment = { horizontal: "right", vertical: "middle" };
+    labelCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR.grisFondo } };
+
+    const valueCell = ws.getCell(10, colValor);
+    valueCell.value = kpi.value;
+    valueCell.numFmt = CURRENCY;
+    valueCell.font = { bold: true, size: 11, color: { argb: kpi.color } };
+    valueCell.alignment = { horizontal: "right", vertical: "middle" };
+    valueCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR.grisFondo } };
+
+    ws.getCell(10, colIni + 1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR.grisFondo } };
+    for (let c = colIni; c <= colIni + 2; c++) {
+      const b = ws.getCell(10, c);
+      b.border = {
+        top: { style: "thin", color: { argb: COLOR.borde } },
+        left: { style: "thin", color: { argb: COLOR.borde } },
+        bottom: { style: "thin", color: { argb: COLOR.borde } },
+        right: { style: "thin", color: { argb: COLOR.borde } },
+      };
+    }
   });
   ws.getRow(10).height = 24;
 
