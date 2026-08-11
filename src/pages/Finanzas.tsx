@@ -888,7 +888,7 @@ export default function Finanzas() {
         throw new Error(`La(s) nota(s) ${numeros} ya fue(ron) liquidadas en otro proceso. Se actualizó la lista; revisa y reintenta.`);
       }
 
-      const { data, error } = await supabase.rpc('procesar_liquidacion_productor' as never, {
+      const rpcResponse = await supabase.rpc('procesar_liquidacion_productor' as never, {
         p_productor_id: productorId,
         p_lote_ids: ticketsData.map((lote) => lote.id),
         p_total_kilos: totalKilos,
@@ -900,12 +900,22 @@ export default function Finanzas() {
         p_forma_pago: metodoPago,
         p_referencia_pago: referenciaPago.trim() || null,
       } as never);
+      const { data, error } = rpcResponse;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Respuesta RPC (error):', { code: error.code, message: error.message, details: error.details, hint: error.hint });
+        throw error;
+      }
 
-      const resultado = Array.isArray(data) ? (data as LiquidacionResultado[])[0] : null;
+      if (data === null || data === undefined || (Array.isArray(data) && data.length === 0)) {
+        console.error('Respuesta RPC (vacia):', rpcResponse);
+        throw new Error(`El servidor no devolvio resultado (data=${JSON.stringify(data)}). Puede faltar permiso del rol del usuario.`);
+      }
+
+      const resultado = Array.isArray(data) ? (data as LiquidacionResultado[])[0] : (data as LiquidacionResultado);
       if (!resultado?.success) {
-        throw new Error(resultado?.mensaje || "No se pudo guardar la liquidación");
+        console.error('Respuesta RPC (success=false):', rpcResponse);
+        throw new Error(resultado?.mensaje || "El servidor marco un error sin mensaje detallado");
       }
 
       toast({
