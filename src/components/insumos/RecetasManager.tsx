@@ -35,7 +35,10 @@ const TIPO_LABELS: Record<string, string> = {
 };
 
 const calidadLabel = (c: CalidadLimon) =>
-  c.charAt(0).toUpperCase() + c.slice(1);
+  c ? c.charAt(0).toUpperCase() + c.slice(1) : "Sin calidad";
+
+// Radix Select lanza error si un <SelectItem value="">; usar centinela para "General"
+const PRESENTACION_GENERAL = "__general__";
 
 interface InsumoOption {
   id: string;
@@ -82,7 +85,7 @@ const nuevoEditor = (): {
 } => ({
   recetaId: null,
   calidad: "primera",
-  presentacionId: "",
+  presentacionId: PRESENTACION_GENERAL,
   activa: true,
   detalles: [],
 });
@@ -151,9 +154,9 @@ export function RecetasManager() {
         setEditor({
           recetaId: receta.id,
           calidad: receta.calidad,
-          presentacionId: receta.presentacion_id ?? "",
+          presentacionId: receta.presentacion_id ?? PRESENTACION_GENERAL,
           activa: receta.activa,
-          detalles: receta.detalles.map((d) => ({
+          detalles: (receta.detalles ?? []).map((d) => ({
             key: detalleKey(),
             insumoId: d.insumo_id ?? "",
             cantidad: String(d.cantidad),
@@ -209,7 +212,7 @@ export function RecetasManager() {
     try {
       const { data: recetaId, error } = await supabase.rpc("guardar_receta", {
         p_calidad: editor.calidad,
-        p_presentacion_id: editor.presentacionId || null,
+        p_presentacion_id: editor.presentacionId === PRESENTACION_GENERAL ? null : editor.presentacionId,
         p_activa: editor.activa,
         p_detalles: detallesValidos.map((d) => ({
           insumo_id: d.insumoId,
@@ -221,7 +224,7 @@ export function RecetasManager() {
       if (error) throw error;
 
       toast.success(editor.recetaId ? "Receta actualizada" : "Receta creada", {
-        description: `Receta ${calidadLabel(editor.calidad)}${editor.presentacionId ? ` (${presentaciones.find((p) => p.id === editor.presentacionId)?.nombre ?? ""})` : " (General)"}`,
+        description: `Receta ${calidadLabel(editor.calidad)}${editor.presentacionId !== PRESENTACION_GENERAL ? ` (${presentaciones.find((p) => p.id === editor.presentacionId)?.nombre ?? ""})` : " (General)"}`,
       });
 
       await queryClient.invalidateQueries({ queryKey: ["recetas"] });
@@ -356,7 +359,7 @@ export function RecetasManager() {
                     <SelectValue placeholder="General" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">General (todas)</SelectItem>
+                    <SelectItem value={PRESENTACION_GENERAL}>General (todas)</SelectItem>
                     {presentaciones.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.nombre}
