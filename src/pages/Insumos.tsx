@@ -23,6 +23,9 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { TipoMovimientoInsumo, useInsumos } from "@/hooks/useInsumos";
+import { useAuth } from "@/contexts/AuthContext";
+import { RecetasManager } from "@/components/insumos/RecetasManager";
+import { AltaInsumo } from "@/components/insumos/AltaInsumo";
 
 const tipoMovimientoMeta: Record<TipoMovimientoInsumo, { label: string; icon: ComponentType<{ className?: string }> }> = {
   entrada: { label: "Entrada", icon: ArrowUp },
@@ -32,6 +35,8 @@ const tipoMovimientoMeta: Record<TipoMovimientoInsumo, { label: string; icon: Co
 
 export default function Insumos() {
   const { toast } = useToast();
+  const { isAdmin, hasRole } = useAuth();
+  const puedeDarAlta = isAdmin || hasRole("almacen");
   const { insumos: items, movimientos, isLoading, registrarMovimiento } = useInsumos();
 
   const [busqueda, setBusqueda] = useState("");
@@ -352,6 +357,23 @@ export default function Insumos() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      <div className="mt-6 space-y-6">
+        {isAdmin && <RecetasManager />}
+
+        {puedeDarAlta && (
+          <div className="grid lg:grid-cols-3 gap-6">
+            <AltaInsumo />
+            <div className="lg:col-span-2 hidden lg:flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center text-sm text-muted-foreground">
+              <Package className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+              <p>
+                Da de alta materiales nuevos (tarimas, fleje, cera, esquinero...). Para configurar qué insumos consume
+                cada producción, el administrador usa las <strong>Recetas de Empaque (BOM)</strong>.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </MainLayout>
   );

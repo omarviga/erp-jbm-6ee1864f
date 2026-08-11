@@ -1907,6 +1907,7 @@ export type Database = {
           cantidad: number
           created_at: string
           id: string
+          insumo_id: string | null
           insumo_tipo: Database["public"]["Enums"]["tipo_insumo"]
           receta_id: string
         }
@@ -1915,6 +1916,7 @@ export type Database = {
           cantidad?: number
           created_at?: string
           id?: string
+          insumo_id?: string | null
           insumo_tipo: Database["public"]["Enums"]["tipo_insumo"]
           receta_id: string
         }
@@ -1923,10 +1925,18 @@ export type Database = {
           cantidad?: number
           created_at?: string
           id?: string
+          insumo_id?: string | null
           insumo_tipo?: Database["public"]["Enums"]["tipo_insumo"]
           receta_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "receta_detalles_insumo_id_fkey"
+            columns: ["insumo_id"]
+            isOneToOne: false
+            referencedRelation: "insumos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "receta_detalles_receta_id_fkey"
             columns: ["receta_id"]
@@ -2546,6 +2556,15 @@ export type Database = {
       get_resumen_financiero: {
         Args: { fecha_fin: string; fecha_inicio: string }
         Returns: Json
+      }
+      guardar_receta: {
+        Args: {
+          p_activa?: boolean
+          p_calidad: Database["public"]["Enums"]["calidad_limon"]
+          p_detalles?: Json
+          p_presentacion_id?: string
+        }
+        Returns: string
       }
       has_role: {
         Args: {
