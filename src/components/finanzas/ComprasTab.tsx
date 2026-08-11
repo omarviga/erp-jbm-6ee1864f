@@ -154,78 +154,38 @@ export function ComprasTab() {
     setGuardando(true);
 
     try {
-      // Update inventory for each insumo
-      for (const insumo of datosFactura.insumos) {
-        // First, try to find the insumo by name or type
-        const { data: existingInsumo, error: searchError } = await supabase
-          .from("insumos")
-          .select("id, cantidad_disponible, costo_unitario")
-          .or(`nombre.ilike.%${insumo.nombre}%,tipo.eq.${insumo.tipo_insumo}`)
-          .limit(1)
-          .maybeSingle();
+      // Validar y preparar insumos (el RPC valida y aplica todo atómicamente)
+      const insumosValidos = datosFactura.insumos.filter(
+        (i) => esTipoInsumoValido(i.tipo_insumo) && i.cantidad > 0
+      );
 
-        if (searchError) throw searchError;
+      if (insumosValidos.length === 0) {
+        throw new Error("No hay insumos válidos para guardar");
+      }
 
-        if (existingInsumo) {
-          // Update existing insumo
-          const nuevaCantidad = (existingInsumo.cantidad_disponible || 0) + insumo.cantidad;
-          const nuevoCosto = insumo.precio_unitario; // Use the latest price
+      const { data: resultado, error: rpcError } = await supabase
+        .rpc("registrar_entrada_insumos_compra", {
+          p_insumos: insumosValidos.map((i) => ({
+            nombre: i.nombre,
+            tipo_insumo: i.tipo_insumo,
+            cantidad: i.cantidad,
+            precio_unitario: i.precio_unitario,
+          })),
+          p_referencia: `Factura ${datosFactura.numero_factura} - ${datosFactura.proveedor}`,
+        });
 
-          const { error: updateError } = await supabase
-            .from("insumos")
-            .update({
-              cantidad_disponible: nuevaCantidad,
-              costo_unitario: nuevoCosto,
-            })
-            .eq("id", existingInsumo.id);
+      if (rpcError) throw rpcError;
 
-          if (updateError) throw updateError;
+      const resumen = resultado as {
+        actualizados?: Array<{ nombre: string; cantidad: number }>;
+        creados?: Array<{ nombre: string; cantidad: number }>;
+      } | null;
 
-          // Register the movement
-          const { error: movError } = await supabase
-            .from("insumo_movimientos")
-            .insert({
-              insumo_id: existingInsumo.id,
-              tipo_movimiento: "entrada",
-              cantidad: insumo.cantidad,
-              referencia: `Factura ${datosFactura.numero_factura} - ${datosFactura.proveedor}`,
-            });
+      const totalInsumos =
+        (resumen?.actualizados?.length ?? 0) + (resumen?.creados?.length ?? 0);
 
-          if (movError) throw movError;
-        } else {
-          if (!esTipoInsumoValido(insumo.tipo_insumo)) {
-            throw new Error(`Tipo de insumo no válido: ${insumo.tipo_insumo}`);
-          }
-
-          // Create new insumo if it doesn't exist
-          const { data: newInsumo, error: insertError } = await supabase
-            .from("insumos")
-            .insert({
-              nombre: insumo.nombre,
-              tipo: insumo.tipo_insumo,
-              cantidad_disponible: insumo.cantidad,
-              costo_unitario: insumo.precio_unitario,
-              cantidad_minima: 10,
-            })
-            .select()
-            .single();
-
-          if (insertError) throw insertError;
-
-          // Register the initial movement
-          if (newInsumo) {
-            const { error: movError } = await supabase
-              .from("insumo_movimientos")
-              .insert({
-                insumo_id: newInsumo.id,
-                tipo_movimiento: "entrada",
-                cantidad: insumo.cantidad,
-                referencia: `Factura ${datosFactura.numero_factura} - ${datosFactura.proveedor} (Alta inicial)`,
-              });
-
-            if (movError) throw movError;
-          }
-        }
+      if (totalInsumos === 0) {
+        throw new Error("No se pudo registrar ningún insumo");
       }
 
       toast.success("Inventario actualizado correctamente");

@@ -1132,6 +1132,7 @@ export type Database = {
           created_at: string
           id: string
           insumo_id: string
+          produccion_id: string | null
           referencia: string | null
           tipo_movimiento: string
         }
@@ -1140,6 +1141,7 @@ export type Database = {
           created_at?: string
           id?: string
           insumo_id: string
+          produccion_id?: string | null
           referencia?: string | null
           tipo_movimiento: string
         }
@@ -1148,6 +1150,7 @@ export type Database = {
           created_at?: string
           id?: string
           insumo_id?: string
+          produccion_id?: string | null
           referencia?: string | null
           tipo_movimiento?: string
         }
@@ -1157,6 +1160,13 @@ export type Database = {
             columns: ["insumo_id"]
             isOneToOne: false
             referencedRelation: "insumos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "insumo_movimientos_produccion_id_fkey"
+            columns: ["produccion_id"]
+            isOneToOne: false
+            referencedRelation: "produccion"
             referencedColumns: ["id"]
           },
         ]
@@ -1750,36 +1760,51 @@ export type Database = {
           calidad: Database["public"]["Enums"]["calidad_limon"]
           cantidad_cajas: number
           color: Database["public"]["Enums"]["color_limon"]
+          costo_fruta: number
+          costo_insumos: number
+          costo_por_caja: number
+          costo_total: number
           created_at: string
           destino: Database["public"]["Enums"]["destino_produccion"]
           id: string
           lote_id: string
           peso_total_kg: number | null
           presentacion_id: string | null
+          updated_at: string
         }
         Insert: {
           calibre: Database["public"]["Enums"]["calibre_limon"]
           calidad: Database["public"]["Enums"]["calidad_limon"]
           cantidad_cajas?: number
           color: Database["public"]["Enums"]["color_limon"]
+          costo_fruta?: number
+          costo_insumos?: number
+          costo_por_caja?: number
+          costo_total?: number
           created_at?: string
           destino: Database["public"]["Enums"]["destino_produccion"]
           id?: string
           lote_id: string
           peso_total_kg?: number | null
           presentacion_id?: string | null
+          updated_at?: string
         }
         Update: {
           calibre?: Database["public"]["Enums"]["calibre_limon"]
           calidad?: Database["public"]["Enums"]["calidad_limon"]
           cantidad_cajas?: number
           color?: Database["public"]["Enums"]["color_limon"]
+          costo_fruta?: number
+          costo_insumos?: number
+          costo_por_caja?: number
+          costo_total?: number
           created_at?: string
           destino?: Database["public"]["Enums"]["destino_produccion"]
           id?: string
           lote_id?: string
           peso_total_kg?: number | null
           presentacion_id?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1794,6 +1819,51 @@ export type Database = {
             columns: ["presentacion_id"]
             isOneToOne: false
             referencedRelation: "presentaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      produccion_insumos: {
+        Row: {
+          cantidad: number
+          costo_total: number
+          costo_unitario: number
+          created_at: string
+          id: string
+          insumo_id: string
+          produccion_id: string
+        }
+        Insert: {
+          cantidad: number
+          costo_total?: number
+          costo_unitario?: number
+          created_at?: string
+          id?: string
+          insumo_id: string
+          produccion_id: string
+        }
+        Update: {
+          cantidad?: number
+          costo_total?: number
+          costo_unitario?: number
+          created_at?: string
+          id?: string
+          insumo_id?: string
+          produccion_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produccion_insumos_insumo_id_fkey"
+            columns: ["insumo_id"]
+            isOneToOne: false
+            referencedRelation: "insumos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produccion_insumos_produccion_id_fkey"
+            columns: ["produccion_id"]
+            isOneToOne: false
+            referencedRelation: "produccion"
             referencedColumns: ["id"]
           },
         ]
@@ -1830,6 +1900,76 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      receta_detalles: {
+        Row: {
+          base: string
+          cantidad: number
+          created_at: string
+          id: string
+          insumo_tipo: Database["public"]["Enums"]["tipo_insumo"]
+          receta_id: string
+        }
+        Insert: {
+          base?: string
+          cantidad?: number
+          created_at?: string
+          id?: string
+          insumo_tipo: Database["public"]["Enums"]["tipo_insumo"]
+          receta_id: string
+        }
+        Update: {
+          base?: string
+          cantidad?: number
+          created_at?: string
+          id?: string
+          insumo_tipo?: Database["public"]["Enums"]["tipo_insumo"]
+          receta_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receta_detalles_receta_id_fkey"
+            columns: ["receta_id"]
+            isOneToOne: false
+            referencedRelation: "recetas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recetas: {
+        Row: {
+          activa: boolean
+          calidad: Database["public"]["Enums"]["calidad_limon"]
+          created_at: string
+          id: string
+          presentacion_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          calidad: Database["public"]["Enums"]["calidad_limon"]
+          created_at?: string
+          id?: string
+          presentacion_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          calidad?: Database["public"]["Enums"]["calidad_limon"]
+          created_at?: string
+          id?: string
+          presentacion_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recetas_presentacion_id_fkey"
+            columns: ["presentacion_id"]
+            isOneToOne: false
+            referencedRelation: "presentaciones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registro_temperaturas: {
         Row: {
@@ -2512,12 +2652,37 @@ export type Database = {
           nuevo_saldo_productor: number
         }[]
       }
+      registrar_entrada_insumos_compra: {
+        Args: { p_insumos: Json; p_referencia: string }
+        Returns: Json
+      }
       registrar_merma_granel_cdmx: {
         Args: { p_kilos: number; p_motivo: string; p_presentacion_id: string }
         Returns: {
           kilos_mermados: number
           mensaje: string
           success: boolean
+        }[]
+      }
+      registrar_produccion: {
+        Args: {
+          p_calibre: Database["public"]["Enums"]["calibre_limon"]
+          p_calidad: Database["public"]["Enums"]["calidad_limon"]
+          p_cantidad_cajas: number
+          p_color: Database["public"]["Enums"]["color_limon"]
+          p_destino: Database["public"]["Enums"]["destino_produccion"]
+          p_lote_id: string
+          p_peso_total_kg: number
+          p_presentacion_id?: string
+        }
+        Returns: {
+          costo_fruta: number
+          costo_insumos: number
+          costo_por_caja: number
+          costo_total: number
+          deducciones: Json
+          errores: Json
+          produccion_id: string
         }[]
       }
       registrar_resultado_timbrado_factura: {

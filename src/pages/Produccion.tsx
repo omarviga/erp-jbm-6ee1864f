@@ -19,7 +19,6 @@ import {
   Warehouse, Snowflake, Truck
 } from "lucide-react";
 import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
-import { descontarInsumosPorProduccion } from "@/services/insumoDeductionService";
 
 // --- TIPOS ---
 interface LoteDisponible {
@@ -134,8 +133,6 @@ interface EtiquetaData {
   fecha: Date;
   productor?: string;
 }
-
-type ProduccionInsert = Database["public"]["Tables"]["produccion"]["Insert"];
 
 export default function Produccion() {
   const queryClient = useQueryClient();
@@ -382,89 +379,45 @@ export default function Produccion() {
         return;
       }
 
-      const datosProduccion: ProduccionInsert = {
-        lote_id: loteId,
-        calibre: calibre as Database["public"]["Enums"]["calibre_limon"],
-        color: color as Database["public"]["Enums"]["color_limon"],
-        calidad: (destinoInfo?.calidad || 'primera') as Database["public"]["Enums"]["calidad_limon"],
-        presentacion_id: esIndustria ? null : presentacionId,
-        cantidad_cajas: esIndustria ? 0 : parseInt(cantidadCajas, 10),
-        peso_total_kg: kilosSolicitados,
-        destino: destinoFinal as Database["public"]["Enums"]["destino_produccion"]
-      };
-
-      const { data: produccionData, error } = await supabase
-        .from('produccion')
-        .insert([datosProduccion])
-        .select()
-        .single();
+      const { data: resultado, error } = await supabase
+        .rpc('registrar_produccion', {
+          p_lote_id: loteId,
+          p_calibre: calibre as Database["public"]["Enums"]["calibre_limon"],
+          p_color: color as Database["public"]["Enums"]["color_limon"],
+          p_calidad: (destinoInfo?.calidad || 'primera') as Database["public"]["Enums"]["calidad_limon"],
+          p_presentacion_id: esIndustria ? null : presentacionId,
+          p_cantidad_cajas: esIndustria ? 0 : parseInt(cantidadCajas, 10),
+          p_peso_total_kg: kilosSolicitados,
+          p_destino: destinoFinal as Database["public"]["Enums"]["destino_produccion"]
+        });
 
       if (error) throw error;
 
-      // Si destino es cámara fría, insertar registro en camara_fria
-      if (destinoFinal === 'camara_fria' && produccionData) {
-        const { error: cfError } = await supabase
-          .from('camara_fria')
-          .insert({
-            produccion_id: produccionData.id,
-            cantidad_cajas: esIndustria ? 0 : parseInt(cantidadCajas, 10),
-            cantidad_disponible: esIndustria ? 0 : parseInt(cantidadCajas, 10),
-            fecha_ingreso: new Date().toISOString(),
-          });
+      const registro = resultado?.[0];
 
-        if (cfError) {
-          console.error('Error insertando en cámara fría:', cfError);
-          toast.warning("Producción registrada pero hubo un error al registrar en cámara fría", {
-            description: cfError.message
-          });
-        }
+      // --- DESCUENTO AUTOMÁTICO DE INSUMOS (via RPC atómico) ---
+      const deducciones = (registro?.deducciones as Array<{ insumoNombre: string; cantidadDescontada: number }> | null) ?? [];
+      const erroresDeduccion = (registro?.errores as Array<{ insumoNombre?: string; error?: string; faltante?: number }> | null) ?? [];
+
+      if (deducciones.length > 0) {
+        const resumen = deducciones.map(d => `${d.insumoNombre}: -${d.cantidadDescontada}`).join(', ');
+        toast.info("Insumos descontados automáticamente", {
+          description: resumen
+        });
       }
 
-      // Si destino es molino, insertar en stock_molino
-      if (destinoFinal === 'molino' && produccionData) {
-        const { error: molinoError } = await supabase
-          .from('stock_molino')
-          .insert({
-            lote_id: loteId,
-            peso_kg: kilosSolicitados,
-            peso_disponible: kilosSolicitados,
-          });
-
-        if (molinoError) {
-          console.error('Error insertando en stock_molino:', molinoError);
-        }
-      }
-
-      // --- DESCUENTO AUTOMÁTICO DE INSUMOS ---
-      if (!esIndustria && produccionData) {
-        const cajas = parseInt(cantidadCajas, 10);
-        const calidadProd = destinoInfo?.calidad || 'primera';
-        const deducciones = await descontarInsumosPorProduccion(
-          cajas,
-          calidadProd,
-          loteSeleccionado.numero_lote
-        );
-
-        const errores = deducciones.filter(d => d.error);
-        const exitosos = deducciones.filter(d => !d.error && d.cantidadDescontada > 0);
-
-        if (exitosos.length > 0) {
-          const resumen = exitosos.map(d => `${d.insumoNombre}: -${d.cantidadDescontada}`).join(', ');
-          toast.info("Insumos descontados automáticamente", {
-            description: resumen
-          });
-        }
-
-        if (errores.length > 0) {
-          toast.warning("Algunos insumos no pudieron descontarse", {
-            description: errores.map(d => `${d.insumoNombre}: ${d.error}`).join(', ')
-          });
-        }
+      if (erroresDeduccion.length > 0) {
+        toast.warning("Algunos insumos no pudieron descontarse", {
+          description: erroresDeduccion.map(d => `${d.insumoNombre ?? 'Insumo'}: ${d.error ?? `faltante ${d.faltante}`}`).join(', ')
+        });
       }
 
       const destinoLabel = opcionesDestino.find(o => o.value === destinoFinal)?.label || destinoFinal;
+      const costoInfo = registro && registro.costo_total > 0
+        ? ` | Costo: $${registro.costo_total.toLocaleString("es-MX", { minimumFractionDigits: 2 })}${registro.costo_por_caja > 0 ? ` ($${registro.costo_por_caja.toFixed(2)}/caja)` : ""}`
+        : "";
       toast.success("Producción registrada exitosamente", {
-        description: `Lote: ${loteSeleccionado.numero_lote} | ${kilosSolicitados.toFixed(2)} kg → ${destinoLabel}`
+        description: `Lote: ${loteSeleccionado.numero_lote} | ${kilosSolicitados.toFixed(2)} kg → ${destinoLabel}${costoInfo}`
       });
 
       // Limpiar formulario

@@ -33,6 +33,10 @@ export interface ProduccionItem {
   cantidad_cajas: number;
   peso_total_kg: number | null;
   destino: string;
+  costo_fruta?: number;
+  costo_insumos?: number;
+  costo_total?: number;
+  costo_por_caja?: number;
   presentacion?: {
     nombre: string;
     peso_kg: number;
@@ -101,11 +105,21 @@ export function calcularRentabilidad(
   lote: LoteCompleto,
   produccion: ProduccionItem[]
 ): AnalisisRentabilidad {
-  const costoCompra = (lote.peso_neto || 0) * (lote.precio_pactado_kg || 0);
-  
-  // Estimaciones basadas en producción
   const totalCajas = produccion.reduce((sum, p) => sum + p.cantidad_cajas, 0);
-  const costoInsumos = totalCajas * 15; // $15 MXN por caja (estimado)
+
+  // Costos reales desde producción (cuando el registro ya fue costeado)
+  const costoFrutaReal = produccion.reduce((sum, p) => sum + (p.costo_fruta || 0), 0);
+  const costoInsumosReal = produccion.reduce((sum, p) => sum + (p.costo_insumos || 0), 0);
+  const tieneCosteoReal = produccion.some((p) => (p.costo_total || 0) > 0);
+
+  const costoCompra = tieneCosteoReal
+    ? costoFrutaReal
+    : (lote.peso_neto || 0) * (lote.precio_pactado_kg || 0);
+
+  // Estimaciones basadas en producción (solo cuando no hay costeo real)
+  const costoInsumos = tieneCosteoReal
+    ? costoInsumosReal
+    : totalCajas * 15; // $15 MXN por caja (estimado)
   const costoManoObra = totalCajas * 8; // $8 MXN por caja (estimado)
   const costoTotal = costoCompra + costoInsumos + costoManoObra;
 
