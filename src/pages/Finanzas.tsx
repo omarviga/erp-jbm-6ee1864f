@@ -22,6 +22,16 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { openPrintDocument } from "@/lib/print/openPrintDocument";
 import { renderEstadoCuentaHtml } from "@/lib/print/renderEstadoCuentaHtml";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { descargarEstadoCuentaExcel } from "@/lib/export/estadoCuentaExcel";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { ComprasTab } from "@/components/finanzas/ComprasTab";
@@ -110,6 +120,9 @@ export default function Finanzas() {
   const [bitacoraCxp, setBitacoraCxp] = useState<CxPBitacoraItem[]>([]);
   const [cargandoBitacoraCxp, setCargandoBitacoraCxp] = useState(false);
   const [ticketsCxpSeleccionados, setTicketsCxpSeleccionados] = useState<string[]>([]);
+  const [dialogExcelAbierto, setDialogExcelAbierto] = useState(false);
+  const [productoresExcelSeleccionados, setProductoresExcelSeleccionados] = useState<string[]>([]);
+  const [generandoExcel, setGenerandoExcel] = useState(false);
   // Cargar productores desde Supabase - CORREGIDO
   const {
     productores: productoresDB, // Productores del hook
@@ -349,6 +362,104 @@ export default function Finanzas() {
       toast({ title: "❌ Error", description: errorMessage, variant: "destructive" });
     } finally {
       setGenerandoEstadoCuentaPdf(false);
+    }
+  };
+
+  const abrirDialogExcel = () => {
+    setProductoresExcelSeleccionados(cxpResumen.map((item) => item.productorId));
+    setDialogExcelAbierto(true);
+  };
+
+  const handleDescargarExcel = async () => {
+    const seleccionados = cxpResumen.filter((item) => productoresExcelSeleccionados.includes(item.productorId));
+
+    if (seleccionados.length === 0) {
+      toast({
+        title: "⚠️ Selecciona al menos un productor",
+        description: "Debes marcar al menos un productor para exportar su estado de cuenta.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setGenerandoExcel(true);
+    try {
+      const productoresData = [];
+
+      for (const item of seleccionados) {
+        const productor = productores.find((p) => p.id === item.productorId);
+        if (!productor) continue;
+
+        const [{ data: notasData, error: errorNotas }, { data: abonosData, error: errorAbonos }] = await Promise.all([
+          supabase
+            .from('cuentas_por_pagar')
+            .select('id, numero_lote, fecha_ticket, kilos_netos, precio_kg, monto_total, monto_pagado, saldo_pendiente, estado')
+            .eq('productor_id', item.productorId)
+            .order('fecha_ticket', { ascending: true }),
+          supabase
+            .from('abonos_productor')
+            .select('id, monto, metodo_pago, referencia, created_at')
+            .eq('productor_id', item.productorId)
+            .order('created_at', { ascending: true }),
+        ]);
+
+        if (errorNotas) throw errorNotas;
+        if (errorAbonos) throw errorAbonos;
+
+        const notas = (notasData || []).map((n) => ({
+          fecha: new Date(n.fecha_ticket),
+          folio: n.numero_lote || "N/A",
+          kilos: n.kilos_netos || 0,
+          precio: n.precio_kg || 0,
+          importe: n.monto_total || 0,
+          pagado: n.monto_pagado || 0,
+          saldo: n.saldo_pendiente || 0,
+        }));
+
+        const pagos = (abonosData || []).map((a) => ({
+          fecha: new Date(a.created_at),
+          metodo: a.metodo_pago || "efectivo",
+          referencia: a.referencia || "—",
+          monto: a.monto || 0,
+        }));
+
+        const fechas = (notasData || []).map((n) => new Date(n.fecha_ticket).getTime()).filter(Boolean);
+        const inicio = fechas.length > 0
+          ? new Date(Math.min(...fechas)).toLocaleDateString("es-MX")
+          : new Date().toLocaleDateString("es-MX");
+
+        productoresData.push({
+          productorId: productor.id,
+          nombre: productor.nombre,
+          rfc: productor.rfc,
+          periodo: { inicio, fin: new Date().toLocaleDateString("es-MX") },
+          notas,
+          pagos,
+          resumen: {
+            valorFruta: notas.reduce((sum, n) => sum + n.importe, 0),
+            totalPagado: pagos.reduce((sum, p) => sum + p.monto, 0),
+            saldoPendiente: notas.reduce((sum, n) => sum + n.saldo, 0),
+          },
+        });
+      }
+
+      await descargarEstadoCuentaExcel(productoresData);
+      setDialogExcelAbierto(false);
+
+      toast({
+        title: "✅ Excel generado",
+        description: `Se descargó el estado de cuenta de ${productoresData.length} productor(es) con formato profesional.`,
+        className: "bg-slate-800 text-white border-none"
+      });
+    } catch (error) {
+      console.error('Error generando Excel:', error);
+      const errorMessage =
+        (error as { message?: string })?.message ||
+        (error as { details?: string })?.details ||
+        "No se pudo generar el archivo Excel";
+      toast({ title: "❌ Error", description: errorMessage, variant: "destructive" });
+    } finally {
+      setGenerandoExcel(false);
     }
   };
   useEffect(() => {
@@ -720,6 +831,14 @@ export default function Finanzas() {
                             )}
                             Descargar Estado de Cuenta
                           </Button>
+                          <Button
+                            variant="outline"
+                            className="mt-2 w-full text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                            onClick={abrirDialogExcel}
+                          >
+                            <Download className="mr-2 h-4 w-4" />
+                            Descargar Excel
+                          </Button>
                         </div>
 
                         <div className="mt-4 rounded-lg border bg-white p-4">
@@ -764,6 +883,95 @@ export default function Finanzas() {
               )}
             </CardContent>
           </Card>
+
+          <Dialog open={dialogExcelAbierto} onOpenChange={setDialogExcelAbierto}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Descargar Excel</DialogTitle>
+                <DialogDescription>
+                  Selecciona uno o más productores para exportar su estado de cuenta con el logo de la empresa.
+                </DialogDescription>
+              </DialogHeader>
+
+              {cxpResumen.length === 0 ? (
+                <p className="text-sm text-slate-500">No hay productores con saldo pendiente para exportar.</p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>{productoresExcelSeleccionados.length} de {cxpResumen.length} seleccionados</span>
+                    <div className="space-x-2">
+                      <Button
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setProductoresExcelSeleccionados(cxpResumen.map((item) => item.productorId))}
+                      >
+                        Todos
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setProductoresExcelSeleccionados([])}
+                      >
+                        Ninguno
+                      </Button>
+                    </div>
+                  </div>
+
+                  <ScrollArea className="h-64 rounded-md border">
+                    <div className="divide-y">
+                      {cxpResumen.map((item) => (
+                        <label
+                          key={item.productorId}
+                          className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-slate-50"
+                        >
+                          <Checkbox
+                            checked={productoresExcelSeleccionados.includes(item.productorId)}
+                            onCheckedChange={(checked) => {
+                              setProductoresExcelSeleccionados((prev) =>
+                                checked
+                                  ? [...prev, item.productorId]
+                                  : prev.filter((id) => id !== item.productorId)
+                              );
+                            }}
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-slate-800">{item.productor}</p>
+                            <p className="text-xs text-slate-500">{item.tickets} nota(s) pendiente(s)</p>
+                          </div>
+                          <span className="font-mono text-sm font-semibold text-red-500">
+                            ${item.saldoVivo.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </>
+              )}
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogExcelAbierto(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={() => void handleDescargarExcel()}
+                  disabled={generandoExcel || productoresExcelSeleccionados.length === 0}
+                >
+                  {generandoExcel ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generando...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Descargar Excel
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
 
