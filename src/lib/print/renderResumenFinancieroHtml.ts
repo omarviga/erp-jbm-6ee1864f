@@ -12,7 +12,7 @@ export interface ResumenFinancieroGasto {
 export interface ResumenFinancieroPrintData {
   periodo: string;
   totalIngresos: number;
-  totalLiquidaciones: number;
+  totalPagos: number;
   totalGastos: number;
   utilidadBruta: number;
   gastosPorCategoria: { name: string; value: number }[];
@@ -31,7 +31,7 @@ const escapeHtml = (value: string) =>
     .replace(/'/g, "&#39;");
 
 export function renderResumenFinancieroHtml(data: ResumenFinancieroPrintData) {
-  const totalEgresos = data.totalLiquidaciones + data.totalGastos;
+  const totalEgresos = data.totalPagos + data.totalGastos;
   const gastosRows = data.gastosFiltrados.map((gasto) => `
       <tr>
         <td>${escapeHtml(gasto.fecha)}</td>
@@ -70,7 +70,7 @@ export function renderResumenFinancieroHtml(data: ResumenFinancieroPrintData) {
         </article>
         <article class="card" style="background:#fff7ed;border-color:#fdba74;">
           <p class="kpi-label">Pago Productores</p>
-          <p class="kpi-value" style="color:#ea580c;">$${money(data.totalLiquidaciones)}</p>
+          <p class="kpi-value" style="color:#ea580c;">$${money(data.totalPagos)}</p>
         </article>
         <article class="card" style="background:#fef2f2;border-color:#fca5a5;">
           <p class="kpi-label">Gastos</p>

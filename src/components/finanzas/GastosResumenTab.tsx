@@ -50,20 +50,20 @@ export function GastosResumenTab() {
     },
   });
 
-  // Fetch liquidaciones (egresos a productores)
-  const { data: liquidaciones = [], isLoading: loadingLiq } = useQuery({
-    queryKey: ["liquidaciones-finanzas"],
+  // Fetch pagos a productores (egresos, vía CxP)
+  const { data: pagos = [], isLoading: loadingPagos } = useQuery({
+    queryKey: ["pagos-productores-finanzas"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("liquidaciones")
-        .select("id, total_pagar, fecha_liquidacion, estado_liq")
-        .order("fecha_liquidacion", { ascending: false });
+        .from("abonos_productor")
+        .select("id, monto, created_at")
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
   });
 
-  const isLoading = loadingGastos || loadingVentas || loadingLiq;
+  const isLoading = loadingGastos || loadingVentas || loadingPagos;
 
   // Filter by period
   const periodoRange = useMemo(() => {
@@ -83,12 +83,12 @@ export function GastosResumenTab() {
 
   const gastosFiltrados = gastos.filter((g) => inRange(g.fecha));
   const ventasFiltradas = ventas.filter((v) => inRange(v.fecha_venta));
-  const liquidacionesFiltradas = liquidaciones.filter((l) => inRange(l.fecha_liquidacion));
+  const pagosFiltrados = pagos.filter((p) => inRange(p.created_at));
 
   const totalIngresos = ventasFiltradas.reduce((s, v) => s + (v.total || 0), 0);
-  const totalLiquidaciones = liquidacionesFiltradas.reduce((s, l) => s + (l.total_pagar || 0), 0);
+  const totalPagos = pagosFiltrados.reduce((s, p) => s + (p.monto || 0), 0);
   const totalGastos = gastosFiltrados.reduce((s, g) => s + g.monto, 0);
-  const totalEgresos = totalLiquidaciones + totalGastos;
+  const totalEgresos = totalPagos + totalGastos;
   const utilidadBruta = totalIngresos - totalEgresos;
 
   // Gastos por categoría for pie chart
@@ -128,18 +128,18 @@ export function GastosResumenTab() {
 
   // Monthly bar chart data
   const barData = useMemo(() => {
-    const months: Record<string, { mes: string; ingresos: number; liquidaciones: number; gastos: number }> = {};
+    const months: Record<string, { mes: string; ingresos: number; pagos: number; gastos: number }> = {};
     const addMonth = (dateStr: string) => {
       const d = new Date(dateStr);
       const key = format(d, "yyyy-MM");
-      if (!months[key]) months[key] = { mes: format(d, "MMM yy", { locale: es }), ingresos: 0, liquidaciones: 0, gastos: 0 };
+      if (!months[key]) months[key] = { mes: format(d, "MMM yy", { locale: es }), ingresos: 0, pagos: 0, gastos: 0 };
       return months[key];
     };
     ventasFiltradas.forEach((v) => { addMonth(v.fecha_venta).ingresos += v.total || 0; });
-    liquidacionesFiltradas.forEach((l) => { addMonth(l.fecha_liquidacion).liquidaciones += l.total_pagar || 0; });
+    pagosFiltrados.forEach((p) => { addMonth(p.created_at).pagos += p.monto || 0; });
     gastosFiltrados.forEach((g) => { addMonth(g.fecha).gastos += g.monto; });
     return Object.values(months).sort((a, b) => a.mes.localeCompare(b.mes));
-  }, [ventasFiltradas, liquidacionesFiltradas, gastosFiltrados]);
+  }, [ventasFiltradas, pagosFiltrados, gastosFiltrados]);
 
   const handleDescargarPdf = async () => {
     setGenerandoPdf(true);
@@ -149,7 +149,7 @@ export function GastosResumenTab() {
         renderResumenFinancieroHtml({
           periodo: periodoLabel,
           totalIngresos,
-          totalLiquidaciones,
+          totalPagos,
           totalGastos,
           utilidadBruta,
           gastosPorCategoria,
@@ -207,7 +207,7 @@ export function GastosResumenTab() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase">Pago Productores</p>
-                <p className="text-2xl font-black text-orange-600">${totalLiquidaciones.toLocaleString("es-MX", { minimumFractionDigits: 0 })}</p>
+                <p className="text-2xl font-black text-orange-600">${totalPagos.toLocaleString("es-MX", { minimumFractionDigits: 0 })}</p>
               </div>
               <DollarSign className="h-6 w-6 text-orange-600" />
             </div>

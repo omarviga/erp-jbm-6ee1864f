@@ -166,32 +166,35 @@
     },
     {
       "id": "finanzas",
-      "titulo": "7. Finanzas — Cuentas por Pagar y Liquidaciones",
+      "titulo": "7. Finanzas — Cuentas por Pagar",
       "contenido": [
-        {"tipo": "p", "texto": "Centraliza el ciclo de cuentas por pagar a productores en 4 fases (nacimiento → anticipos → liquidación semanal → pago y conciliación)."},
+        {"tipo": "p", "texto": "Centraliza el ciclo de cuentas por pagar a productores: cada recepción de báscula nace como una nota (CxP) pendiente y los pagos se aplican directo a las notas. El flujo de liquidaciones quedó unificado aquí."},
         {"tipo": "img", "src": "finanzas.png", "caption": "Control de Pagos — pestaña CxP con deuda viva por productor"},
-        {"tipo": "h2", "texto": "Lectura de la pantalla"},
+        {"tipo": "h2", "texto": "Pestaña CxP — qué puedes hacer"},
         {"tipo": "lista", "items": [
-          "Pestañas: CxP · Liquidaciones · Resumen · Conciliación · Compras.",
-          "Tarjetas superiores: Deuda Total Viva (suma de saldos), Productores con saldo, Tickets pendientes.",
-          "Tabla 'Cuentas por Pagar por Productor': lista ordenada por mayor deuda. Click en la fila despliega los tickets pendientes.",
-          "Panel derecho 'REGISTRAR ADELANTO': permite capturar un anticipo (efectivo, cheque, transferencia)."
+          "Ver el resumen por productor: deuda total, pagado, saldo vivo, número de notas y antigüedad de la más antigua.",
+          "Seleccionar un productor para desplegar sus notas pendientes (folio, fecha, kilos, precio, importe y saldo).",
+          "Aplicar un pago parcial: marca con checkbox las notas que quieres abonar, captura monto + forma de pago (cheque/transferencia/efectivo) + referencia y pulsa 'Aplicar pago parcial'.",
+          "El monto se reparte automáticamente primero a la nota más antigua y actualiza el saldo de cada nota hasta liquidarla.",
+          "Revisar la bitácora de aplicaciones de pago del productor.",
+          "Descargar el Estado de Cuenta del productor (PDF) con sus notas, pagos y saldos."
         ]},
-        {"tipo": "h2", "texto": "Cómo registrar un anticipo a un productor"},
+        {"tipo": "h2", "texto": "Cómo aplicar un pago parcial a una nota pendiente"},
         {"tipo": "lista", "items": [
-          "1. Ir a Finanzas → CxP.",
-          "2. Hacer clic en la fila del productor para expandir sus tickets.",
-          "3. En el panel derecho 'REGISTRAR ADELANTO' seleccionar la forma de pago (Cheque, Efectivo, Transferencia).",
-          "4. Capturar No. de Cheque/Transferencia y monto.",
-          "5. Pulsar 'Registrar adelanto a [Productor]'. El saldo vivo disminuye al instante."
+          "1. Ir a Finanzas → pestaña CxP.",
+          "2. Hacer clic en la fila del productor (aparece la lista de sus notas con checkbox).",
+          "3. Seleccionar las notas a abonar marcando su casilla.",
+          "4. En 'Aplicar pago parcial' elegir forma de pago, capturar referencia (si aplica) y el monto del pago.",
+          "5. Verificar el 'Saldo seleccionado' y el 'Saldo proyectado después del pago'.",
+          "6. Pulsar 'Aplicar pago parcial a [Productor]'. Los saldos se actualizan al instante."
         ]},
-        {"tipo": "h2", "texto": "Cómo liquidar la semana"},
+        {"tipo": "h2", "texto": "Cómo descargar el Estado de Cuenta"},
         {"tipo": "lista", "items": [
-          "1. Pestaña 'Liquidaciones'. El sistema cruza tickets de la semana vs anticipos.",
-          "2. Revisar el saldo neto por productor.",
-          "3. Generar PDF del estado de cuenta (botón Imprimir) y enviar por WhatsApp.",
-          "4. Al pagar, registrar el comprobante en pestaña 'Conciliación'."
+          "1. Seleccionar el productor en la pestaña CxP.",
+          "2. En el panel de detalle, pulsar 'Descargar Estado de Cuenta'.",
+          "3. El PDF incluye las notas (fecha, folio, kilos, precio, importe, pagado, saldo) y la lista de pagos registrados."
         ]},
+        {"tipo": "p", "texto": "El monto de cada nota ya considera el descuento del costo de báscula capturado en Recepción cuando no fue pagado en efectivo."},
         {"tipo": "p", "texto": "La pestaña 'Compras' integra facturas de proveedores con OCR — sube la foto del ticket y la IA captura proveedor, RFC, monto e IVA."}
       ]
     },

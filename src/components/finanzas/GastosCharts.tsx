@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 interface BarDatum {
   mes: string;
   ingresos: number;
-  liquidaciones: number;
+  pagos: number;
   gastos: number;
 }
 
@@ -34,7 +34,7 @@ export function GastosCharts({ barData, gastosPorCategoria, pieColors }: GastosC
                 <Tooltip formatter={(v: number) => `$${v.toLocaleString("es-MX")}`} />
                 <Legend />
                 <Bar dataKey="ingresos" name="Ingresos" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="liquidaciones" name="Liquidaciones" fill="#f97316" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="pagos" name="Pagos a Productores" fill="#f97316" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="gastos" name="Gastos" fill="#ef4444" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
