@@ -37,6 +37,7 @@ type Productor = Database['public']['Tables']['productores']['Row'];
 type Liquidacion = Database['public']['Tables']['liquidaciones']['Row'];
 type Cliente = Database['public']['Tables']['clientes']['Row'];
 type AdelantoResultado = Database['public']['Functions']['registrar_adelanto_productor']['Returns'][number];
+type AplicarPagoCxpResultado = Database['public']['Functions']['aplicar_pago_cxp']['Returns'][number];
 type LiquidacionResultado = Database['public']['Functions']['procesar_liquidacion_productor']['Returns'][number];
 
 // Tipos para los datos transformados
@@ -656,7 +657,7 @@ export default function Finanzas() {
 
       const resultado = Array.isArray(data) ? (data as AdelantoResultado[])[0] : null;
       if (!resultado?.success) {
-        throw new Error(resultado?.mensaje || "No se pudo registrar el adelanto");
+        throw new Error(resultado?.mensaje || "El servidor marcó un error sin detalle");
       }
 
       await refreshProductores();
@@ -672,7 +673,11 @@ export default function Finanzas() {
       setReferenciaPago("");
     } catch (error) {
       console.error('Error al registrar adelanto:', error);
-      const errorMessage = error instanceof Error ? error.message : "No se pudo registrar el adelanto";
+      const errorMessage =
+        (error as { message?: string })?.message ||
+        (error as { details?: string })?.details ||
+        (error as { hint?: string })?.hint ||
+        "No se pudo registrar el adelanto";
       toast({
         title: "❌ Error al registrar adelanto",
         description: errorMessage,
@@ -738,66 +743,25 @@ export default function Finanzas() {
       setRegistrandoAdelanto(true);
 
       const { data: userData } = await supabase.auth.getUser();
-      const { data: abonoData, error: abonoError } = await supabase
-        .from('abonos_productor')
-        .insert({
-          productor_id: productorObjetivoId,
-          monto,
-          metodo_pago: metodoPagoCxp,
-          referencia: referenciaPagoCxp.trim() || null,
-          notas: `Aplicación parcial a ${ticketsAplicablesCxp.length} nota(s) desde CxP`,
-          usuario_id: userData.user?.id || null,
-        })
-        .select('id')
-        .single();
 
-      if (abonoError || !abonoData) throw abonoError || new Error("No se pudo crear el abono");
+      const { data, error } = await supabase.rpc('aplicar_pago_cxp' as never, {
+        p_productor_id: productorObjetivoId,
+        p_cxp_ids: ticketsAplicablesCxp.map((ticket) => ticket.id),
+        p_monto: monto,
+        p_forma_pago: metodoPagoCxp,
+        p_referencia: referenciaPagoCxp.trim() || null,
+        p_usuario_id: userData.user?.id || null,
+      } as never);
 
-      let restante = monto;
-      const ticketsOrdenados = [...ticketsAplicablesCxp].sort((a, b) => b.antiguedadDias - a.antiguedadDias);
+      if (error) throw error;
 
-      for (const ticket of ticketsOrdenados) {
-        if (restante <= 0) break;
-        const aplicar = Math.min(restante, ticket.saldoPendiente);
-        if (aplicar <= 0) continue;
-
-        const nuevoMontoPagado = ticket.montoPagado + aplicar;
-        const nuevoSaldoPendiente = Math.max(0, ticket.saldoPendiente - aplicar);
-        const nuevoEstado = nuevoSaldoPendiente <= 0 ? 'pagado' : 'pendiente';
-
-        const { error: updateError } = await supabase
-          .from('cuentas_por_pagar')
-          .update({
-            monto_pagado: nuevoMontoPagado,
-            saldo_pendiente: nuevoSaldoPendiente,
-            estado: nuevoEstado,
-          })
-          .eq('id', ticket.id);
-
-        if (updateError) throw updateError;
-
-        const { error: asignacionError } = await supabase
-          .from('abono_asignaciones')
-          .insert({
-            abono_id: abonoData.id,
-            cxp_id: ticket.id,
-            monto_aplicado: aplicar,
-          });
-
-        if (asignacionError) throw asignacionError;
-        restante -= aplicar;
-      }
-
-      if (restante > 0.009) {
-        throw new Error("No se pudo aplicar el monto completo a las notas seleccionadas.");
+      const resultado = Array.isArray(data) ? (data as AplicarPagoCxpResultado[])[0] : null;
+      if (!resultado?.success) {
+        throw new Error(resultado?.mensaje || "No se pudo registrar el adelanto");
       }
 
       await refreshProductores();
       setCxpRefreshKey((prev) => prev + 1);
-      if (productores.length > 0) {
-        const productoresActualizados = [...productores];
-        setProductores(productoresActualizados);
-      }
 
       toast({
         title: "✅ Pago parcial aplicado",
@@ -810,11 +774,14 @@ export default function Finanzas() {
       // Recargar resumen para reflejar saldos por nota actualizados
       setProductorCxpSeleccionado(productorObjetivoId);
     } catch (error) {
-      console.error('Error al registrar adelanto:', error);
-      const errorMessage = error instanceof Error ? error.message : "No se pudo registrar el adelanto";
+      console.error('Error al aplicar pago CxP:', error);
+      const rawMessage =
+        (error as { message?: string })?.message ||
+        (error as { details?: string })?.details ||
+        "No se pudo registrar el adelanto";
       toast({
-        title: "❌ Error al registrar adelanto",
-        description: errorMessage,
+        title: "❌ Error al aplicar el pago",
+        description: rawMessage,
         variant: "destructive"
       });
     } finally {
@@ -960,7 +927,11 @@ export default function Finanzas() {
 
     } catch (error) {
       console.error('Error al guardar liquidación:', error);
-      const rawMessage = error instanceof Error ? error.message : "No se pudo guardar la liquidación";
+      const rawMessage =
+        (error as { message?: string })?.message ||
+        (error as { details?: string })?.details ||
+        (error as { hint?: string })?.hint ||
+        "No se pudo guardar la liquidación";
       const errorMessage = liquidacionMensajeFriendly(rawMessage);
       toast({
         title: "❌ No se pudo registrar la liquidación",

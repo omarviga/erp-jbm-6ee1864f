@@ -2496,6 +2496,22 @@ export type Database = {
           success: boolean
         }[]
       }
+      aplicar_pago_cxp: {
+        Args: {
+          p_productor_id: string
+          p_cxp_ids: string[]
+          p_monto: number
+          p_forma_pago?: Database["public"]["Enums"]["forma_pago"]
+          p_referencia?: string
+          p_usuario_id?: string
+        }
+        Returns: {
+          success: boolean
+          mensaje: string
+          abono_id: string
+          nuevo_saldo_productor: number
+        }[]
+      }
       registrar_merma_granel_cdmx: {
         Args: { p_kilos: number; p_motivo: string; p_presentacion_id: string }
         Returns: {
