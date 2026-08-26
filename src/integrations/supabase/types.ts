@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -1826,7 +1826,7 @@ export type Database = {
       produccion_insumos: {
         Row: {
           cantidad: number
-          costo_total: number
+          costo_total: number | null
           costo_unitario: number
           created_at: string
           id: string
@@ -1835,7 +1835,7 @@ export type Database = {
         }
         Insert: {
           cantidad: number
-          costo_total?: number
+          costo_total?: number | null
           costo_unitario?: number
           created_at?: string
           id?: string
@@ -1844,7 +1844,7 @@ export type Database = {
         }
         Update: {
           cantidad?: number
-          costo_total?: number
+          costo_total?: number | null
           costo_unitario?: number
           created_at?: string
           id?: string
@@ -2506,6 +2506,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      aplicar_pago_cxp: {
+        Args: {
+          p_cxp_ids: string[]
+          p_forma_pago?: Database["public"]["Enums"]["forma_pago"]
+          p_monto: number
+          p_productor_id: string
+          p_referencia?: string
+          p_usuario_id?: string
+        }
+        Returns: {
+          abono_id: string
+          mensaje: string
+          nuevo_saldo_productor: number
+          success: boolean
+        }[]
+      }
       calcular_efectivo_teorico_corte: {
         Args: { p_fecha_fin: string; p_fecha_inicio: string }
         Returns: number
@@ -2562,7 +2578,7 @@ export type Database = {
           p_activa?: boolean
           p_calidad: Database["public"]["Enums"]["calidad_limon"]
           p_detalles?: Json
-          p_presentacion_id?: string
+          p_presentacion_id: string
         }
         Returns: string
       }
@@ -2643,7 +2659,7 @@ export type Database = {
       }
       registrar_adelanto_productor: {
         Args: {
-          p_forma_pago: Database["public"]["Enums"]["forma_pago"]
+          p_forma_pago?: Database["public"]["Enums"]["forma_pago"]
           p_monto: number
           p_productor_id: string
           p_referencia?: string
@@ -2655,25 +2671,41 @@ export type Database = {
           success: boolean
         }[]
       }
-      aplicar_pago_cxp: {
+      registrar_baja_merma: {
         Args: {
-          p_productor_id: string
-          p_cxp_ids: string[]
-          p_monto: number
-          p_forma_pago?: Database["public"]["Enums"]["forma_pago"]
-          p_referencia?: string
-          p_usuario_id?: string
+          p_cantidad_mermada: number
+          p_lote_id: string
+          p_motivo: string
+          p_registro_camara_id: string
+          p_usuario_id: string
         }
-        Returns: {
-          success: boolean
-          mensaje: string
-          abono_id: string
-          nuevo_saldo_productor: number
-        }[]
+        Returns: undefined
       }
       registrar_entrada_insumos_compra: {
         Args: { p_insumos: Json; p_referencia: string }
         Returns: Json
+      }
+      registrar_envio_cdmx: {
+        Args: {
+          p_cantidad_enviar: number
+          p_lote_id: string
+          p_precio_base_congelado: number
+          p_referencia_viaje: string
+          p_registro_camara_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
+      registrar_envio_cdmx_transporte_directo: {
+        Args: {
+          p_cantidad_enviar: number
+          p_lote_id: string
+          p_precio_base_congelado: number
+          p_produccion_id: string
+          p_referencia_viaje: string
+          p_usuario_id: string
+        }
+        Returns: undefined
       }
       registrar_merma_granel_cdmx: {
         Args: { p_kilos: number; p_motivo: string; p_presentacion_id: string }
@@ -2692,7 +2724,7 @@ export type Database = {
           p_destino: Database["public"]["Enums"]["destino_produccion"]
           p_lote_id: string
           p_peso_total_kg: number
-          p_presentacion_id?: string
+          p_presentacion_id: string
         }
         Returns: {
           costo_fruta: number
@@ -2768,6 +2800,19 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      sync_productor_saldo_pendiente: {
+        Args: { p_productor_id: string }
+        Returns: number
+      }
+      trasladar_a_camara_fria: {
+        Args: {
+          p_cantidad: number
+          p_lote_id: string
+          p_produccion_id: string
+          p_usuario_id: string
+        }
+        Returns: undefined
       }
       validar_ruta: {
         Args: { p_dominio: string; p_ruta: string }
