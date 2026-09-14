@@ -21,6 +21,7 @@ import {
   Image,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { pdfToBase64Images } from "@/lib/pdfToImages";
 
 interface InsumoExtraido {
   nombre: string;
@@ -87,21 +88,25 @@ export function ComprasTab() {
     setDatosFactura(null);
 
     try {
-      // Convert file to base64
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          // Remove the data URL prefix
-          const base64Data = result.split(",")[1];
-          resolve(base64Data);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      let base64: string;
 
-      // Create preview for images
-      if (file.type.startsWith("image/")) {
+      if (file.type === "application/pdf") {
+        toast.info("Convirtiendo PDF a imagen...");
+        const images = await pdfToBase64Images(file);
+        if (images.length === 0) {
+          throw new Error("No se pudo convertir el PDF a imagen");
+        }
+        base64 = images[0];
+      } else {
+        base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.split(",")[1]);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
         setImagenPreview(URL.createObjectURL(file));
       }
 

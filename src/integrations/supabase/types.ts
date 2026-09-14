@@ -1456,84 +1456,123 @@ export type Database = {
       }
       lotes: {
         Row: {
+          bascula_forma_pago: string
           calidad_defectos: number | null
+          chofer: string | null
           cliente_maquila_id: string | null
           costo_bascula: number | null
           created_at: string
+          cuota_maniobra_kg: number
+          cuota_maniobra_total: number
           es_cosecha_propia: boolean | null
           es_maquila: boolean | null
           estado: Database["public"]["Enums"]["estado_lote"]
           estado_calidad: string | null
           fecha_recepcion: string
           folio_fisico: string | null
+          folio_recepcion: string | null
           huerto_id: string | null
           id: string
           kilos_merma: number | null
           notas: string | null
           numero_lote: string
           origen: string | null
+          pago_cortadores_total: number
           peso_bruto: number
+          peso_bruto_at: string | null
           peso_neto: number | null
           peso_pagable: number | null
           peso_tara: number
+          peso_tara_at: string | null
+          placas: string | null
+          precio_caja_cortador: number
           precio_pactado_kg: number | null
           productor_id: string | null
+          rejas: number | null
+          tara_rejas_kg: number
           updated_at: string
           usuario_id: string | null
+          variedad: string | null
           zona_asignada: string | null
         }
         Insert: {
+          bascula_forma_pago?: string
           calidad_defectos?: number | null
+          chofer?: string | null
           cliente_maquila_id?: string | null
           costo_bascula?: number | null
           created_at?: string
+          cuota_maniobra_kg?: number
+          cuota_maniobra_total?: number
           es_cosecha_propia?: boolean | null
           es_maquila?: boolean | null
           estado?: Database["public"]["Enums"]["estado_lote"]
           estado_calidad?: string | null
           fecha_recepcion?: string
           folio_fisico?: string | null
+          folio_recepcion?: string | null
           huerto_id?: string | null
           id?: string
           kilos_merma?: number | null
           notas?: string | null
           numero_lote: string
           origen?: string | null
+          pago_cortadores_total?: number
           peso_bruto: number
+          peso_bruto_at?: string | null
           peso_neto?: number | null
           peso_pagable?: number | null
           peso_tara?: number
+          peso_tara_at?: string | null
+          placas?: string | null
+          precio_caja_cortador?: number
           precio_pactado_kg?: number | null
           productor_id?: string | null
+          rejas?: number | null
+          tara_rejas_kg?: number
           updated_at?: string
           usuario_id?: string | null
+          variedad?: string | null
           zona_asignada?: string | null
         }
         Update: {
+          bascula_forma_pago?: string
           calidad_defectos?: number | null
+          chofer?: string | null
           cliente_maquila_id?: string | null
           costo_bascula?: number | null
           created_at?: string
+          cuota_maniobra_kg?: number
+          cuota_maniobra_total?: number
           es_cosecha_propia?: boolean | null
           es_maquila?: boolean | null
           estado?: Database["public"]["Enums"]["estado_lote"]
           estado_calidad?: string | null
           fecha_recepcion?: string
           folio_fisico?: string | null
+          folio_recepcion?: string | null
           huerto_id?: string | null
           id?: string
           kilos_merma?: number | null
           notas?: string | null
           numero_lote?: string
           origen?: string | null
+          pago_cortadores_total?: number
           peso_bruto?: number
+          peso_bruto_at?: string | null
           peso_neto?: number | null
           peso_pagable?: number | null
           peso_tara?: number
+          peso_tara_at?: string | null
+          placas?: string | null
+          precio_caja_cortador?: number
           precio_pactado_kg?: number | null
           productor_id?: string | null
+          rejas?: number | null
+          tara_rejas_kg?: number
           updated_at?: string
           usuario_id?: string | null
+          variedad?: string | null
           zona_asignada?: string | null
         }
         Relationships: [
@@ -2685,6 +2724,21 @@ export type Database = {
         Args: { p_insumos: Json; p_referencia: string }
         Returns: Json
       }
+      registrar_recepcion: {
+        Args: { p_datos: Json }
+        Returns: {
+          bascula_forma_pago: string
+          costo_bascula: number
+          cuota_maniobra_total: number
+          folio_recepcion: string
+          lote_id: string
+          numero_lote: string
+          peso_neto: number
+          saldo_pendiente_productor: number
+          subtotal: number
+          total_liquidar: number
+        }[]
+      }
       registrar_envio_cdmx: {
         Args: {
           p_cantidad_enviar: number
@@ -2801,6 +2855,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      siguiente_folio_recepcion: { Args: never; Returns: string }
       sync_productor_saldo_pendiente: {
         Args: { p_productor_id: string }
         Returns: number
