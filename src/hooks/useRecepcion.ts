@@ -31,29 +31,25 @@ export interface CortadorDelLote {
 
 export interface DatosRecepcion {
   productor_id: string;
+  /** Solo aplica a cosecha propia. */
   huerto_id?: string | null;
   es_cosecha_propia?: boolean;
   origen?: string;
   /** Peso del camión cargado (primera pesada). */
   peso_bruto: number;
-  /** Tara total: vehículo vacío + rejas/tarimas. */
+  /** Tara del vehículo vacío (segunda pesada). */
   peso_tara: number;
-  /** Desglose de la tara de rejas/tarimas incluida en peso_tara. */
-  tara_rejas_kg?: number;
   precio_pactado_kg: number;
   precio_caja_cortador?: number;
   zona_asignada?: string;
   costo_bascula: number;
   bascula_forma_pago?: FormaPagoBascula;
   cuota_maniobra_kg?: number;
+  cuota_maniobra_concepto?: string;
+  operador_bascula?: string;
   folio_fisico?: string;
   numero_lote?: string;
   variedad?: string | null;
-  chofer?: string | null;
-  placas?: string | null;
-  rejas?: number | null;
-  peso_bruto_at?: string;
-  peso_tara_at?: string | null;
   calidad_defectos?: number;
   estado_calidad?: string;
   notas?: string;
@@ -271,21 +267,17 @@ export function useRecepcion() {
           origen: datos.origen ?? (datos.es_cosecha_propia ? "interno" : "externo"),
           peso_bruto: datos.peso_bruto,
           peso_tara: datos.peso_tara,
-          tara_rejas_kg: datos.tara_rejas_kg ?? 0,
           precio_pactado_kg: datos.precio_pactado_kg,
           precio_caja_cortador: datos.precio_caja_cortador ?? 0,
           zona_asignada: datos.zona_asignada ?? "linea_produccion",
           costo_bascula: datos.costo_bascula,
           bascula_forma_pago: datos.bascula_forma_pago ?? "liquidacion",
           cuota_maniobra_kg: datos.cuota_maniobra_kg ?? 0,
+          cuota_maniobra_concepto: datos.cuota_maniobra_concepto ?? "",
+          operador_bascula: datos.operador_bascula ?? "",
           folio_fisico: datos.folio_fisico ?? "",
           numero_lote: numeroLote,
           variedad: datos.variedad ?? null,
-          chofer: datos.chofer ?? null,
-          placas: datos.placas ?? null,
-          rejas: datos.rejas ?? null,
-          peso_bruto_at: datos.peso_bruto_at ?? new Date().toISOString(),
-          peso_tara_at: datos.peso_tara_at ?? null,
           calidad_defectos: datos.calidad_defectos ?? 0,
           estado_calidad: datos.estado_calidad ?? "aceptado",
           notas: datos.notas ?? "",
@@ -348,17 +340,13 @@ export function useRecepcion() {
         const completo: LoteInsert = {
           ...base,
           variedad: datos.variedad ?? null,
-          chofer: datos.chofer ?? null,
-          placas: datos.placas ?? null,
-          rejas: datos.rejas ?? null,
-          tara_rejas_kg: datos.tara_rejas_kg ?? 0,
           bascula_forma_pago: datos.bascula_forma_pago ?? "liquidacion",
           cuota_maniobra_kg: datos.cuota_maniobra_kg ?? 0,
           cuota_maniobra_total: maniobraTotal,
+          cuota_maniobra_concepto: datos.cuota_maniobra_concepto ?? null,
+          operador_bascula: datos.operador_bascula ?? null,
           precio_caja_cortador: datos.precio_caja_cortador ?? 0,
           pago_cortadores_total: pagoCortadores,
-          peso_bruto_at: datos.peso_bruto_at ?? new Date().toISOString(),
-          peso_tara_at: datos.peso_tara_at ?? null,
         };
 
         let { data: lote, error: insertError } = await supabase
@@ -374,7 +362,7 @@ export function useRecepcion() {
             insertError
           );
           setAvisoGuardar(
-            "Se guardó con el esquema original de la base: aplica la migración 20260813090000 para habilitar folio consecutivo, transporte, cuotas y cortadores."
+            "Se guardó con el esquema original de la base: aplica la migración 20260813090000 para habilitar folio consecutivo, cuotas y cortadores."
           );
 
           // No se puede pedir folio_recepcion en el select: la columna

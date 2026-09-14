@@ -5,161 +5,143 @@ import {
   calcularPagoCortador,
   calcularRecepcion,
   formatearFolioRecepcion,
+  nombreDesdeEmail,
   obtenerDictamen,
-  validarPasoRecepcion,
+  validarRecepcion,
+  CONCEPTO_MANIOBRA_DEFAULT,
+  TARIFA_MANIOBRA_DEFAULT,
   type EntradaCalculoRecepcion,
+  type EntradaValidacionRecepcion,
   type PrecioHistorico,
 } from "./calculos";
 
 const entradaBase: EntradaCalculoRecepcion = {
-  pesoBruto: 10000,
-  taraVehiculo: 3200,
-  taraRejasKg: 0,
-  precioKg: 5,
+  pesoBruto: 14500,
+  taraVehiculo: 4200,
+  precioKg: 18.5,
   defectosPct: 0,
-  incluirBascula: false,
+  incluirBascula: true,
   costoBascula: 50,
   basculaFormaPago: "liquidacion",
-  incluirManiobra: false,
-  cuotaManiobraKg: 0,
-  rejas: 0,
-  segundaPesadaCapturada: true,
-  requiereHuerto: false,
-  huertoSeleccionado: false,
+  incluirManiobra: true,
+  cuotaManiobraKg: 0.4,
 };
 
 describe("calcularRecepcion", () => {
-  it("calcula el peso neto descontando la tara del vehículo", () => {
+  it("calcula peso neto, subtotal y deducciones como el flujo operativo", () => {
     const resultado = calcularRecepcion(entradaBase);
 
-    expect(resultado.taraTotal).toBe(3200);
-    expect(resultado.pesoNetoFisico).toBe(6800);
-    expect(resultado.pesoNeto).toBe(6800);
-    expect(resultado.subtotal).toBe(34000);
-    expect(resultado.totalLiquidar).toBe(34000);
-    expect(resultado.errores).toEqual([]);
+    expect(resultado.taraTotal).toBe(4200);
+    expect(resultado.pesoNeto).toBe(10300);
+    expect(resultado.subtotal).toBe(190550);
+    expect(resultado.cuotaManiobraTotal).toBe(4120);
+    expect(resultado.basculaDescontada).toBe(50);
+    expect(resultado.totalDeducciones).toBe(4170);
+    expect(resultado.totalLiquidar).toBe(186380);
+    expect(resultado.precioNetoEfectivo).toBe(18.1);
   });
 
-  it("suma la tara de rejas/tarimas dentro de la tara total", () => {
+  it("aplica la tara como única deducción de peso", () => {
     const resultado = calcularRecepcion({
       ...entradaBase,
-      taraRejasKg: 180,
-      rejas: 12,
+      pesoBruto: 12450,
+      taraVehiculo: 4200,
+      precioKg: 18,
+      costoBascula: 120,
+      incluirManiobra: true,
+      cuotaManiobraKg: 0.4,
     });
 
-    expect(resultado.taraTotal).toBe(3380);
-    expect(resultado.pesoNeto).toBe(6620);
-    expect(resultado.subtotal).toBe(33100);
+    expect(resultado.pesoNeto).toBe(8250);
+    expect(resultado.subtotal).toBe(148500);
+    expect(resultado.cuotaManiobraTotal).toBe(3300);
+    expect(resultado.totalDeducciones).toBe(3420);
+    expect(resultado.totalLiquidar).toBe(145080);
+    // 145080 / 8250 = 17.5854... → 17.59 con dos decimales
+    expect(resultado.precioNetoEfectivo).toBe(17.59);
   });
 
   it("registra la merma por defectos sin descontarla del pago (regla de peso neto)", () => {
     const resultado = calcularRecepcion({ ...entradaBase, defectosPct: 15 });
 
-    expect(resultado.kilosMerma).toBe(1020);
-    expect(resultado.pesoNeto).toBe(6800);
-    expect(resultado.subtotal).toBe(34000);
+    expect(resultado.kilosMerma).toBe(1545);
+    expect(resultado.pesoNeto).toBe(10300);
+    expect(resultado.subtotal).toBe(190550);
     expect(resultado.dictamen).toBe("observado");
   });
 
-  it("descuenta la báscula cuando se liquida contra el lote", () => {
+  it("no descuenta la báscula cuando se pagó en efectivo al momento", () => {
     const resultado = calcularRecepcion({
       ...entradaBase,
-      incluirBascula: true,
-      basculaFormaPago: "liquidacion",
-    });
-
-    expect(resultado.basculaDescontada).toBe(50);
-    expect(resultado.basculaEnEfectivo).toBe(0);
-    expect(resultado.totalDeducciones).toBe(50);
-    expect(resultado.totalLiquidar).toBe(33950);
-  });
-
-  it("no descuenta la báscula cuando se cobró en efectivo al momento", () => {
-    const resultado = calcularRecepcion({
-      ...entradaBase,
-      incluirBascula: true,
       basculaFormaPago: "efectivo",
+      incluirManiobra: false,
+      cuotaManiobraKg: 0,
     });
 
     expect(resultado.basculaDescontada).toBe(0);
     expect(resultado.basculaEnEfectivo).toBe(50);
-    expect(resultado.totalLiquidar).toBe(34000);
+    expect(resultado.totalDeducciones).toBe(0);
+    expect(resultado.totalLiquidar).toBe(190550);
     expect(
       resultado.advertencias.some((a) => a.includes("efectivo"))
     ).toBe(true);
   });
 
-  it("cobra la maniobra por kilo sobre el peso neto junto con la báscula", () => {
+  it("ignora la báscula y la maniobra cuando vienen desactivadas", () => {
     const resultado = calcularRecepcion({
       ...entradaBase,
-      incluirBascula: true,
-      basculaFormaPago: "liquidacion",
-      incluirManiobra: true,
-      cuotaManiobraKg: 0.35,
+      incluirBascula: false,
+      incluirManiobra: false,
     });
 
-    expect(resultado.cuotaManiobraTotal).toBe(2380);
-    expect(resultado.totalDeducciones).toBe(2430);
-    expect(resultado.totalLiquidar).toBe(31570);
+    expect(resultado.costoBascula).toBe(0);
+    expect(resultado.cuotaManiobraTotal).toBe(0);
+    expect(resultado.totalDeducciones).toBe(0);
+    expect(resultado.totalLiquidar).toBe(resultado.subtotal);
   });
 
   it("nunca deja el total a liquidar en negativo", () => {
     const resultado = calcularRecepcion({
       ...entradaBase,
       precioKg: 0.01,
-      incluirBascula: true,
-      basculaFormaPago: "liquidacion",
       costoBascula: 500,
+      cuotaManiobraKg: 1,
     });
 
     expect(resultado.totalLiquidar).toBe(0);
+    expect(resultado.precioNetoEfectivo).toBe(0);
   });
 
-  it("bloquea el registro cuando la tara es mayor o igual al peso bruto", () => {
-    const resultado = calcularRecepcion({
-      ...entradaBase,
-      pesoBruto: 3000,
-      taraVehiculo: 3200,
-    });
-
-    expect(resultado.pesoNetoFisico).toBe(0);
-    expect(resultado.errores).toHaveLength(1);
-    expect(resultado.errores[0]).toContain("tara total");
-  });
-
-  it("exige huerto en cosecha propia", () => {
-    const resultado = calcularRecepcion({
-      ...entradaBase,
-      requiereHuerto: true,
-      huertoSeleccionado: false,
-    });
-
-    expect(resultado.errores).toContain(
-      "La cosecha propia requiere seleccionar el huerto de origen."
-    );
-  });
-
-  it("rechaza el lote con 20% o más de defectos", () => {
-    const resultado = calcularRecepcion({ ...entradaBase, defectosPct: 20 });
-
-    expect(resultado.dictamen).toBe("rechazado");
-    expect(resultado.errores.some((e) => e.includes("no puede ingresar"))).toBe(
-      true
-    );
-  });
-
-  it("advierte cuando falta la segunda pesada o la tara de rejas", () => {
-    const resultado = calcularRecepcion({
+  it("advierte cuando la tara es inválida o falta", () => {
+    const sinTara = calcularRecepcion({
       ...entradaBase,
       taraVehiculo: 0,
-      segundaPesadaCapturada: false,
-      rejas: 10,
-      taraRejasKg: 0,
     });
+    expect(
+      sinTara.advertencias.some((a) => a.includes("Falta la tara"))
+    ).toBe(true);
 
-    expect(resultado.advertencias).toHaveLength(2);
-    expect(resultado.advertencias[0]).toContain("segunda pesada");
-    expect(resultado.advertencias[1]).toContain("10 reja");
+    const taraMayor = calcularRecepcion({
+      ...entradaBase,
+      taraVehiculo: 15000,
+    });
+    expect(
+      taraMayor.advertencias.some((a) => a.includes("no puede ser mayor o igual"))
+    ).toBe(true);
+    expect(taraMayor.pesoNeto).toBe(0);
+  });
+
+  it("advierte cuando el precio está en cero y cuando el lote se rechaza", () => {
+    const sinPrecio = calcularRecepcion({ ...entradaBase, precioKg: 0 });
+    expect(
+      sinPrecio.advertencias.some((a) => a.includes("no generará pago"))
+    ).toBe(true);
+
+    const rechazado = calcularRecepcion({ ...entradaBase, defectosPct: 20 });
+    expect(rechazado.dictamen).toBe("rechazado");
+    expect(
+      rechazado.advertencias.some((a) => a.includes("no puede ingresar"))
+    ).toBe(true);
   });
 
   it("tolera entradas vacías sin romper los cálculos", () => {
@@ -172,8 +154,9 @@ describe("calcularRecepcion", () => {
     });
 
     expect(resultado.pesoNeto).toBe(0);
+    expect(resultado.subtotal).toBe(0);
     expect(resultado.totalLiquidar).toBe(0);
-    expect(resultado.errores[0]).toContain("peso bruto");
+    expect(resultado.precioNetoEfectivo).toBe(0);
   });
 });
 
@@ -187,67 +170,75 @@ describe("obtenerDictamen", () => {
   });
 });
 
-describe("validarPasoRecepcion", () => {
-  const base = {
-    origen: "terceros" as const,
-    folioFisico: "B-1029",
+describe("validarRecepcion", () => {
+  const base: EntradaValidacionRecepcion = {
+    origen: "terceros",
     productorId: "productor-1",
     huertoId: "",
-    variedad: "Limón Persa",
-    pesoBruto: 10000,
-    taraTotal: 3200,
-    precioKg: 5,
-    dictamen: "aceptado" as const,
+    pesoBruto: 14500,
+    taraTotal: 4200,
+    precioKg: 18.5,
+    operadorBascula: "Carlos Barragán",
+    dictamen: "aceptado",
   };
 
-  it("no bloquea el paso 1 con lo mínimo capturado", () => {
-    expect(validarPasoRecepcion({ ...base, paso: 1 })).toEqual([]);
+  it("no bloquea con los datos completos de una compra a terceros", () => {
+    expect(validarRecepcion(base)).toEqual([]);
   });
 
-  it("exige huerto y variedad en cosecha propia", () => {
-    const errores = validarPasoRecepcion({
-      ...base,
-      paso: 1,
-      origen: "propia",
-      huertoId: "",
-      variedad: "",
-    });
+  it("no exige huerto en compra a terceros pero sí en cosecha propia", () => {
+    expect(validarRecepcion(base)).toEqual([]);
 
-    expect(errores).toHaveLength(2);
-    expect(errores[0]).toContain("huerto de procedencia");
-    expect(errores[1]).toContain("variedad");
+    const propia = validarRecepcion({ ...base, origen: "propia" });
+    expect(propia).toHaveLength(1);
+    expect(propia[0]).toContain("huerto de procedencia");
   });
 
-  it("exige peso bruto válido en el paso 2", () => {
-    const errores = validarPasoRecepcion({
+  it("exige productor, peso bruto y tara", () => {
+    const errores = validarRecepcion({
       ...base,
-      paso: 2,
+      productorId: "",
       pesoBruto: 0,
     });
 
-    expect(errores[0]).toContain("peso bruto");
+    expect(errores.some((e) => e.includes("productor"))).toBe(true);
+    expect(errores.some((e) => e.includes("peso bruto"))).toBe(true);
+  });
+
+  it("exige la tara del vehículo (segunda pesada)", () => {
+    const errores = validarRecepcion({ ...base, taraTotal: 0 });
+
+    expect(errores).toHaveLength(1);
+    expect(errores[0]).toContain("tara del vehículo");
+  });
+
+  it("bloquea cuando la tara es mayor o igual al peso bruto", () => {
+    const errores = validarRecepcion({ ...base, taraTotal: 14500 });
+
+    expect(errores[0]).toContain("menor al peso bruto");
   });
 
   it("exige precio solo en compra a terceros", () => {
+    expect(validarRecepcion({ ...base, precioKg: 0 })).toHaveLength(1);
     expect(
-      validarPasoRecepcion({ ...base, paso: 3, precioKg: 0 })
-    ).toHaveLength(1);
-    expect(
-      validarPasoRecepcion({
+      validarRecepcion({
         ...base,
-        paso: 3,
         precioKg: 0,
         origen: "propia",
+        huertoId: "huerto-1",
       })
     ).toHaveLength(0);
   });
 
-  it("bloquea la confirmación cuando el dictamen es rechazado", () => {
-    const errores = validarPasoRecepcion({
-      ...base,
-      paso: 4,
-      dictamen: "rechazado",
-    });
+  it("exige el operador de báscula responsable", () => {
+    const errores = validarRecepcion({ ...base, operadorBascula: "   " });
+
+    expect(errores).toHaveLength(1);
+    expect(errores[0]).toContain("operador de báscula");
+  });
+
+  it("bloquea el registro cuando el dictamen es rechazado", () => {
+    const errores = validarRecepcion({ ...base, dictamen: "rechazado" });
 
     expect(errores[0]).toContain("RECHAZADO");
   });
@@ -260,21 +251,21 @@ describe("calcularHistorialPrecios", () => {
       fecha: "2026-03-10T10:00:00.000Z",
       precio: 6,
       kilos: 1000,
-      variedad: "Limón Persa",
+      variedad: "Limón Mexicano",
     },
     {
       folio: "REC-2026-002",
       fecha: "2026-03-05T10:00:00.000Z",
       precio: 4,
       kilos: 900,
-      variedad: "Limón Persa",
+      variedad: "Limón Mexicano",
     },
     {
       folio: "REC-2026-001",
       fecha: "2026-03-01T10:00:00.000Z",
       precio: 5,
       kilos: 800,
-      variedad: "Limón Persa",
+      variedad: "Limón Mexicano",
     },
   ];
 
@@ -312,5 +303,17 @@ describe("utilidades varias", () => {
     expect(formatearFolioRecepcion(2026, 1)).toBe("REC-2026-001");
     expect(formatearFolioRecepcion(2026, 42)).toBe("REC-2026-042");
     expect(formatearFolioRecepcion(2026, 1234)).toBe("REC-2026-1234");
+  });
+
+  it("sugiere el nombre del operador a partir del correo", () => {
+    expect(nombreDesdeEmail("carlos.barragan@jbm.com.mx")).toBe("Carlos Barragan");
+    expect(nombreDesdeEmail("arturo_mendoza@jbm.com.mx")).toBe("Arturo Mendoza");
+    expect(nombreDesdeEmail("")).toBe("");
+    expect(nombreDesdeEmail(null)).toBe("");
+  });
+
+  it("expone los valores habituales del cargo operativo", () => {
+    expect(TARIFA_MANIOBRA_DEFAULT).toBe(0.4);
+    expect(CONCEPTO_MANIOBRA_DEFAULT).toBe("Servicios operativos y maniobra");
   });
 });

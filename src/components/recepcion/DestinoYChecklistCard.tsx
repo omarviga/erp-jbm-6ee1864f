@@ -1,12 +1,7 @@
 import { CheckCircle2, Circle, MapPin, PackageCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-export interface ItemChecklist {
-  etiqueta: string;
-  listo: boolean;
-  obligatorio: boolean;
-}
+import type { ItemChecklist } from "./tipos";
 
 interface DestinoYChecklistCardProps {
   items: ItemChecklist[];

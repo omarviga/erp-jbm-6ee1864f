@@ -15,13 +15,9 @@ export interface TicketRecepcion {
   huerto: string;
   localidad: string;
   variedad: string;
-  chofer: string;
-  placas: string;
-  rejas: string;
+  operador: string;
   pesoBruto: number;
-  taraVehiculo: number;
-  taraRejas: number;
-  taraTotal: number;
+  tara: number;
   pesoNeto: number;
   kilosMerma: number;
   defectosPct: number;
@@ -29,8 +25,12 @@ export interface TicketRecepcion {
   subtotal: number;
   costoBascula: number;
   basculaFormaPago: FormaPagoBascula;
+  cuotaManiobraKg: number;
+  cuotaManiobraConcepto: string;
   cuotaManiobra: number;
+  totalDeducciones: number;
   total: number;
+  precioNetoEfectivo: number;
   fecha: string;
   statusUrl: string;
   /** true cuando el ticket muestra la captura en curso, no un lote guardado. */
@@ -42,6 +42,9 @@ interface TicketBasculaProps {
   onImprimir: () => void;
 }
 
+const formatearKilos = (valor: number): string =>
+  valor.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
   return (
     <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
@@ -51,16 +54,19 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
             <Printer className="h-5 w-5" aria-hidden="true" />
           </div>
           <div>
-            <h3 className="text-xl font-bold">Boleta y ticket térmico (80 mm)</h3>
+            <h3 className="text-xl font-bold">Vista previa exacta del ticket</h3>
             <p className="text-sm text-muted-foreground">
               {ticket.borrador
-                ? "Vista previa de la captura en curso"
+                ? "Captura en curso"
                 : `Boleta del lote ${ticket.numeroLote}`}
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="border-slate-300 text-xs">
+            Prueba 80mm
+          </Badge>
           <Badge
             variant="outline"
             className={
@@ -158,18 +164,10 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
                 <span className="text-right">{ticket.variedad}</span>
               </div>
             )}
-            {(ticket.placas || ticket.chofer) && (
+            {ticket.operador && (
               <div className="flex justify-between gap-2">
-                <span className="font-semibold">TRANSPORTE</span>
-                <span className="text-right">
-                  {[ticket.placas, ticket.chofer].filter(Boolean).join(" · ")}
-                </span>
-              </div>
-            )}
-            {ticket.rejas && (
-              <div className="flex justify-between gap-2">
-                <span className="font-semibold">REJAS</span>
-                <span className="text-right">{ticket.rejas}</span>
+                <span className="font-semibold">OPERADOR</span>
+                <span className="text-right">{ticket.operador}</span>
               </div>
             )}
           </div>
@@ -180,25 +178,15 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
             </p>
             <div className="flex justify-between">
               <span>1ª PESADA (BRUTO)</span>
-              <span>{ticket.pesoBruto.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
+              <span>{formatearKilos(ticket.pesoBruto)}</span>
             </div>
             <div className="flex justify-between">
-              <span>2ª PESADA (TARA VEH.)</span>
-              <span>- {ticket.taraVehiculo.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
-            </div>
-            {ticket.taraRejas > 0 && (
-              <div className="flex justify-between">
-                <span>TARA REJAS/TARIMAS</span>
-                <span>- {ticket.taraRejas.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="font-semibold">TARA TOTAL</span>
-              <span>- {ticket.taraTotal.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
+              <span>2ª PESADA (TARA)</span>
+              <span>- {formatearKilos(ticket.tara)}</span>
             </div>
             <div className="mt-1 flex justify-between border-t border-dashed border-slate-300 pt-1.5 text-[16px] font-black">
               <span>NETO</span>
-              <span>{ticket.pesoNeto.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</span>
+              <span>{formatearKilos(ticket.pesoNeto)}</span>
             </div>
           </div>
 
@@ -208,7 +196,7 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
               <span>{moneda(ticket.precioKg)}</span>
             </div>
             <div className="flex justify-between">
-              <span>SUBTOTAL</span>
+              <span>SUBTOTAL FRUTA</span>
               <span>{moneda(ticket.subtotal)}</span>
             </div>
             {ticket.costoBascula > 0 && (
@@ -225,13 +213,26 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
             )}
             {ticket.cuotaManiobra > 0 && (
               <div className="flex justify-between">
-                <span>MANIOBRA/ESTIBA</span>
+                <span className="max-w-[60%]">
+                  {(ticket.cuotaManiobraConcepto || "CARGO OPERATIVO").toUpperCase()}
+                  <span className="block text-[9px] text-slate-500">
+                    {moneda(ticket.cuotaManiobraKg)}/kg × {formatearKilos(ticket.pesoNeto)} kg
+                  </span>
+                </span>
                 <span>- {moneda(ticket.cuotaManiobra)}</span>
               </div>
             )}
+            <div className="flex justify-between border-t border-dashed border-slate-300 pt-1">
+              <span>TOTAL DEDUCCIONES</span>
+              <span>- {moneda(ticket.totalDeducciones)}</span>
+            </div>
             <div className="mt-2 flex items-center justify-between bg-slate-900 px-2 py-1.5 text-[15px] font-black text-white">
-              <span>TOTAL</span>
+              <span>TOTAL NETO</span>
               <span>{moneda(ticket.total)}</span>
+            </div>
+            <div className="flex justify-between pt-1">
+              <span>PRECIO NETO EFECTIVO</span>
+              <span>{moneda(ticket.precioNetoEfectivo)} / kg</span>
             </div>
           </div>
 
@@ -244,9 +245,7 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
             </div>
             <div className="flex justify-between">
               <span>MERMA ESTIMADA</span>
-              <span>
-                {ticket.kilosMerma.toLocaleString("es-MX", { minimumFractionDigits: 2 })} kg
-              </span>
+              <span>{formatearKilos(ticket.kilosMerma)} kg</span>
             </div>
             <p className="pt-1 text-[9px] leading-tight text-slate-500">
               El pago se calcula sobre el peso neto. La merma es informativa para
@@ -273,11 +272,17 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
 
           <div className="mt-5 grid grid-cols-2 gap-4 text-center text-[9px]">
             <div>
+              <p className="mb-1 truncate font-semibold">
+                {ticket.operador || "\u00A0"}
+              </p>
               <div className="border-t border-slate-500 pt-2 tracking-[0.15em]">
                 OPERADOR DE BÁSCULA
               </div>
             </div>
             <div>
+              <p className="mb-1 truncate font-semibold">
+                {ticket.productor === "SIN ASIGNAR" ? "\u00A0" : ticket.productor}
+              </p>
               <div className="border-t border-slate-500 pt-2 tracking-[0.15em]">
                 PRODUCTOR / CHOFER
               </div>

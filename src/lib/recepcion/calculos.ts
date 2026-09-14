@@ -21,24 +21,22 @@ export const DEFECTOS_RECHAZADO = 20;
 /** Comisión sobre el precio por caja que se paga al cortador. */
 export const PORCENTAJE_CORTADOR = 0.3;
 
-export const VARIEDADES_FRUTA = [
-  "Limón Persa",
-  "Limón Mexicano",
-  "Limón Colima",
-  "Limón Italiano",
-  "Naranja Valencia",
-  "Toronja",
-  "Otra",
-] as const;
+/** En la zona de operación solo se recibe Limón Mexicano. */
+export const VARIEDAD_UNICA = "Limón Mexicano";
 
-export type VariedadFruta = (typeof VARIEDADES_FRUTA)[number];
+/** Cuota habitual del cargo operativo por kilo recibido. */
+export const TARIFA_MANIOBRA_DEFAULT = 0.4;
+
+/** Concepto habitual del cargo operativo. */
+export const CONCEPTO_MANIOBRA_DEFAULT = "Servicios operativos y maniobra";
+
+/** Importe habitual del servicio de báscula. */
+export const CUOTA_BASCULA_DEFAULT = 50;
 
 export interface EntradaCalculoRecepcion {
   pesoBruto: number;
   /** Tara del vehículo vacío (segunda pesada). */
   taraVehiculo: number;
-  /** Tara estimada de rejas, huacales o tarimas. */
-  taraRejasKg: number;
   precioKg: number;
   defectosPct: number;
   incluirBascula: boolean;
@@ -46,16 +44,10 @@ export interface EntradaCalculoRecepcion {
   basculaFormaPago: FormaPagoBascula;
   incluirManiobra: boolean;
   cuotaManiobraKg: number;
-  /** Número de rejas/huacales declarados en el transporte. */
-  rejas: number;
-  /** Segunda pesada capturada (tara > 0). */
-  segundaPesadaCapturada: boolean;
-  /** La cosecha propia exige huerto para trazabilidad. */
-  requiereHuerto: boolean;
-  huertoSeleccionado: boolean;
 }
 
 export interface ResultadoCalculoRecepcion {
+  /** Tara total descontada: la del vehículo. */
   taraTotal: number;
   /** Lo que marca la báscula: bruto - tara. */
   pesoNetoFisico: number;
@@ -73,8 +65,14 @@ export interface ResultadoCalculoRecepcion {
   cuotaManiobraTotal: number;
   totalDeducciones: number;
   totalLiquidar: number;
+  /** Rendimiento neto real por kilo tras absorber las deducciones. */
+  precioNetoEfectivo: number;
   dictamen: DictamenCalidad;
-  errores: string[];
+  /**
+   * Avisos que no bloquean. Las reglas que impiden registrar la
+   * recepción viven en `validarRecepcion`, para que este módulo se
+   * limite a los números.
+   */
   advertencias: string[];
 }
 
@@ -103,15 +101,12 @@ export function calcularRecepcion(
   entrada: EntradaCalculoRecepcion
 ): ResultadoCalculoRecepcion {
   const pesoBruto = Math.max(0, aNumero(entrada.pesoBruto));
-  const taraVehiculo = Math.max(0, aNumero(entrada.taraVehiculo));
-  const taraRejasKg = Math.max(0, aNumero(entrada.taraRejasKg));
+  const taraTotal = Math.max(0, aNumero(entrada.taraVehiculo));
   const precioKg = Math.max(0, aNumero(entrada.precioKg));
   const defectosPct = Math.max(0, aNumero(entrada.defectosPct));
   const costoBascula = Math.max(0, aNumero(entrada.costoBascula));
   const cuotaManiobraKg = Math.max(0, aNumero(entrada.cuotaManiobraKg));
-  const rejas = Math.max(0, aNumero(entrada.rejas));
 
-  const taraTotal = redondear2(taraVehiculo + taraRejasKg);
   const pesoNetoFisico = redondear2(Math.max(0, pesoBruto - taraTotal));
   const kilosMerma = redondear2(pesoNetoFisico * (defectosPct / 100));
 
@@ -131,42 +126,31 @@ export function calcularRecepcion(
 
   const totalDeducciones = redondear2(basculaDescontada + cuotaManiobraTotal);
   const totalLiquidar = redondear2(Math.max(0, subtotal - totalDeducciones));
+  const precioNetoEfectivo =
+    pesoNeto > 0 ? redondear2(totalLiquidar / pesoNeto) : 0;
 
-  const errores: string[] = [];
   const advertencias: string[] = [];
-
-  if (pesoBruto <= 0) {
-    errores.push("Captura el peso bruto del camión cargado.");
-  } else if (taraTotal >= pesoBruto) {
-    errores.push(
-      `La tara total (${taraTotal.toLocaleString("es-MX")} kg) debe ser menor al peso bruto (${pesoBruto.toLocaleString("es-MX")} kg).`
-    );
-  }
 
   if (precioKg <= 0) {
     advertencias.push("El precio por kilo está en cero: el lote no generará pago.");
   }
 
-  if (!entrada.segundaPesadaCapturada && pesoBruto > 0) {
+  if (pesoBruto > 0 && taraTotal >= pesoBruto) {
     advertencias.push(
-      "Falta la segunda pesada: se está registrando el lote sin tara del vehículo."
+      `La tara (${taraTotal.toLocaleString("es-MX")} kg) no puede ser mayor o igual al peso bruto (${pesoBruto.toLocaleString("es-MX")} kg).`
     );
   }
 
-  if (rejas > 0 && taraRejasKg <= 0) {
+  if (pesoBruto > 0 && taraTotal <= 0) {
     advertencias.push(
-      `Declaraste ${rejas} reja(s) sin tara estimada: el peso neto puede quedar inflado.`
+      "Falta la tara del vehículo: el peso neto quedaría igual al peso bruto."
     );
-  }
-
-  if (entrada.requiereHuerto && !entrada.huertoSeleccionado) {
-    errores.push("La cosecha propia requiere seleccionar el huerto de origen.");
   }
 
   const dictamen = obtenerDictamen(defectosPct);
 
   if (dictamen === "rechazado") {
-    errores.push(
+    advertencias.push(
       `Dictamen ${dictamen.toUpperCase()} con ${defectosPct}% de defectos: el lote no puede ingresar.`
     );
   } else if (dictamen === "observado") {
@@ -176,7 +160,9 @@ export function calcularRecepcion(
   }
 
   if (entrada.incluirBascula && entrada.basculaFormaPago === "efectivo") {
-    advertencias.push("La cuota de báscula se registrará como cobrada en efectivo.");
+    advertencias.push(
+      "La cuota de báscula se cobra en efectivo: se registra el ingreso pero no se descuenta de la liquidación."
+    );
   }
 
   return {
@@ -191,8 +177,8 @@ export function calcularRecepcion(
     cuotaManiobraTotal,
     totalDeducciones,
     totalLiquidar,
+    precioNetoEfectivo,
     dictamen,
-    errores,
     advertencias,
   };
 }
@@ -217,6 +203,17 @@ export const kilos = (valor: number): string =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} kg`;
+
+/** "carlos.barragan@jbm.com.mx" → "Carlos Barragan" (solo como sugerencia). */
+export const nombreDesdeEmail = (email?: string | null): string => {
+  const local = String(email ?? "").split("@")[0] ?? "";
+  if (!local) return "";
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((parte) => parte.charAt(0).toUpperCase() + parte.slice(1).toLowerCase())
+    .join(" ");
+};
 
 // ---------------------------------------------------------------
 // Historial de precios del productor
@@ -277,74 +274,64 @@ export function calcularHistorialPrecios(
 }
 
 // ---------------------------------------------------------------
-// Validación por paso del asistente
+// Validación de la recepción (pantalla única)
 // ---------------------------------------------------------------
 
-export interface EntradaValidacionPaso {
-  paso: number;
+export interface EntradaValidacionRecepcion {
   origen: OrigenRecepcion;
-  folioFisico: string;
   productorId: string;
   huertoId: string;
-  variedad: string;
   pesoBruto: number;
   taraTotal: number;
   precioKg: number;
+  operadorBascula: string;
   dictamen: DictamenCalidad;
 }
 
 /**
- * Errores que impiden avanzar de paso. Las advertencias no bloquean:
- * se muestran pero el operador puede continuar.
+ * Errores que impiden registrar la recepción. Único lugar donde viven
+ * las reglas de captura obligatoria; las advertencias no bloquean.
  */
-export function validarPasoRecepcion(entrada: EntradaValidacionPaso): string[] {
+export function validarRecepcion(
+  entrada: EntradaValidacionRecepcion
+): string[] {
   const errores: string[] = [];
 
-  switch (entrada.paso) {
-    case 1: {
-      if (!entrada.productorId) {
-        errores.push(
-          entrada.origen === "propia"
-            ? "Selecciona al productor responsable de la cosecha."
-            : "Selecciona el productor al que se le compra la fruta."
-        );
-      }
-      if (entrada.origen === "propia" && !entrada.huertoId) {
-        errores.push("Selecciona el huerto de procedencia.");
-      }
-      if (!entrada.variedad) {
-        errores.push("Indica la variedad de la fruta recibida.");
-      }
-      break;
-    }
-    case 2: {
-      if (entrada.pesoBruto <= 0) {
-        errores.push("Captura el peso bruto del camión cargado.");
-      } else if (entrada.taraTotal >= entrada.pesoBruto) {
-        errores.push(
-          "La tara total debe ser menor al peso bruto: revisa la segunda pesada."
-        );
-      }
-      break;
-    }
-    case 3: {
-      if (entrada.origen === "terceros" && entrada.precioKg <= 0) {
-        errores.push("Captura el precio por kilo pactado con el productor.");
-      }
-      break;
-    }
-    case 4: {
-      if (entrada.dictamen === "rechazado") {
-        errores.push(
-          "El dictamen es RECHAZADO: no es posible ingresar el lote a producción."
-        );
-      }
-      break;
-    }
-    default:
-      break;
+  if (!entrada.productorId) {
+    errores.push(
+      entrada.origen === "propia"
+        ? "Selecciona al productor responsable de la cosecha."
+        : "Selecciona el productor al que se le compra la fruta."
+    );
+  }
+
+  if (entrada.origen === "propia" && !entrada.huertoId) {
+    errores.push("Selecciona el huerto de procedencia de la cosecha propia.");
+  }
+
+  if (entrada.pesoBruto <= 0) {
+    errores.push("Captura el peso bruto del camión cargado.");
+  } else if (entrada.taraTotal <= 0) {
+    errores.push("Captura la tara del vehículo vacío (segunda pesada).");
+  } else if (entrada.taraTotal >= entrada.pesoBruto) {
+    errores.push(
+      "La tara debe ser menor al peso bruto: revisa el pesaje del vehículo."
+    );
+  }
+
+  if (entrada.origen === "terceros" && entrada.precioKg <= 0) {
+    errores.push("Captura el precio por kilo pactado con el productor.");
+  }
+
+  if (!entrada.operadorBascula.trim()) {
+    errores.push("Captura el nombre del operador de báscula responsable.");
+  }
+
+  if (entrada.dictamen === "rechazado") {
+    errores.push(
+      "El dictamen es RECHAZADO: no es posible ingresar el lote a producción."
+    );
   }
 
   return errores;
 }
-

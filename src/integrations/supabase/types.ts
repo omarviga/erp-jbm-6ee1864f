@@ -1462,6 +1462,7 @@ export type Database = {
           cliente_maquila_id: string | null
           costo_bascula: number | null
           created_at: string
+          cuota_maniobra_concepto: string | null
           cuota_maniobra_kg: number
           cuota_maniobra_total: number
           es_cosecha_propia: boolean | null
@@ -1502,6 +1503,7 @@ export type Database = {
           cliente_maquila_id?: string | null
           costo_bascula?: number | null
           created_at?: string
+          cuota_maniobra_concepto?: string | null
           cuota_maniobra_kg?: number
           cuota_maniobra_total?: number
           es_cosecha_propia?: boolean | null
@@ -1516,6 +1518,7 @@ export type Database = {
           kilos_merma?: number | null
           notas?: string | null
           numero_lote: string
+          operador_bascula?: string | null
           origen?: string | null
           pago_cortadores_total?: number
           peso_bruto: number
@@ -1542,6 +1545,7 @@ export type Database = {
           cliente_maquila_id?: string | null
           costo_bascula?: number | null
           created_at?: string
+          cuota_maniobra_concepto?: string | null
           cuota_maniobra_kg?: number
           cuota_maniobra_total?: number
           es_cosecha_propia?: boolean | null
@@ -1556,6 +1560,7 @@ export type Database = {
           kilos_merma?: number | null
           notas?: string | null
           numero_lote?: string
+          operador_bascula?: string | null
           origen?: string | null
           pago_cortadores_total?: number
           peso_bruto?: number

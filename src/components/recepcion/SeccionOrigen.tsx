@@ -11,7 +11,6 @@ import {
   Ticket,
   Truck,
   User,
-  Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,11 +25,11 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NuevoProductorDialog } from "@/components/recepcion/NuevoProductorDialog";
-import { VARIEDADES_FRUTA } from "@/lib/recepcion/calculos";
+import { cn } from "@/lib/utils";
 import type { OrigenRecepcion } from "@/lib/recepcion/calculos";
-import type { PropsPasoRecepcion } from "./tipos";
+import { VARIEDAD_UNICA, type PropsSeccionRecepcion } from "./tipos";
 
-export function PasoOrigenTransporte({
+export function SeccionOrigen({
   form,
   setCampo,
   productores,
@@ -40,8 +39,10 @@ export function PasoOrigenTransporte({
   huertos,
   folioOficialSugerido,
   folioDuplicado,
-}: PropsPasoRecepcion) {
+}: PropsSeccionRecepcion) {
   const [busqueda, setBusqueda] = useState("");
+
+  const esPropia = form.origen === "propia";
 
   const productorSeleccionado = useMemo(
     () => productores.find((p) => p.id === form.productorId),
@@ -56,36 +57,31 @@ export function PasoOrigenTransporte({
   const productoresFiltrados = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
     if (!termino) return productores;
-    return productores.filter((p) =>
-      p.nombre.toLowerCase().includes(termino)
-    );
+    return productores.filter((p) => p.nombre.toLowerCase().includes(termino));
   }, [productores, busqueda]);
 
-  const esPropia = form.origen === "propia";
+  const cambiarOrigen = (valor: string) => {
+    const nuevo = valor as OrigenRecepcion;
+    setCampo("origen", nuevo);
+    // El huerto solo existe en cosecha propia: al cambiar a compra
+    // externa se limpia para no guardar un dato fuera de contexto.
+    if (nuevo === "terceros") setCampo("huertoId", "");
+  };
 
   return (
     <Card className="rounded-2xl border border-slate-200 shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-emerald-950">
-            1
-          </span>
+          <Ticket className="h-5 w-5 text-emerald-600" aria-hidden="true" />
           Origen y control de entrada
         </CardTitle>
         <CardDescription>
-          Identifica quién entrega la fruta, de dónde viene y en qué vehículo
-          llegó a la planta.
+          Identifica quién entrega la fruta y de dónde viene antes de pesarla.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-6 pt-2">
-        {/* Origen */}
-        <Tabs
-          value={form.origen}
-          onValueChange={(valor) =>
-            setCampo("origen", valor as OrigenRecepcion)
-          }
-        >
+        <Tabs value={form.origen} onValueChange={cambiarOrigen}>
           <TabsList className="grid w-full grid-cols-2 rounded-xl bg-slate-100 p-1">
             <TabsTrigger
               value="terceros"
@@ -149,7 +145,7 @@ export function PasoOrigenTransporte({
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Lo genera el sistema en orden consecutivo al confirmar el ingreso.
+              Lo genera el sistema en orden consecutivo al guardar la boleta.
             </p>
           </div>
         </div>
@@ -250,12 +246,12 @@ export function PasoOrigenTransporte({
           )}
         </div>
 
-        {/* Huerto y variedad */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
+        {/* Huerto: exclusivo de cosecha propia */}
+        {esPropia && (
+          <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
             <Label htmlFor="huerto-select" className="font-semibold">
               <MapPin className="mr-1 inline h-4 w-4" aria-hidden="true" />
-              Huerto de procedencia {esPropia ? "*" : "(opcional)"}
+              Huerto de procedencia *
             </Label>
             <Select
               value={form.huertoId}
@@ -263,7 +259,7 @@ export function PasoOrigenTransporte({
             >
               <SelectTrigger
                 id="huerto-select"
-                className="h-12"
+                className="h-12 bg-white"
                 aria-label="Huerto de procedencia"
               >
                 <SelectValue
@@ -287,103 +283,43 @@ export function PasoOrigenTransporte({
                 ))}
               </SelectContent>
             </Select>
-            {esPropia && !form.huertoId && (
-              <p className="text-xs font-medium text-amber-600">
-                La cosecha propia exige huerto para cerrar la trazabilidad.
-              </p>
-            )}
-            {huertoSeleccionado?.ubicacion && (
+            {huertoSeleccionado?.ubicacion ? (
               <p className="text-xs text-muted-foreground">
                 Localidad: {huertoSeleccionado.ubicacion}
                 {huertoSeleccionado.hectareas
                   ? ` · ${huertoSeleccionado.hectareas} ha`
                   : ""}
               </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                El huerto es obligatorio para cerrar la trazabilidad de la
+                cosecha propia.
+              </p>
             )}
           </div>
+        )}
 
-          <div className="space-y-2">
-            <Label htmlFor="variedad-select" className="font-semibold">
-              <Sprout className="mr-1 inline h-4 w-4" aria-hidden="true" />
-              Variedad de la fruta *
-            </Label>
-            <Select
-              value={form.variedad}
-              onValueChange={(valor) => setCampo("variedad", valor)}
-            >
-              <SelectTrigger
-                id="variedad-select"
-                className="h-12"
-                aria-label="Variedad de la fruta"
-              >
-                <SelectValue placeholder="Selecciona la variedad..." />
-              </SelectTrigger>
-              <SelectContent>
-                {VARIEDADES_FRUTA.map((variedad) => (
-                  <SelectItem key={variedad} value={variedad}>
-                    {variedad}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Variedad: dato fijo de la zona */}
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <Sprout className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-slate-800">
+              Variedad de la fruta
+            </p>
+            <p className="text-xs text-muted-foreground">
+              En la zona solo se recibe esta variedad, se registra
+              automáticamente.
+            </p>
           </div>
-        </div>
-
-        {/* Transporte */}
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-          <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <Truck className="h-4 w-4" aria-hidden="true" />
-            Transporte y trazabilidad del embarque
-          </p>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="chofer" className="text-sm">
-                Chofer
-              </Label>
-              <Input
-                id="chofer"
-                value={form.chofer}
-                onChange={(e) => setCampo("chofer", e.target.value)}
-                placeholder="Nombre del chofer"
-                className="h-11 bg-white"
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="placas" className="text-sm">
-                Placas del camión
-              </Label>
-              <Input
-                id="placas"
-                value={form.placas}
-                onChange={(e) =>
-                  setCampo("placas", e.target.value.toUpperCase())
-                }
-                placeholder="Ej. P12-AB-345"
-                className="h-11 bg-white font-mono uppercase"
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="rejas" className="text-sm">
-                <Users className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
-                Rejas / huacales
-              </Label>
-              <Input
-                id="rejas"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={form.rejas}
-                onChange={(e) => setCampo("rejas", e.target.value)}
-                placeholder="0"
-                className="h-11 bg-white font-mono"
-              />
-            </div>
-          </div>
+          <Badge
+            className={cn(
+              "border-emerald-300 bg-emerald-100 text-emerald-800",
+              "text-xs font-semibold"
+            )}
+            variant="outline"
+          >
+            {VARIEDAD_UNICA}
+          </Badge>
         </div>
       </CardContent>
     </Card>

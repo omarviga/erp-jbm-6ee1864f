@@ -92,24 +92,20 @@ const datosBase: DatosRecepcion = {
   huerto_id: "huerto-1",
   es_cosecha_propia: true,
   origen: "interno",
-  peso_bruto: 10000,
-  peso_tara: 3380,
-  tara_rejas_kg: 180,
+  peso_bruto: 14500,
+  peso_tara: 4200,
   precio_pactado_kg: 0,
   precio_caja_cortador: 100,
   costo_bascula: 50,
   bascula_forma_pago: "efectivo",
-  cuota_maniobra_kg: 0.35,
+  cuota_maniobra_kg: 0.4,
+  cuota_maniobra_concepto: "Servicios operativos y maniobra",
+  operador_bascula: "Carlos Barragán",
   folio_fisico: "B-1029",
-  variedad: "Limón Persa",
-  chofer: "Juan Pérez",
-  placas: "P12-AB-345",
-  rejas: 12,
-  peso_bruto_at: "2026-03-10T10:00:00.000Z",
-  peso_tara_at: "2026-03-10T11:30:00.000Z",
+  variedad: "Limón Mexicano",
   calidad_defectos: 12,
   estado_calidad: "observado",
-  notas: "Fruta mojada",
+  notas: "Fruta verde corte matutino",
   cortadores: [
     { id: "cortador-1", nombre: "Luis", cajas: 40 },
     { id: "cortador-2", nombre: "Mario", cajas: 0 },
@@ -156,7 +152,7 @@ describe("useRecepcion.guardarRecepcion", () => {
     h.setRespuesta("lote_cortadores", { data: null, error: null });
   });
 
-  it("envía la recepción por la RPC con doble pesada, cuotas y cortadores", async () => {
+  it("envía la recepción por la RPC con pesaje, cuotas y cortadores", async () => {
     h.setRpc((fn) =>
       fn === "registrar_recepcion"
         ? respuestaRpcOk
@@ -179,13 +175,21 @@ describe("useRecepcion.guardarRecepcion", () => {
     const payload = (llamadaRpc?.args as { p_datos: Record<string, unknown> })
       .p_datos;
 
-    expect(payload.peso_tara).toBe(3380);
-    expect(payload.tara_rejas_kg).toBe(180);
+    expect(payload.peso_tara).toBe(4200);
     expect(payload.bascula_forma_pago).toBe("efectivo");
-    expect(payload.cuota_maniobra_kg).toBe(0.35);
+    expect(payload.cuota_maniobra_kg).toBe(0.4);
+    expect(payload.cuota_maniobra_concepto).toBe(
+      "Servicios operativos y maniobra"
+    );
+    expect(payload.operador_bascula).toBe("Carlos Barragán");
     expect(payload.es_cosecha_propia).toBe(true);
     expect(payload.estado_calidad).toBe("observado");
-    expect(payload.rejas).toBe(12);
+    expect(payload.variedad).toBe("Limón Mexicano");
+    // El bloque de transporte ya no se captura.
+    expect(payload).not.toHaveProperty("chofer");
+    expect(payload).not.toHaveProperty("placas");
+    expect(payload).not.toHaveProperty("rejas");
+    expect(payload).not.toHaveProperty("tara_rejas_kg");
     // Solo se envían los cortadores con cajas capturadas.
     expect(payload.cortadores).toEqual([{ id: "cortador-1", cajas: 40 }]);
     // peso_neto es columna GENERATED: nunca debe viajar en el payload.
@@ -220,13 +224,18 @@ describe("useRecepcion.guardarRecepcion", () => {
     expect(loteInsert.tabla).toBe("lotes");
 
     const payloadLote = (loteInsert.payload as Record<string, unknown>[])[0];
-    expect(payloadLote.peso_pagable).toBe(6620);
-    expect(payloadLote.tara_rejas_kg).toBe(180);
+    expect(payloadLote.peso_pagable).toBe(10300);
     expect(payloadLote.bascula_forma_pago).toBe("efectivo");
-    expect(payloadLote.cuota_maniobra_total).toBe(2317);
+    expect(payloadLote.cuota_maniobra_total).toBe(4120);
+    expect(payloadLote.cuota_maniobra_concepto).toBe(
+      "Servicios operativos y maniobra"
+    );
+    expect(payloadLote.operador_bascula).toBe("Carlos Barragán");
     // 40 cajas × $100 × 30%
     expect(payloadLote.pago_cortadores_total).toBe(1200);
     expect(payloadLote).not.toHaveProperty("peso_neto");
+    expect(payloadLote).not.toHaveProperty("chofer");
+    expect(payloadLote).not.toHaveProperty("placas");
 
     expect(cortadoresInsert.tabla).toBe("lote_cortadores");
     expect(cortadoresInsert.payload).toEqual([
@@ -248,7 +257,7 @@ describe("useRecepcion.guardarRecepcion", () => {
         error: {
           code: "PGRST204",
           message:
-            "Could not find the 'tara_rejas_kg' column of 'lotes' in the schema cache",
+            "Could not find the 'operador_bascula' column of 'lotes' in the schema cache",
         },
       },
     ]);
@@ -265,14 +274,15 @@ describe("useRecepcion.guardarRecepcion", () => {
     expect(insertsLote).toHaveLength(2);
 
     const respaldo = (insertsLote[1].payload as Record<string, unknown>[])[0];
-    expect(respaldo).not.toHaveProperty("tara_rejas_kg");
+    expect(respaldo).not.toHaveProperty("operador_bascula");
+    expect(respaldo).not.toHaveProperty("cuota_maniobra_concepto");
     expect(respaldo).not.toHaveProperty("folio_recepcion");
     expect(respaldo).not.toHaveProperty("peso_neto");
     // El esquema original conserva lo esencial del negocio.
     expect(respaldo.productor_id).toBe("productor-1");
     expect(respaldo.huerto_id).toBe("huerto-1");
     expect(respaldo.es_cosecha_propia).toBe(true);
-    expect(respaldo.peso_pagable).toBe(6620);
+    expect(respaldo.peso_pagable).toBe(10300);
   });
 
   it("no toca la base cuando la validación local falla", async () => {
@@ -285,7 +295,7 @@ describe("useRecepcion.guardarRecepcion", () => {
         await result.current.guardarRecepcion({
           ...datosBase,
           peso_bruto: 3000,
-          peso_tara: 3380,
+          peso_tara: 4200,
         });
       })
     ).rejects.toThrow(/tara no puede ser mayor o igual/i);
