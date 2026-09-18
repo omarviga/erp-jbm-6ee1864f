@@ -343,6 +343,7 @@ export function useRecepcion() {
           bascula_forma_pago: datos.bascula_forma_pago ?? "liquidacion",
           cuota_maniobra_kg: datos.cuota_maniobra_kg ?? 0,
           cuota_maniobra_total: maniobraTotal,
+          cuota_maniobra_concepto: datos.cuota_maniobra_concepto ?? null,
           operador_bascula: datos.operador_bascula ?? null,
           precio_caja_cortador: datos.precio_caja_cortador ?? 0,
           pago_cortadores_total: pagoCortadores,
