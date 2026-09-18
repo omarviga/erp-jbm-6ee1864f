@@ -87,9 +87,9 @@ async function pintarEncabezado(worksheet: ExcelJS.Worksheet, titulo: string, su
   const altoLogo = 72;
   const anchoLogo = Math.round((altoLogo * logo.width) / logo.height);
   const imgId = worksheet.workbook.addImage({
-    buffer: logo.buffer as unknown as Buffer,
+    buffer: logo.buffer,
     extension: "png",
-  });
+  } as never);
   worksheet.addImage(imgId, {
     tl: { col: 0, row: 0 },
     ext: { width: anchoLogo, height: altoLogo },

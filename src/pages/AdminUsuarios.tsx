@@ -42,6 +42,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
   finanzas: 'bg-blue-100 text-blue-800 border-blue-200',
   ventas: 'bg-purple-100 text-purple-800 border-purple-200',
   almacen: 'bg-amber-100 text-amber-800 border-amber-200',
+  campo: 'bg-lime-100 text-lime-800 border-lime-200',
 };
 
 export default function AdminUsuarios() {

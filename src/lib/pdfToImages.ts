@@ -23,7 +23,7 @@ export async function pdfToBase64Images(file: File): Promise<string[]> {
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d")!;
 
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await page.render({ canvas, canvasContext: ctx, viewport }).promise;
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     images.push(dataUrl.split(",")[1]);
     canvas.width = 0;

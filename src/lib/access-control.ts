@@ -8,6 +8,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   finanzas: "Finanzas",
   ventas: "Operador CDMX",
   almacen: "Bascula / Almacen / Logistica",
+  campo: "Campo / Capataz",
 };
 
 export const canAccessByRoles = (
