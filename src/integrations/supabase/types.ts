@@ -226,6 +226,173 @@ export type Database = {
           },
         ]
       }
+      campo_estimaciones_cosecha: {
+        Row: {
+          cliente_uuid: string | null
+          created_at: string
+          fecha_estimada: string
+          fuente: string
+          huerto_id: string
+          id: string
+          notas: string | null
+          usuario_id: string | null
+          volumen_estimado_kg: number
+        }
+        Insert: {
+          cliente_uuid?: string | null
+          created_at?: string
+          fecha_estimada: string
+          fuente?: string
+          huerto_id: string
+          id?: string
+          notas?: string | null
+          usuario_id?: string | null
+          volumen_estimado_kg: number
+        }
+        Update: {
+          cliente_uuid?: string | null
+          created_at?: string
+          fecha_estimada?: string
+          fuente?: string
+          huerto_id?: string
+          id?: string
+          notas?: string | null
+          usuario_id?: string | null
+          volumen_estimado_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campo_estimaciones_cosecha_huerto_id_fkey"
+            columns: ["huerto_id"]
+            isOneToOne: false
+            referencedRelation: "huertos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campo_eventos: {
+        Row: {
+          cliente_uuid: string | null
+          costo: number
+          created_at: string
+          dosis: string | null
+          fecha: string
+          huerto_id: string
+          huerto_lote_id: string | null
+          id: string
+          insumo: string | null
+          notas: string | null
+          responsable: string | null
+          tipo: string
+          usuario_id: string | null
+        }
+        Insert: {
+          cliente_uuid?: string | null
+          costo?: number
+          created_at?: string
+          dosis?: string | null
+          fecha?: string
+          huerto_id: string
+          huerto_lote_id?: string | null
+          id?: string
+          insumo?: string | null
+          notas?: string | null
+          responsable?: string | null
+          tipo: string
+          usuario_id?: string | null
+        }
+        Update: {
+          cliente_uuid?: string | null
+          costo?: number
+          created_at?: string
+          dosis?: string | null
+          fecha?: string
+          huerto_id?: string
+          huerto_lote_id?: string | null
+          id?: string
+          insumo?: string | null
+          notas?: string | null
+          responsable?: string | null
+          tipo?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campo_eventos_huerto_id_fkey"
+            columns: ["huerto_id"]
+            isOneToOne: false
+            referencedRelation: "huertos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campo_eventos_huerto_lote_id_fkey"
+            columns: ["huerto_lote_id"]
+            isOneToOne: false
+            referencedRelation: "huerto_lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campo_monitoreos: {
+        Row: {
+          clasificacion_ia: Json | null
+          cliente_uuid: string | null
+          created_at: string
+          fecha: string
+          fotos: string[]
+          huerto_id: string
+          huerto_lote_id: string | null
+          id: string
+          notas: string | null
+          severidad: string
+          tipo_hallazgo: string
+          usuario_id: string | null
+        }
+        Insert: {
+          clasificacion_ia?: Json | null
+          cliente_uuid?: string | null
+          created_at?: string
+          fecha?: string
+          fotos?: string[]
+          huerto_id: string
+          huerto_lote_id?: string | null
+          id?: string
+          notas?: string | null
+          severidad?: string
+          tipo_hallazgo: string
+          usuario_id?: string | null
+        }
+        Update: {
+          clasificacion_ia?: Json | null
+          cliente_uuid?: string | null
+          created_at?: string
+          fecha?: string
+          fotos?: string[]
+          huerto_id?: string
+          huerto_lote_id?: string | null
+          id?: string
+          notas?: string | null
+          severidad?: string
+          tipo_hallazgo?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campo_monitoreos_huerto_id_fkey"
+            columns: ["huerto_id"]
+            isOneToOne: false
+            referencedRelation: "huertos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campo_monitoreos_huerto_lote_id_fkey"
+            columns: ["huerto_lote_id"]
+            isOneToOne: false
+            referencedRelation: "huerto_lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           created_at: string
@@ -506,6 +673,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cultivos_catalogo: {
+        Row: {
+          activo: boolean
+          created_at: string
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
       }
       factura_detalles: {
         Row: {
@@ -1102,29 +1290,109 @@ export type Database = {
           },
         ]
       }
-      huertos: {
+      huerto_lotes: {
         Row: {
           created_at: string
-          hectareas: number | null
+          huerto_id: string
           id: string
           nombre: string
-          ubicacion: string | null
+          notas: string | null
+          poligono: Json | null
+          superficie_ha: number | null
         }
         Insert: {
           created_at?: string
-          hectareas?: number | null
+          huerto_id: string
           id?: string
           nombre: string
-          ubicacion?: string | null
+          notas?: string | null
+          poligono?: Json | null
+          superficie_ha?: number | null
         }
         Update: {
           created_at?: string
-          hectareas?: number | null
+          huerto_id?: string
           id?: string
           nombre?: string
-          ubicacion?: string | null
+          notas?: string | null
+          poligono?: Json | null
+          superficie_ha?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "huerto_lotes_huerto_id_fkey"
+            columns: ["huerto_id"]
+            isOneToOne: false
+            referencedRelation: "huertos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      huertos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          cultivo_id: string | null
+          fecha_plantacion: string | null
+          hectareas: number | null
+          id: string
+          municipio: string | null
+          nombre: string
+          notas: string | null
+          poligono: Json | null
+          productor_id: string | null
+          ubicacion: string | null
+          updated_at: string
+          variedad: string | null
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          cultivo_id?: string | null
+          fecha_plantacion?: string | null
+          hectareas?: number | null
+          id?: string
+          municipio?: string | null
+          nombre: string
+          notas?: string | null
+          poligono?: Json | null
+          productor_id?: string | null
+          ubicacion?: string | null
+          updated_at?: string
+          variedad?: string | null
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          cultivo_id?: string | null
+          fecha_plantacion?: string | null
+          hectareas?: number | null
+          id?: string
+          municipio?: string | null
+          nombre?: string
+          notas?: string | null
+          poligono?: Json | null
+          productor_id?: string | null
+          ubicacion?: string | null
+          updated_at?: string
+          variedad?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "huertos_cultivo_id_fkey"
+            columns: ["cultivo_id"]
+            isOneToOne: false
+            referencedRelation: "cultivos_catalogo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "huertos_productor_id_fkey"
+            columns: ["productor_id"]
+            isOneToOne: false
+            referencedRelation: "productores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       insumo_movimientos: {
         Row: {
@@ -1913,6 +2181,35 @@ export type Database = {
           },
         ]
       }
+      productor_usuarios: {
+        Row: {
+          created_at: string
+          id: string
+          productor_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          productor_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          productor_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "productor_usuarios_productor_id_fkey"
+            columns: ["productor_id"]
+            isOneToOne: false
+            referencedRelation: "productores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       productores: {
         Row: {
           created_at: string
@@ -2605,6 +2902,7 @@ export type Database = {
           timbrado_listo: boolean
         }[]
       }
+      es_personal_campo: { Args: { _user_id: string }; Returns: boolean }
       evaluar_factura_para_timbrado: {
         Args: { p_factura_id: string }
         Returns: {
@@ -2701,6 +2999,10 @@ export type Database = {
           p_monto_total: number
         }
         Returns: string
+      }
+      puede_ver_huerto: {
+        Args: { _huerto_id: string; _user_id: string }
+        Returns: boolean
       }
       registrar_adelanto_productor: {
         Args: {
