@@ -139,7 +139,7 @@ export function RecetasManager() {
         .order("presentacion_id", { ascending: false });
 
       if (error) throw error;
-      return (data || []) as RecetaRow[];
+      return (data || []) as unknown as RecetaRow[];
     },
   });
 
