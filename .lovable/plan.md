@@ -1,101 +1,66 @@
-# Plan: Guía de Usuario JBM ERP — multi-formato, por rol, con capturas reales
+# Módulo de Campo — Fase 1 (limón)
 
-## Objetivo
+## Situación actual verificada
 
-Producir una guía de usuario detallada del sistema JBM ERP, dividida por **rol de usuario**, entregada en tres formatos:
+- Ya existe una tabla de **huertos** con nombre, ubicación (texto) y hectáreas, administrada desde Configuración. No tiene productor asociado, cultivo, variedad, fecha de plantación ni mapa.
+- Cada recepción de báscula ya guarda el huerto (`lotes.huerto_id`), pero el selector de huerto **solo aparece cuando la entrada se marca como cosecha propia**. Las compras a terceros quedan sin huerto de origen.
+- No existe nada de bitácora de labores, monitoreos ni estimaciones de cosecha.
+- Las tablas que menciona el brief (`batches`, `company_settings`, `cold_storage_settings`) no existen en este sistema; la recepción vive en `lotes`. El plan se ajusta a la estructura real.
+- El bug de la cuota de báscula queda fuera de este plan, como se acordó.
 
-1. **PDF** descargable (`/mnt/documents/Guia_Usuario_JBM_ERP.pdf`)
-2. **DOCX** editable (`/mnt/documents/Guia_Usuario_JBM_ERP.docx`)
-3. **Página interna** dentro del ERP en `/ayuda` (accesible desde el sidebar)
+## Lo que se construye
 
-Cada módulo se documenta con: propósito, quién lo usa, pantallas (capturas reales), flujo paso a paso, reglas de negocio críticas y errores comunes.
+### 1. Huertos con ficha completa y mapa
 
-## Roles cubiertos
+Se amplía el huerto existente (sin perder los ya registrados) con: productor asociado, cultivo, variedad, municipio, superficie, fecha de plantación y **polígono dibujado sobre mapa**. Se añade además la opción de dividir un huerto en **lotes de campo** (secciones con su propio polígono y superficie), opcional.
 
-Basados en `AppSidebar.tsx`, `BodegaCDMX/index.tsx` y `useAuth`:
+Pantalla nueva **Campo → Huertos**: listado con buscador, alta/edición con mapa para dibujar el contorno, y ficha de huerto.
 
-1. **Administrador (admin_owner)** — visión global, configuración, gestión de usuarios, dashboard de rentabilidad.
-2. **Báscula / Recepción** — captura de tickets de entrada, generación de deuda a productores.
-3. **Producción / Empaque** — clasificación por calibre, generación de cajas y lotes.
-4. **Inventarios / Cámara fría / Logística** — control de stock, traslados, envíos a CDMX.
-5. **Bodega CDMX (cdmx_operator)** — recepciones, POS, corte de caja, gastos locales.
-6. **Finanzas / Cuentas por pagar** — gastos, pagos a productores, conciliación, facturación.
-7. **Productores (referencia)** — cómo se reflejan sus saldos y estados de cuenta.
+### 2. Bitácora de labores
 
-## Estructura del documento (idéntica en PDF y DOCX)
+Registro por huerto (y opcionalmente por sección) de: riego, fertilización, aplicación fitosanitaria, poda y monitoreo. Cada registro guarda fecha, insumo y dosis, responsable, costo y notas.
 
-```text
-Portada
-Tabla de contenidos
-1. Introducción al sistema JBM ERP
-   - Qué es, arquitectura general, navegación, login
-   - Mapa de roles y permisos
-2. Guía por Rol
-   2.1 Administrador
-   2.2 Báscula / Recepción
-   2.3 Producción
-   2.4 Inventarios / Cámara fría / Logística
-   2.5 Bodega CDMX (POS, Recepciones, Inventario, Corte, Gastos, Rentabilidad)
-   2.6 Finanzas y Facturación
-3. Reglas de negocio críticas
-   - Doble precio (precio_base vs precio_venta)
-   - Cotejo ciego de transferencias
-   - Calibres oficiales (V-4, V-5, V-X, V-XX, V-XXX, V-EXT, AL-*, AM-*)
-   - Cuentas por pagar a productores (4 fases)
-   - Corte de caja y efectivo teórico
-4. Flujos end-to-end
-   - Compra → Producción → Inventario → Envío CDMX → Venta POS → Corte
-   - Pago a productores
-5. Errores comunes y solución
-6. Glosario
-```
+Listado con filtros por tipo y rango de fechas, y alta rápida pensada para celular (botones grandes, pocos campos obligatorios).
 
-## Captura de pantallas (con browser tool)
+### 3. Monitoreos con fotos
 
-Recorrido autenticado en preview, una captura por pantalla principal:
+Inspecciones con tipo de hallazgo, severidad, notas y fotos de evidencia guardadas de forma privada. Se deja reservado un campo para la clasificación automática de la Fase 2, sin usarse todavía.
 
-- `/login`, `/` (Dashboard), `/recepcion`, `/produccion`, `/inventarios` (tabs Cámara, Enviar a CDMX), `/logistica`, `/bodega-cdmx` (cada sub-pestaña: POS, Recepciones, Inventario, Corte, Gastos, Dashboard), `/facturacion`, `/finanzas`, `/gastos`, `/maquila`, `/insumos`, `/reportes`, `/productores`, `/admin/usuarios`, `/configuracion`.
+### 4. Estimaciones de cosecha
 
-Las imágenes se guardan en `/tmp/guia/` y se embeben en PDF/DOCX como base64/binario.
+Captura por huerto de fecha estimada de corte y volumen esperado. La ficha del huerto muestra la estimación vigente.
 
-## Generación de los 3 entregables
+### 5. Cierre del ciclo con báscula
 
-### A. PDF
-- Script Python con `reportlab` (Platypus): portada, TOC, secciones por rol, tablas de reglas, imágenes con caption. QA visual con `pdftoppm` página por página antes de entregar.
+En Recepción, el selector de huerto pasa a estar **disponible también para compras a terceros**, filtrado por el productor elegido, y sigue siendo obligatorio solo en cosecha propia. Así cada camión queda ligado a su huerto de origen.
 
-### B. DOCX
-- Script Node con `docx` (docx-js): mismo contenido, estilos Heading1/2/3, tablas con `WidthType.DXA`, imágenes con `ImageRun type:"png"`, listas con `LevelFormat.BULLET`. Validación post-generación.
+### 6. Ficha de huerto
 
-### C. Página `/ayuda` dentro del ERP
-- Nueva ruta `/ayuda` protegida (cualquier rol autenticado).
-- Componente `src/pages/Ayuda.tsx` con:
-  - Layout estándar (`MainLayout` + `AppSidebar`).
-  - Buscador por palabra clave.
-  - Sidebar interno con índice (acordeón por rol).
-  - Render del contenido en Markdown desde `src/content/guia-usuario.ts` (mismo texto que PDF/DOCX, fuente única de verdad).
-  - Botones "Descargar PDF" y "Descargar DOCX" que apuntan a `/docs/Guia_Usuario_JBM_ERP.pdf` y `.docx` (copiados a `public/docs/`).
-- Entrada nueva en `AppSidebar.tsx` ("Ayuda / Guía") visible para todos los roles.
-- Botón "Ayuda" también en el sidebar de Bodega CDMX (`BodegaCDMX/index.tsx`).
+Vista única por huerto: mapa, datos generales, últimas labores, estimación vigente y el historial de recepciones ya ligadas (folio, fecha, kilos), con el acumulado de kilos recibidos de ese huerto.
+
+### 7. Captura sin señal
+
+Las altas de labores, monitoreos y estimaciones se guardan en el propio teléfono cuando no hay internet y se envían automáticamente al recuperar señal. Indicador visible de "pendientes por sincronizar" y reintento manual. Las fotos también se conservan mientras no haya conexión.
+
+### 8. Accesos
+
+- Capataz / personal de campo: captura de labores, monitoreos y estimaciones.
+- Personal de empacadora: lo anterior más asociación en Recepción y consulta de historial.
+- Productor externo: acceso limitado de solo lectura y captura sobre **sus** huertos únicamente.
 
 ## Detalles técnicos
 
-- **Fuente única de contenido**: `src/content/guia-usuario.ts` exporta secciones como `{ id, titulo, rol, markdown }`. Los scripts de PDF y DOCX leen este mismo módulo (vía `tsx` o export a JSON intermedio en `/tmp/guia/contenido.json`) para garantizar que los tres formatos digan exactamente lo mismo.
-- **Capturas**: nombradas `pant-<modulo>.png` en `/tmp/guia/` y copiadas a `public/docs/img/` para la página interna.
-- **Estilo visual**: portada con paleta JBM (`#1E5128` verde corporativo, `#2ECC71` verde lima), logo `src/assets/logo-jbm.png`.
-- **Tamaño**: PDF estimado 40–60 páginas; DOCX equivalente; página `/ayuda` con render lazy por sección.
-- **QA obligatorio**: tras generar PDF y DOCX, conversión a imágenes y revisión página por página de overflow, cortes y placeholders.
-
-## Orden de ejecución
-
-1. Recorrer el preview autenticado y capturar todas las pantallas a `/tmp/guia/`.
-2. Redactar el contenido en `src/content/guia-usuario.ts` (fuente única).
-3. Generar PDF con `reportlab` → QA visual → `/mnt/documents/` y `public/docs/`.
-4. Generar DOCX con `docx-js` → validar → `/mnt/documents/` y `public/docs/`.
-5. Crear página `/ayuda` con buscador, índice y botones de descarga; añadir entradas en sidebars.
-6. Entrega final con `<lov-artifact>` para PDF y DOCX, y enlace a la página `/ayuda` dentro del ERP.
+- Migraciones **aditivas**: nuevas columnas nulables en `huertos`, nuevas tablas `cultivos_catalogo`, `huerto_lotes`, `campo_eventos`, `campo_monitoreos`, `campo_estimaciones_cosecha`. Sin cambios destructivos en `lotes` (`huerto_id` ya existe).
+- Polígonos en GeoJSON (columna `jsonb`), mapa con Leaflet + Leaflet-Draw.
+- RLS por rol; el acceso del productor se resuelve con un vínculo usuario→productor y política que limita a sus huertos. Se siembra `cultivos_catalogo` con limón (papaya, aguacate y fresa quedan listos pero fuera de alcance).
+- Fotos en un bucket privado con URLs firmadas, siguiendo el patrón ya usado para tickets de gastos.
+- Cola offline en IndexedDB con reintento, siguiendo el patrón del flujo de báscula.
+- Nueva sección "Campo" en el menú, con rutas protegidas por rol.
 
 ## Fuera de alcance
 
-- No se modifican módulos existentes ni reglas de negocio.
-- No se traduce a otros idiomas (solo español).
-- No se generan videos ni tutoriales interactivos.
+Multi-tenant, otros cultivos, cualquier capa de IA/satelital, nómina a destajo, y el bug de cuota de báscula.
+
+## Piloto
+
+Dimensionado para 10 a 50 huertos y varios capataces/productores.
