@@ -38,6 +38,7 @@ desktop.ini
 # Secrets (nunca commitear)
 .env
 .env.*
+!.env.example
 bun.lock
 bun.lockb
 repomix-output.xml
