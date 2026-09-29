@@ -22,3 +22,22 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build artifacts (se regeneran)
+*.tsbuildinfo
+
+# Drizzle (el proyecto usa migraciones de Supabase)
+drizzle/
+drizzle.config.ts
+
+# Sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Secrets (nunca commitear)
+.env
+.env.*
+bun.lock
+bun.lockb
+repomix-output.xml
