@@ -169,6 +169,7 @@ Cambios:
 Metrica: set de 8 flows (POSTab, InventarioTab, CorteCajaTab,
 RecepcionesTab, Inventarios, Logistica, Recepcion, TicketBascula;
 33 tests) en 5/5 corridas consecutivas verdes, 0 FAIL.
+Confirmacion full suite (23 archivos en paralelo): 121/121 verdes.
 Colaterales: `tsc --noEmit` 0 errores; eslint limpio en cambiados.
 Recomendacion no bloqueante: `pool: 'vmThreads'` (jsdom se crea 8
 veces por corrida; 27-38% del tiempo) y mover la metrica 5x al CI.
