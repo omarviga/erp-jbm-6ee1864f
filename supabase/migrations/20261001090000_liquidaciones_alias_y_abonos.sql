@@ -52,6 +52,20 @@ create table if not exists public.abonos_liquidacion (
     check (metodo <> 'cheque' or btrim(referencia) <> '')
 );
 
+-- La tabla pudo existir en remoto sin esta columna (aplicación manual
+-- previa que omitió el CREATE): completarla antes de indexarla.
+alter table public.liquidaciones
+  add column if not exists estado text not null default 'parcial';
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'liquidaciones_estado_check'
+  ) then
+    alter table public.liquidaciones
+      add constraint liquidaciones_estado_check check (estado in ('parcial', 'pagada'));
+  end if;
+end $$;
+
 create index if not exists ix_liquidaciones_productor
   on public.liquidaciones (productor_id, estado);
 create index if not exists ix_abonos_liquidacion
