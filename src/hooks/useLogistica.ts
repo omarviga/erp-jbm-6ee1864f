@@ -80,7 +80,7 @@ export const useLogistica = () => {
         },
     });
 
-    // Fetch recent guides
+    // Fetch recent guides (historial corto)
     const { data: guiasRecientes, isLoading: loadingGuias } = useQuery({
         queryKey: ['guias_salida'],
         queryFn: async () => {
@@ -89,6 +89,21 @@ export const useLogistica = () => {
                 .select(`*, clientes (nombre)`)
                 .order('created_at', { ascending: false })
                 .limit(10);
+            if (error) throw error;
+            return (data || []) as GuiaReciente[];
+        },
+    });
+
+    // Resumen amplio (últimas 500) para los KPIs del módulo. Separado del
+    // historial corto para no mezclar el acumulado con la vista.
+    const { data: resumenGuias = [], isLoading: loadingResumen } = useQuery({
+        queryKey: ['guias_salida-resumen'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('guias_salida')
+                .select('id, folio, numero_guia, estado, total_cajas, peso_total, valor_total, certificado_fitosanitario, lugar_origen, lugar_destino, created_at, clientes (nombre)')
+                .order('created_at', { ascending: false })
+                .limit(500);
             if (error) throw error;
             return (data || []) as GuiaReciente[];
         },
@@ -334,6 +349,8 @@ export const useLogistica = () => {
     return {
         transportistas,
         guiasRecientes,
+        resumenGuias,
+        loadingResumen,
         inventarioDisponible,
         loadingTransportistas,
         loadingGuias,

@@ -1,9 +1,11 @@
-import { Download, Printer, Ticket } from "lucide-react";
+import { Copy, Printer, Ticket } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { QRCodeSVG } from "qrcode.react";
-import { COMPANY_INFO } from "@/lib/company";
+import { toast } from "sonner";
+import { COMPANY_INFO, type DatosFiscalesEmpresa } from "@/lib/company";
 import { moneda } from "@/lib/recepcion/calculos";
+import { formatearResumenWhatsApp } from "@/lib/recepcion/textoTicket";
 import type { FormaPagoBascula } from "@/lib/recepcion/calculos";
 
 export interface TicketRecepcion {
@@ -40,12 +42,37 @@ export interface TicketRecepcion {
 interface TicketBasculaProps {
   ticket: TicketRecepcion;
   onImprimir: () => void;
+  /** Datos fiscales y de báscula. Por defecto, los de la empresa. */
+  empresa?: DatosFiscalesEmpresa;
 }
 
 const formatearKilos = (valor: number): string =>
   valor.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
+export function TicketBascula({ ticket, onImprimir, empresa = COMPANY_INFO }: TicketBasculaProps) {
+  const copiarResumen = async () => {
+    const texto = formatearResumenWhatsApp(ticket);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(texto);
+      } else {
+        const area = document.createElement("textarea");
+        area.value = texto;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        document.body.removeChild(area);
+      }
+      toast.success("Resumen copiado", {
+        description: "Pégalo en WhatsApp o SMS para enviarlo al productor.",
+      });
+    } catch {
+      toast.error("No se pudo copiar el resumen", {
+        description: "Intenta de nuevo o cópialo manualmente.",
+      });
+    }
+  };
+
   return (
     <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
       <div className="no-print mb-4 flex flex-col gap-3 border-b border-emerald-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -65,7 +92,7 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
 
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="border-slate-300 text-xs">
-            Prueba 80mm
+            Papel 80 mm
           </Badge>
           <Badge
             variant="outline"
@@ -89,11 +116,12 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
           <Button
             type="button"
             variant="outline"
-            onClick={onImprimir}
+            onClick={copiarResumen}
             disabled={ticket.pesoNeto <= 0}
+            data-testid="copiar-whatsapp"
           >
-            <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-            PDF
+            <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
+            Copiar WhatsApp
           </Button>
         </div>
       </div>
@@ -110,17 +138,32 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
               className="mx-auto mb-1.5 h-14 w-auto object-contain"
             />
             <p className="text-[14px] font-black leading-none tracking-wide">
-              {COMPANY_INFO.displayName.toUpperCase()}
+              {empresa.displayName.toUpperCase()}
             </p>
             <p className="mt-1 text-[9px] leading-tight text-slate-600">
-              {COMPANY_INFO.legalName}
+              {empresa.legalName}
+            </p>
+            {empresa.rfc && (
+              <p className="text-[9px] leading-tight text-slate-600">
+                RFC: {empresa.rfc}
+              </p>
+            )}
+            <p className="text-[9px] leading-tight text-slate-600">
+              {empresa.addressLine1}
             </p>
             <p className="text-[9px] leading-tight text-slate-600">
-              {COMPANY_INFO.addressLine1}
+              {empresa.addressLine2} · Tel. {empresa.phone}
             </p>
-            <p className="text-[9px] leading-tight text-slate-600">
-              {COMPANY_INFO.addressLine2} · Tel. {COMPANY_INFO.phone}
-            </p>
+            {empresa.direccionBascula && (
+              <p className="text-[9px] leading-tight text-slate-600">
+                Báscula: {empresa.direccionBascula}
+              </p>
+            )}
+            {empresa.registroSenasica && (
+              <p className="text-[9px] leading-tight text-slate-600">
+                Reg. SENASICA: {empresa.registroSenasica}
+              </p>
+            )}
 
             <p className="mt-2 text-[9px] uppercase tracking-[0.25em] text-slate-500">
               Boleta de recepción
@@ -270,10 +313,16 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
             <p className="mt-1 break-all text-slate-500">{ticket.statusUrl}</p>
           </div>
 
+          {empresa.notaMovilizacion && (
+            <p className="border-b border-dashed border-slate-300 pb-2 text-center text-[9px] leading-tight text-slate-500">
+              {empresa.notaMovilizacion}
+            </p>
+          )}
+
           <div className="mt-5 grid grid-cols-2 gap-4 text-center text-[9px]">
             <div>
               <p className="mb-1 truncate font-semibold">
-                {ticket.operador || "\u00A0"}
+                {ticket.operador || " "}
               </p>
               <div className="border-t border-slate-500 pt-2 tracking-[0.15em]">
                 OPERADOR DE BÁSCULA
@@ -281,7 +330,7 @@ export function TicketBascula({ ticket, onImprimir }: TicketBasculaProps) {
             </div>
             <div>
               <p className="mb-1 truncate font-semibold">
-                {ticket.productor === "SIN ASIGNAR" ? "\u00A0" : ticket.productor}
+                {ticket.productor === "SIN ASIGNAR" ? " " : ticket.productor}
               </p>
               <div className="border-t border-slate-500 pt-2 tracking-[0.15em]">
                 PRODUCTOR / CHOFER

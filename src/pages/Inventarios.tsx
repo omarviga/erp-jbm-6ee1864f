@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { differenceInDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
@@ -12,6 +12,11 @@ import {
   Snowflake,
   Thermometer,
   Truck,
+  Plus,
+  Minus,
+  Volume2,
+  VolumeX,
+  Settings2,
   Warehouse,
   Eye,
 } from "lucide-react";
@@ -37,6 +42,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCamaraFria } from "@/hooks/useCamaraFria";
 import { HistorialLoteModal } from "@/components/inventarios/HistorialLoteModal";
+import {
+  emitirChime,
+  evaluarUmbral,
+  guardarSonidoActivado,
+  guardarUmbralGlobal,
+  idsBajoUmbral,
+  leerSonidoActivado,
+  leerUmbralGlobal,
+  type EvaluacionUmbral,
+} from "@/lib/camara/alertas";
 import { cn } from "@/lib/utils";
 
 const pasillos = ["A", "B", "C"];
@@ -79,6 +94,13 @@ export default function Inventarios() {
   const { user } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [umbral, setUmbral] = useState<number>(() => leerUmbralGlobal());
+  const [umbralDraft, setUmbralDraft] = useState("");
+  const [modalUmbralAbierto, setModalUmbralAbierto] = useState(false);
+  const [sonidoActivado, setSonidoActivado] = useState<boolean>(() => leerSonidoActivado());
+  const [soloEnRiesgo, setSoloEnRiesgo] = useState(false);
+  const [simulacroId, setSimulacroId] = useState<string | null>(null);
+  const avisadosRef = useRef<Set<string>>(new Set());
   const [tabValue, setTabValue] = useState("camara");
   const [isMermaDialogOpen, setIsMermaDialogOpen] = useState(false);
   const [mermaCantidad, setMermaCantidad] = useState("1");
@@ -144,10 +166,33 @@ export default function Inventarios() {
     [transporteDirecto]
   );
 
+  const evaluaciones = useMemo(() => {
+    const mapa = new Map<string, EvaluacionUmbral>();
+    for (const item of inventarioCamara) {
+      mapa.set(item.id, evaluarUmbral(item.cajas, umbral));
+    }
+    return mapa;
+  }, [inventarioCamara, umbral]);
+
+  const idsRiesgo = useMemo(() => {
+    const base = idsBajoUmbral(
+      inventarioCamara.map((item) => ({ id: item.id, cajas: item.cajas })),
+      umbral
+    );
+    if (simulacroId && !base.includes(simulacroId)) return [...base, simulacroId];
+    return base;
+  }, [inventarioCamara, umbral, simulacroId]);
+
+  const enRiesgo = useMemo(() => new Set(idsRiesgo), [idsRiesgo]);
+
   const filteredCamara = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    return inventarioCamara.filter((item) => !term || item.lote.toLowerCase().includes(term) || item.calibre.toLowerCase().includes(term));
-  }, [inventarioCamara, searchTerm]);
+    return inventarioCamara.filter(
+      (item) =>
+        (!term || item.lote.toLowerCase().includes(term) || item.calibre.toLowerCase().includes(term)) &&
+        (!soloEnRiesgo || enRiesgo.has(item.id))
+    );
+  }, [inventarioCamara, searchTerm, soloEnRiesgo, enRiesgo]);
 
   const ubicacionesCamara = useMemo(() => {
     const map = new Map<string, InventarioItem>();
@@ -167,6 +212,60 @@ export default function Inventarios() {
     if (estado === 1) return "bg-emerald-100 border-emerald-200 text-emerald-800";
     if (estado === 2) return "bg-amber-100 border-amber-200 text-amber-800";
     return "bg-rose-100 border-rose-200 text-rose-800 animate-pulse";
+  };
+
+  // Chime solo cuando un lote NUEVO cruza a zona crítica.
+  useEffect(() => {
+    if (!sonidoActivado) {
+      avisadosRef.current = new Set(idsRiesgo);
+      return;
+    }
+    const nuevos = idsRiesgo.filter((id) => !avisadosRef.current.has(id));
+    avisadosRef.current = new Set(idsRiesgo);
+    if (nuevos.length > 0) emitirChime();
+  }, [idsRiesgo, sonidoActivado]);
+
+  const cambiarUmbral = (delta: number) => {
+    setUmbral((prev) => {
+      const siguiente = Math.max(0, prev + delta);
+      guardarUmbralGlobal(siguiente);
+      return siguiente;
+    });
+  };
+
+  const alternarSonido = () => {
+    setSonidoActivado((prev) => {
+      guardarSonidoActivado(!prev);
+      return !prev;
+    });
+  };
+
+  const abrirModalUmbral = () => {
+    setUmbralDraft(String(umbral));
+    setModalUmbralAbierto(true);
+  };
+
+  const guardarUmbralModal = () => {
+    const valor = Number(umbralDraft);
+    if (!Number.isFinite(valor) || valor < 0) {
+      toast.error("El umbral debe ser un número mayor o igual a 0.");
+      return;
+    }
+    const entero = Math.trunc(valor);
+    setUmbral(entero);
+    guardarUmbralGlobal(entero);
+    setModalUmbralAbierto(false);
+  };
+
+  const iniciarSimulacro = () => {
+    const candidato =
+      inventarioCamara.find((item) => item.cajas >= umbral) || inventarioCamara[0];
+    if (!candidato) {
+      toast.info("No hay estibas en cámara para simular la alerta.");
+      return;
+    }
+    setSimulacroId(candidato.id);
+    setSoloEnRiesgo(false);
   };
 
   const onTrasladoInterno = async () => {
@@ -332,6 +431,39 @@ export default function Inventarios() {
           </Card>
         </div>
 
+        {idsRiesgo.length > 0 && (
+          <div
+            role="alert"
+            className="mb-6 flex flex-col gap-3 rounded-2xl border border-rose-300 bg-rose-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" aria-hidden="true" />
+              <div>
+                <p className="font-bold text-rose-800">
+                  Alerta crítica: {idsRiesgo.length} lote(s) por debajo del umbral ({umbral} cajas)
+                  {simulacroId ? " · SIMULACRO" : ""}
+                </p>
+                <p className="text-sm text-rose-700">
+                  Filtra la cuadrícula para resolverlos de inmediato.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={soloEnRiesgo ? "default" : "outline"}
+                onClick={() => setSoloEnRiesgo((v) => !v)}
+              >
+                {soloEnRiesgo ? "Ver todos" : "Ver en riesgo"}
+              </Button>
+              {simulacroId && (
+                <Button variant="ghost" onClick={() => setSimulacroId(null)}>
+                  Detener simulacro
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
         <Tabs value={tabValue} onValueChange={setTabValue}>
           <TabsList className="w-full md:w-auto flex-wrap">
             <TabsTrigger value="camara">❄️ Cámara Fría</TabsTrigger>
@@ -341,6 +473,46 @@ export default function Inventarios() {
           </TabsList>
 
           <TabsContent value="camara" className="mt-4">
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3">
+              <span className="text-xs font-bold uppercase text-muted-foreground">Umbral mínimo</span>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-8 w-8"
+                  onClick={() => cambiarUmbral(-1)}
+                  aria-label="Reducir umbral"
+                >
+                  <Minus className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <span className="min-w-20 text-center font-mono text-lg font-bold" data-testid="umbral-valor">
+                  {umbral} cajas
+                </span>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-8 w-8"
+                  onClick={() => cambiarUmbral(1)}
+                  aria-label="Aumentar umbral"
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+              <Button size="sm" variant="outline" onClick={abrirModalUmbral}>
+                <Settings2 className="mr-2 h-4 w-4" aria-hidden="true" /> Parámetros
+              </Button>
+              <Button size="sm" variant="outline" onClick={alternarSonido} aria-pressed={sonidoActivado}>
+                {sonidoActivado ? (
+                  <Volume2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <VolumeX className="mr-2 h-4 w-4" aria-hidden="true" />
+                )}
+                {sonidoActivado ? "Sonido activado" : "Silenciado"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={iniciarSimulacro}>
+                Simular alerta
+              </Button>
+            </div>
             <div className="grid lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
                 <Card>
@@ -359,7 +531,7 @@ export default function Inventarios() {
                               const codigo = `${letraPasillo}-${numPos}`;
                               const lote = ubicacionesCamara.get(codigo);
                               return (
-                                <div key={codigo} className={cn("rounded-lg border-2 p-3 min-h-28", lote ? statusClass(lote.estado) : "border-dashed border-slate-200 bg-white/60")}>
+                                <div key={codigo} className={cn("rounded-lg border-2 p-3 min-h-28", lote && enRiesgo.has(lote.id) ? "border-rose-600 border-l-4 bg-rose-50 animate-pulse" : lote ? statusClass(lote.estado) : "border-dashed border-slate-200 bg-white/60")}>
                                   <p className="text-[10px] opacity-60 mb-2">{codigo}</p>
                                   {lote ? (
                                     <>
@@ -367,6 +539,16 @@ export default function Inventarios() {
                                       <p className="text-xs mt-1">{lote.calidad}</p>
                                       <p className="text-xs font-semibold mt-1">{lote.lote}</p>
                                       <p className="text-[11px]">{lote.dias} días en frío</p>
+                                      {enRiesgo.has(lote.id) && (
+                                        <>
+                                          <Badge className="mt-1 bg-red-600 text-[10px] hover:bg-red-600">
+                                            POR DEBAJO DEL UMBRAL
+                                          </Badge>
+                                          <p className="text-[11px] font-semibold text-red-700">
+                                            Faltan {evaluaciones.get(lote.id)?.deficit ?? 0} · Déficit {evaluaciones.get(lote.id)?.pctFaltante ?? 0}%
+                                          </p>
+                                        </>
+                                      )}
                                     </>
                                   ) : (
                                     <p className="text-xs text-slate-400">Vacío</p>
@@ -538,6 +720,34 @@ export default function Inventarios() {
         )}
       </MainLayout>
 
+
+      <Dialog open={modalUmbralAbierto} onOpenChange={setModalUmbralAbierto}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Umbral mínimo de cámara</DialogTitle>
+            <DialogDescription>
+              Las estibas por debajo de este nivel se marcan en rojo y activan la alerta crítica y el chime.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="umbral-minimo">Stock mínimo (cajas)</Label>
+            <Input
+              id="umbral-minimo"
+              type="number"
+              min={0}
+              step={1}
+              value={umbralDraft}
+              onChange={(e) => setUmbralDraft(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalUmbralAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={guardarUmbralModal}>Guardar umbral</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <HistorialLoteModal
         open={isHistorialOpen}

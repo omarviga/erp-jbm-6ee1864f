@@ -15,10 +15,14 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Package, Factory,
-  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, Filter, Plus, Bell, TrendingUp, Download,
+  AlertTriangle, Info, CheckCircle, Printer, Scale, AlertCircle, Search, Filter, Plus, TrendingUp, Download,
   Warehouse, Snowflake, Truck
 } from "lucide-react";
 import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
+import { calcularKpisProduccion, obtenerUltimosRegistros, type RegistroProduccionKpi } from "@/lib/produccion/kpis";
+import { calcularReporteDescarte, generarCsvDescarte, obtenerDetalleMerma, obtenerDetalleMolino, TIPO_MERMA, TIPO_MOLINO } from "@/lib/produccion/descarte";
+import { calcularRendimientoLote, ETIQUETA_SEMAFORO, listarLotesConProduccion, type NivelSemaforo } from "@/lib/produccion/rendimiento";
+import { useNavigate } from "react-router-dom";
 
 // --- TIPOS ---
 interface LoteDisponible {
@@ -26,6 +30,7 @@ interface LoteDisponible {
   numero_lote: string;
   peso_neto: number;
   kilos_merma: number;
+  fecha_recepcion?: string;
   productores?: { nombre: string };
   huertos?: { nombre: string };
   estado: string;
@@ -47,18 +52,6 @@ interface Clasificacion {
   nombre_completo?: string;
   orden_visual: number;
   created_at?: string;
-}
-
-interface RegistroProduccion {
-  calibre: string;
-  color: string;
-  qty: number;
-}
-
-interface KPIData {
-  eficiencia: number;
-  merma: number;
-  produccion_hoy: number;
 }
 
 interface ReporteDescarteRow {
@@ -124,6 +117,26 @@ function getColorGroupLabel(cal: string): { label: string; emoji: string } {
   return { label: "", emoji: "" };
 }
 
+// Punto de color y nombre para los últimos registros (vienen en texto: verde/alimonado/amarillo).
+const COLOR_PUNTO: Record<string, string> = {
+  verde: "bg-green-500",
+  alimonado: "bg-lime-400",
+  amarillo: "bg-yellow-400",
+};
+
+const COLOR_NOMBRE: Record<string, string> = {
+  verde: "Verde",
+  alimonado: "Alimonado",
+  amarillo: "Amarillo",
+};
+
+const SEMAFORO_CLASE: Record<NivelSemaforo, string> = {
+  excelente: "border-emerald-300 bg-emerald-50 text-emerald-700",
+  bueno: "border-lime-300 bg-lime-50 text-lime-700",
+  regular: "border-amber-300 bg-amber-50 text-amber-700",
+  critico: "border-rose-300 bg-rose-50 text-rose-700",
+};
+
 interface EtiquetaData {
   numeroLote: string;
   calibre: string;
@@ -136,6 +149,7 @@ interface EtiquetaData {
 
 export default function Produccion() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Generar IDs únicos para accesibilidad
   const idLote = useId();
@@ -155,6 +169,9 @@ export default function Produccion() {
   const [pesoIndustria, setPesoIndustria] = useState("");
   const [busquedaLote, setBusquedaLote] = useState("");
   const [destinoManual, setDestinoManual] = useState<string>("");
+  const [soloPorAgotar, setSoloPorAgotar] = useState(false);
+  const [detalleTipo, setDetalleTipo] = useState<string | null>(null);
+  const [loteRendimientoId, setLoteRendimientoId] = useState("");
 
   // Cargar lotes activos
   const { data: lotesDisponibles = [], isLoading: loadingLotes } = useQuery({
@@ -181,36 +198,47 @@ export default function Produccion() {
     }
   });
 
-  // Cargar producción para calcular kilos procesados
-  const { data: produccionPorLote = {} } = useQuery({
+  // Registros crudos de producción: alimentan kilos por lote, KPIs y últimos registros.
+  const { data: registrosProduccion = [] } = useQuery({
     queryKey: ['produccion-por-lote'],
-    queryFn: async () => {
+    queryFn: async (): Promise<RegistroProduccionKpi[]> => {
       try {
         const { data, error } = await supabase
           .from('produccion')
-          .select('lote_id, peso_total_kg')
-          .not('lote_id', 'is', null);
+          .select('lote_id, peso_total_kg, created_at, destino, calibre, color, calidad, cantidad_cajas, costo_fruta, costo_insumos, costo_total')
+          .not('lote_id', 'is', null)
+          .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        // Agrupar por lote_id
-        const agrupado: Record<string, number> = {};
-        data?.forEach(item => {
-          if (item.lote_id) {
-            if (!agrupado[item.lote_id]) {
-              agrupado[item.lote_id] = 0;
-            }
-            agrupado[item.lote_id] += item.peso_total_kg || 0;
-          }
-        });
-
-        return agrupado;
+        return (data ?? []) as RegistroProduccionKpi[];
       } catch (err) {
         console.error('Error cargando producción:', err);
-        return {};
+        return [];
       }
     }
   });
+
+  // Kilos procesados por lote, derivados de los registros.
+  const produccionPorLote = useMemo(() => {
+    const agrupado: Record<string, number> = {};
+    for (const item of registrosProduccion) {
+      if (!item.lote_id) continue;
+      agrupado[item.lote_id] = (agrupado[item.lote_id] ?? 0) + (Number(item.peso_total_kg) || 0);
+    }
+    return agrupado;
+  }, [registrosProduccion]);
+
+  // KPIs reales y últimos registros de la corrida.
+  const { eficiencia, merma, produccionHoy } = useMemo(
+    () => calcularKpisProduccion(registrosProduccion, lotesDisponibles),
+    [registrosProduccion, lotesDisponibles]
+  );
+
+  const ultimosRegistros = useMemo(
+    () => obtenerUltimosRegistros(registrosProduccion),
+    [registrosProduccion]
+  );
 
   const { data: presentaciones = [], isLoading: loadingPresentaciones } = useQuery({
     queryKey: ['presentaciones'],
@@ -232,26 +260,8 @@ export default function Produccion() {
 
   // Calibres ya definidos como constantes arriba
 
-  // Cargar KPI data
-  const { data: kpiData = { eficiencia: 0, merma: 0, produccion_hoy: 0 } } = useQuery<KPIData>({
-    queryKey: ['kpi-data'],
-    queryFn: async () => {
-      try {
-        return {
-          eficiencia: 0,
-          merma: 0,
-          produccion_hoy: 0
-        };
-      } catch (err) {
-        console.error('Error cargando KPI:', err);
-        return {
-          eficiencia: 0,
-          merma: 0,
-          produccion_hoy: 0
-        };
-      }
-    }
-  });
+  // Los KPIs reales (eficiencia, merma, produccionHoy) se derivan de
+  // registrosProduccion más arriba: aquí ya no se consulta nada fijo.
 
   // --- DERIVADOS Y CÁLCULOS ---
   const lotesProduccionDisponibles = useMemo(() => {
@@ -264,14 +274,20 @@ export default function Produccion() {
 
   const lotesFiltrados = useMemo(() => {
     const term = busquedaLote.trim().toLowerCase();
-    if (!term) return lotesProduccionDisponibles;
+    const base = term
+      ? lotesProduccionDisponibles.filter((l: LoteDisponible) =>
+          l.numero_lote?.toLowerCase().includes(term) ||
+          l.productores?.nombre?.toLowerCase().includes(term) ||
+          l.huertos?.nombre?.toLowerCase().includes(term)
+        )
+      : lotesProduccionDisponibles;
 
-    return lotesProduccionDisponibles.filter((l: LoteDisponible) =>
-      l.numero_lote?.toLowerCase().includes(term) ||
-      l.productores?.nombre?.toLowerCase().includes(term) ||
-      l.huertos?.nombre?.toLowerCase().includes(term)
+    if (!soloPorAgotar) return base;
+    return base.filter(
+      (l: LoteDisponible) =>
+        Math.max(0, (l.peso_neto || 0) - (produccionPorLote[l.id] || 0)) < 500
     );
-  }, [lotesProduccionDisponibles, busquedaLote]);
+  }, [lotesProduccionDisponibles, busquedaLote, soloPorAgotar, produccionPorLote]);
 
   const loteSeleccionado = lotesProduccionDisponibles.find((l: LoteDisponible) => l.id === loteId);
   const presentacionSeleccionada = presentaciones.find((p: Presentacion) => p.id === presentacionId);
@@ -352,13 +368,10 @@ export default function Produccion() {
     return kilosSolicitados.toFixed(2);
   }, [kilosSolicitados]);
 
-  // Datos de KPI
-  const { eficiencia, merma, produccion_hoy } = kpiData;
-
-  // Datos de últimos registros
-  const ultimosRegistros: RegistroProduccion[] = [];
-
-  const reporteDescarte: ReporteDescarteRow[] = [];
+  const reporteDescarte: ReporteDescarteRow[] = useMemo(
+    () => calcularReporteDescarte(registrosProduccion, lotesDisponibles),
+    [registrosProduccion, lotesDisponibles]
+  );
 
   const totalDescarteKg = reporteDescarte.reduce((acc, row) => acc + row.kg, 0);
   const impactoPromedio = reporteDescarte.length
@@ -441,6 +454,64 @@ export default function Produccion() {
     }
   }, [loteSeleccionado, loteId, calibre, color, destinoInfo, esIndustria, presentacionId, cantidadCajas, kilosSolicitados, sobrepasaKilosDisponibles, kilosDisponibles, queryClient, destinoFinal, opcionesDestino]);
 
+  // Mapa lote_id -> número de lote para el detalle de descarte.
+  const mapaLotes = useMemo(() => {
+    const mapa: Record<string, string> = {};
+    for (const l of lotesDisponibles as Array<{ id: string; numero_lote: string }>) {
+      mapa[l.id] = l.numero_lote;
+    }
+    return mapa;
+  }, [lotesDisponibles]);
+
+  const detalleMolino = useMemo(
+    () => obtenerDetalleMolino(registrosProduccion, mapaLotes),
+    [registrosProduccion, mapaLotes]
+  );
+
+  const detalleMerma = useMemo(
+    () => obtenerDetalleMerma(lotesDisponibles, produccionPorLote),
+    [lotesDisponibles, produccionPorLote]
+  );
+
+  const detalleVisible =
+    detalleTipo === TIPO_MOLINO ? detalleMolino : detalleTipo === TIPO_MERMA ? detalleMerma : null;
+
+  const descargarReporte = useCallback(() => {
+    if (reporteDescarte.length === 0) return;
+    const csv = generarCsvDescarte(reporteDescarte);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = `reporte_descarte_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(enlace);
+    enlace.click();
+    document.body.removeChild(enlace);
+    URL.revokeObjectURL(url);
+  }, [reporteDescarte]);
+
+  const opcionesRendimiento = useMemo(
+    () => listarLotesConProduccion(registrosProduccion, mapaLotes),
+    [registrosProduccion, mapaLotes]
+  );
+
+  useEffect(() => {
+    if (!loteRendimientoId && opcionesRendimiento.length > 0) {
+      setLoteRendimientoId(opcionesRendimiento[0].id);
+    }
+  }, [loteRendimientoId, opcionesRendimiento]);
+
+  const rendimiento = useMemo(() => {
+    if (!loteRendimientoId) return null;
+    const lote = (lotesDisponibles as Array<{ id: string; peso_neto: number | null }>).find(
+      (l) => l.id === loteRendimientoId
+    );
+    return calcularRendimientoLote(
+      registrosProduccion.filter((r) => r.lote_id === loteRendimientoId),
+      Number(lote?.peso_neto) || 0
+    );
+  }, [loteRendimientoId, lotesDisponibles, registrosProduccion]);
+
   return (
     <MainLayout title="Clasificación de Producción" subtitle="Módulo de control de calidad e industrialización">
       <div className="space-y-6">
@@ -459,7 +530,6 @@ export default function Produccion() {
               }
             />
             <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700"><span className="mr-2 h-2 w-2 rounded-full bg-emerald-500" />En línea</Badge>
-            <Bell className="h-5 w-5 text-slate-500" />
           </div>
         </div>
 
@@ -481,8 +551,8 @@ export default function Produccion() {
           <Card className="border-l-4 border-l-slate-800">
             <CardContent className="pt-6">
               <p className="text-xs uppercase tracking-widest text-muted-foreground">Procesado (hoy)</p>
-              <p className="mt-2 text-4xl font-bold">{(produccion_hoy / 1000).toFixed(1)} Tn</p>
-              <p className="mt-1 text-xs text-muted-foreground">Objetivo diario: 0.0 Tn</p>
+              <p className="mt-2 text-4xl font-bold">{(produccionHoy / 1000).toFixed(1)} Tn</p>
+              <p className="mt-1 text-xs text-muted-foreground">Acumulado del día en planta</p>
             </CardContent>
           </Card>
           <Card className="bg-emerald-950 text-white">
@@ -506,10 +576,19 @@ export default function Produccion() {
               className="h-12 rounded-xl bg-white pl-10"
             />
           </div>
-          <Button variant="outline" className="h-12 rounded-xl">
-            <Filter className="mr-2 h-4 w-4" /> Filtrar
+          <Button
+            variant={soloPorAgotar ? "default" : "outline"}
+            className="h-12 rounded-xl"
+            aria-pressed={soloPorAgotar}
+            onClick={() => setSoloPorAgotar((v) => !v)}
+            title="Mostrar solo lotes con menos de 500 kg disponibles"
+          >
+            <Filter className="mr-2 h-4 w-4" /> {soloPorAgotar ? "Por agotar ✓" : "Filtrar"}
           </Button>
-          <Button className="h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700">
+          <Button
+            className="h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => navigate("/recepcion")}
+          >
             <Plus className="mr-2 h-4 w-4" /> Nuevo lote
           </Button>
         </div>
@@ -988,16 +1067,16 @@ export default function Produccion() {
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="font-bold text-slate-600">Global</span>
-                  <span className="font-bold text-blue-600">{eficiencia}%</span>
+                  <span className="font-bold text-blue-600">{eficiencia.toFixed(1)}%</span>
                 </div>
                 <Progress value={eficiencia} className="h-3" />
               </div>
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="font-bold text-slate-600">Merma</span>
-                  <span className="font-bold text-green-600">{merma}%</span>
+                  <span className="font-bold text-green-600">{merma.toFixed(1)}%</span>
                 </div>
-                <Progress value={merma * 10} className="h-3 [&>div]:bg-green-500" />
+                <Progress value={Math.min(100, merma)} className="h-3 [&>div]:bg-green-500" />
               </div>
               <div className="pt-4 border-t">
                 <div className="flex justify-between items-center">
@@ -1005,7 +1084,7 @@ export default function Produccion() {
                     <p className="text-sm font-bold text-slate-600">Producción Hoy</p>
                     <p className="text-xs text-slate-500">Kilos procesados</p>
                   </div>
-                  <span className="text-2xl font-bold text-slate-800">{produccion_hoy.toLocaleString()} kg</span>
+                  <span className="text-2xl font-bold text-slate-800">{produccionHoy.toLocaleString("es-MX")} kg</span>
                 </div>
               </div>
             </CardContent>
@@ -1023,8 +1102,8 @@ export default function Produccion() {
                 ultimosRegistros.map((registro, i) => (
                   <div key={i} className="flex justify-between items-center p-2 border-b last:border-0">
                     <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${registro.color}`}></div>
-                      <span className="font-bold text-sm">Limon Verde {registro.calibre}</span>
+                      <div className={`w-3 h-3 rounded-full ${COLOR_PUNTO[registro.color] ?? "bg-slate-300"}`}></div>
+                      <span className="font-bold text-sm">Limón {COLOR_NOMBRE[registro.color] ?? registro.color} {registro.calibre}</span>
                     </div>
                     <span className="font-mono font-bold text-slate-600">{registro.qty} cjs</span>
                   </div>
@@ -1043,7 +1122,12 @@ export default function Produccion() {
           <CardHeader className="bg-gradient-to-r from-slate-50 to-emerald-50/40 border-b space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <CardTitle className="text-xl">Reporte de Calidad y Descarte (Acumulado)</CardTitle>
-              <Button variant="outline" className="text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+              <Button
+                variant="outline"
+                className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                onClick={descargarReporte}
+                disabled={reporteDescarte.length === 0}
+              >
                 <Download className="mr-2 h-4 w-4" /> Descargar CSV
               </Button>
             </div>
@@ -1098,7 +1182,14 @@ export default function Produccion() {
                           </Badge>
                         </td>
                         <td className="py-4 px-4 text-right">
-                          <Button size="sm" variant="outline" className="hover:bg-slate-100">Detalle</Button>
+                          <Button
+                            size="sm"
+                            variant={detalleTipo === row.tipo ? "default" : "outline"}
+                            className="hover:bg-slate-100"
+                            onClick={() => setDetalleTipo((actual) => (actual === row.tipo ? null : row.tipo))}
+                          >
+                            Detalle
+                          </Button>
                         </td>
                       </tr>
                     ))
@@ -1112,6 +1203,129 @@ export default function Produccion() {
                 </tbody>
               </table>
             </div>
+
+            {detalleTipo && detalleVisible && (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-bold text-slate-700">
+                    Detalle: {detalleTipo} ({detalleVisible.length} registros)
+                  </p>
+                  <Button size="sm" variant="ghost" onClick={() => setDetalleTipo(null)}>
+                    Cerrar
+                  </Button>
+                </div>
+                {detalleTipo === TIPO_MOLINO ? (
+                  <ul className="space-y-1.5 text-sm">
+                    {(detalleVisible as typeof detalleMolino).map((d, i) => (
+                      <li key={`${d.fecha}-${i}`} className="flex justify-between gap-2 border-b border-slate-100 pb-1.5 last:border-0">
+                        <span className="text-slate-600">
+                          {new Date(d.fecha).toLocaleDateString("es-MX")} · Lote {d.lote} · {d.calibre}
+                        </span>
+                        <span className="font-mono font-semibold">{d.kg.toLocaleString("es-MX")} kg</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <ul className="space-y-1.5 text-sm">
+                    {(detalleVisible as typeof detalleMerma).map((d) => (
+                      <li key={d.lote} className="flex justify-between gap-2 border-b border-slate-100 pb-1.5 last:border-0">
+                        <span className="text-slate-600">Lote {d.lote}</span>
+                        <span className="font-mono font-semibold">
+                          {d.mermaKg.toLocaleString("es-MX")} kg ({d.pct.toFixed(1)}%)
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <CardHeader className="bg-slate-50 border-b">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="text-xl">Rendimiento por lote</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Balance Verde / Alimonado / Amarillo y costo real por caja.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={loteRendimientoId} onValueChange={setLoteRendimientoId}>
+                  <SelectTrigger className="h-11 w-56 bg-white" aria-label="Lote para rendimiento">
+                    <SelectValue placeholder="Selecciona lote…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {opcionesRendimiento.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {o.numero}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {rendimiento && (
+                  <Badge variant="outline" className={SEMAFORO_CLASE[rendimiento.semaforo]}>
+                    {ETIQUETA_SEMAFORO[rendimiento.semaforo]}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {!rendimiento ? (
+              <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                Aún no hay producción registrada para evaluar rendimiento.
+              </p>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="space-y-4">
+                  <div>
+                    <div className="mb-1 flex justify-between text-sm">
+                      <span className="font-semibold text-green-700">Verde exportación</span>
+                      <span className="font-mono">{rendimiento.pctVerde.toFixed(1)}% · {rendimiento.verdeKg.toLocaleString("es-MX")} kg</span>
+                    </div>
+                    <Progress value={rendimiento.pctVerde} className="h-2 [&>div]:bg-green-500" />
+                  </div>
+                  <div>
+                    <div className="mb-1 flex justify-between text-sm">
+                      <span className="font-semibold text-lime-700">Alimonado nacional</span>
+                      <span className="font-mono">{rendimiento.pctAlimonado.toFixed(1)}% · {rendimiento.alimonadoKg.toLocaleString("es-MX")} kg</span>
+                    </div>
+                    <Progress value={rendimiento.pctAlimonado} className="h-2 [&>div]:bg-lime-400" />
+                  </div>
+                  <div>
+                    <div className="mb-1 flex justify-between text-sm">
+                      <span className="font-semibold text-amber-700">Amarillo industria</span>
+                      <span className="font-mono">{rendimiento.pctAmarillo.toFixed(1)}% · {rendimiento.amarilloKg.toLocaleString("es-MX")} kg</span>
+                    </div>
+                    <Progress value={rendimiento.pctAmarillo} className="h-2 [&>div]:bg-amber-400" />
+                  </div>
+                  <p className="text-sm text-slate-600">
+                    Procesado <span className="font-bold">{rendimiento.totalKg.toLocaleString("es-MX")} kg</span> ·
+                    Avance del lote <span className="font-bold">{rendimiento.avance.toFixed(1)}%</span>
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 content-start gap-3 text-sm">
+                  <div className="rounded-xl border bg-white px-4 py-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Costo fruta</p>
+                    <p className="text-lg font-bold">${rendimiento.costoFruta.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+                  </div>
+                  <div className="rounded-xl border bg-white px-4 py-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Costo insumos</p>
+                    <p className="text-lg font-bold">${rendimiento.costoInsumos.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+                  </div>
+                  <div className="rounded-xl border bg-white px-4 py-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Cajas</p>
+                    <p className="text-lg font-bold">{rendimiento.cajas.toLocaleString("es-MX")}</p>
+                  </div>
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <p className="text-xs uppercase tracking-wide text-emerald-700">Costo por caja</p>
+                    <p className="text-lg font-bold text-emerald-800">${rendimiento.costoPorCaja.toLocaleString("es-MX", { minimumFractionDigits: 2 })}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

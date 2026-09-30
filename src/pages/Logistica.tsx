@@ -43,6 +43,7 @@ import { useFacturacion } from "@/hooks/useFacturacion";
 import { CrearTransferenciaCDMXDialog } from "@/components/transferencias/CrearTransferenciaCDMXDialog";
 import { openPrintDocument } from "@/lib/print/openPrintDocument";
 import { renderCartaPorteHtml } from "@/lib/print/renderCartaPorteHtml";
+import { calcularKpisLogistica, filtrarGuias, generarCsvContable } from "@/lib/logistica/resumen";
 
 // --- TYPES ---
 type TipoCliente = "nacional" | "exportacion_usa" | "exportacion_otros";
@@ -416,6 +417,7 @@ export default function Logistica() {
     transportistas = [],
     inventarioDisponible = [],
     guiasRecientes = [],
+    resumenGuias = [],
     loadingTransportistas,
     loadingInventario,
     loadingGuias,
@@ -466,6 +468,8 @@ export default function Logistica() {
   const [cartaPorteGuiaId, setCartaPorteGuiaId] = useState<string | null>(null);
   const [detalleCartaPorteOpen, setDetalleCartaPorteOpen] = useState(false);
   const [guiaDetalleSeleccionada, setGuiaDetalleSeleccionada] = useState<GuiaRecienteRow | null>(null);
+  const [busquedaGuia, setBusquedaGuia] = useState("");
+  const [filtroEstadoGuia, setFiltroEstadoGuia] = useState("todos");
   const [detalleGuiaOpen, setDetalleGuiaOpen] = useState(false);
   const [nuevoTransportistaOpen, setNuevoTransportistaOpen] = useState(false);
   const [nuevoTransportista, setNuevoTransportista] = useState({
@@ -869,6 +873,30 @@ export default function Logistica() {
     }).format(amount);
   }, []);
 
+  const kpisLogistica = useMemo(
+    () => calcularKpisLogistica(resumenGuias),
+    [resumenGuias]
+  );
+
+  const guiasFiltradas = useMemo(
+    () => filtrarGuias(guiasRecientes, { texto: busquedaGuia, estado: filtroEstadoGuia }),
+    [guiasRecientes, busquedaGuia, filtroEstadoGuia]
+  );
+
+  const descargarCsvContable = useCallback(() => {
+    if (guiasFiltradas.length === 0) return;
+    const csv = generarCsvContable(guiasFiltradas);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = `logistica_contable_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(enlace);
+    enlace.click();
+    document.body.removeChild(enlace);
+    URL.revokeObjectURL(url);
+  }, [guiasFiltradas]);
+
   const abrirDetalleGuia = useCallback((guia: GuiaRecienteRow) => {
     setGuiaDetalleSeleccionada(guia);
     setDetalleGuiaOpen(true);
@@ -1211,6 +1239,29 @@ export default function Logistica() {
       <div className="flex items-center justify-between mb-4">
         <div />
         <CrearTransferenciaCDMXDialog />
+      </div>
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs uppercase text-muted-foreground font-bold">Embarques activos</p>
+            <p className="text-3xl font-bold mt-1" data-testid="kpi-embarques-activos">{kpisLogistica.embarquesActivos}</p>
+            <p className="text-xs text-muted-foreground">Guías generadas o validadas (últimas 500)</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs uppercase text-muted-foreground font-bold">Cajas despachadas</p>
+            <p className="text-3xl font-bold mt-1" data-testid="kpi-cajas">{kpisLogistica.cajasDespachadas.toLocaleString("es-MX")}</p>
+            <p className="text-xs text-muted-foreground">{kpisLogistica.toneladas.toLocaleString("es-MX")} toneladas métricas</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs uppercase text-muted-foreground font-bold">Cumplimiento fitosanitario</p>
+            <p className="text-3xl font-bold mt-1" data-testid="kpi-fito">{kpisLogistica.cumplimientoFito === null ? "—" : `${kpisLogistica.cumplimientoFito.toFixed(1)}%`}</p>
+            <p className="text-xs text-muted-foreground">Guías con certificado SENASICA / USDA</p>
+          </CardContent>
+        </Card>
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full md:w-auto grid-cols-3">
@@ -1894,10 +1945,32 @@ export default function Logistica() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Historial de Cartas Porte</span>
-                <div className="flex items-center gap-2">
-                  <Input placeholder="Buscar por folio o cliente..." className="w-64" />
-                  <Button variant="outline" size="sm">
-                    <Filter className="h-4 w-4 mr-2" /> Filtros
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    placeholder="Buscar por folio o cliente..."
+                    className="w-64"
+                    value={busquedaGuia}
+                    onChange={(e) => setBusquedaGuia(e.target.value)}
+                  />
+                  <Select value={filtroEstadoGuia} onValueChange={setFiltroEstadoGuia}>
+                    <SelectTrigger className="w-40" aria-label="Filtrar por estado">
+                      <SelectValue placeholder="Estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="borrador">Borrador</SelectItem>
+                      <SelectItem value="generada">Generada</SelectItem>
+                      <SelectItem value="validada">Validada</SelectItem>
+                      <SelectItem value="cancelada">Cancelada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={descargarCsvContable}
+                    disabled={guiasFiltradas.length === 0}
+                  >
+                    <Download className="h-4 w-4 mr-2" /> CSV contable
                   </Button>
                 </div>
               </CardTitle>
