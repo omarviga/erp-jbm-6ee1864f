@@ -1,0 +1,2 @@
+-- Migracion aplicada originalmente via SQL Editor de Supabase.
+-- Stub creado para reconciliar el historial del CLI. Sin contenido.
