@@ -1,7 +1,7 @@
 {
   "titulo": "Guía de Usuario — Sistema JBM ERP",
   "subtitulo": "Manual operativo por rol · Limones Barragán",
-  "version": "v1.1 · Mayo 2026",
+  "version": "v1.2 · Septiembre 2026",
   "secciones": [
     {
       "id": "intro",
@@ -30,24 +30,26 @@
       "titulo": "2. Recepción / Báscula",
       "contenido": [
         {"tipo": "p", "texto": "Primer eslabón. Cada camión que llega del campo se pesa y se genera un ticket de recepción que da nacimiento a la deuda con el productor."},
-        {"tipo": "img", "src": "recepcion.png", "caption": "Pantalla de Recepción — paso 1: Origen y Control"},
+        {"tipo": "img", "src": "recepcion.png", "caption": "Nueva Boleta de Recepción & Pesaje (captura + ticket en vivo)"},
         {"tipo": "h2", "texto": "Cómo capturar una recepción (paso a paso)"},
         {"tipo": "lista", "items": [
-          "1. En el menú lateral abrir RECEPCIÓN.",
-          "2. Elegir la pestaña 'Compra a Terceros' (o 'Cosecha Propia' si es del huerto propio).",
-          "3. En 'Folio del Ticket Físico (Báscula)' capturar el folio del ticket impreso por la báscula. Ej: B-10293.",
-          "4. En 'Productor *' usar el buscador para localizarlo por nombre, o seleccionarlo del dropdown. Si es nuevo, presionar el botón + para alta rápida.",
-          "5. Capturar 'Peso Bruto (kg)' — el peso total del camión cargado.",
-          "6. Capturar 'Tara (kg)' — peso del camión vacío. El sistema calcula automáticamente el 'Peso Neto Real'.",
-          "7. Capturar 'Precio por kilo' acordado en campo (en pesos).",
-          "8. Pulsar 'Siguiente' y completar Calidad/Origen, Documentación y Línea de Producción asignada.",
-          "9. Verificar el resumen de liquidación en el panel oscuro de la derecha (Ticket #, total $).",
-          "10. Pulsar 'CONFIRMAR INGRESO'. Se imprime el ticket y se genera la cuenta por pagar."
+          "1. En el menú lateral abrir RECEPCIÓN y pulsar 'Nueva Boleta de Recepción & Pesaje'.",
+          "2. En 'Productor / Proveedor' localizarlo por nombre o localidad. Si es nuevo, usar '+ Nuevo' sin perder la captura.",
+          "3. En 'No. Folio Ticket Báscula' capturar el folio impreso por la báscula física. Ej: BAS-10492.",
+          "4. Capturar 'Bruto (kg)' (camión cargado) y 'Tara (kg)' (camión vacío). El 'Neto (kg)' se calcula al instante en la tarjeta verde.",
+          "5. Capturar 'Precio por Kilo ($/kg)' acordado; el 'Subtotal Fruta' se calcula solo.",
+          "6. En 'Cuota de Báscula' elegir 'Descontar de liquidación' (resta la cuota, Ej: -$50.00) o 'Pagado en efectivo' (pagó en caseta, $0.00).",
+          "7. Capturar 'Maniobra ($/kg)' (habitual $0.40), el concepto del cargo y el 'Operador de báscula'.",
+          "8. En 'Pago al productor en recepción' elegir 'Pendiente de pago', 'Anticipo' (capturar el monto entregado en mano) o 'Pago total'. El sistema muestra el remanente estimado.",
+          "9. Verificar el desglose (fruta, báscula, maniobra, precio neto efectivo real y TOTAL NETO A LIQUIDAR) y el ticket térmico en vivo a la derecha.",
+          "10. Pulsar 'Guardar Boleta' o 'Guardar e Imprimir Directo' y confirmar en el diálogo (Peso Neto Certificado + Total Neto a Liquidar). Se genera la cuenta por pagar.",
+          "Validaciones que impiden guardar: bruto menor o igual a 0, tara mayor o igual al bruto, precio en $0.00 y anticipo mayor al total estimado."
         ]},
         {"tipo": "h2", "texto": "Reglas críticas"},
         {"tipo": "lista", "items": [
           "Una vez confirmado, el ticket es INMUTABLE. Los errores se corrigen con un ajuste autorizado por admin (PIN).",
-          "El precio capturado se congela en el ticket — define la deuda con el productor."
+          "El precio capturado se congela en el ticket — define la deuda con el productor.",
+          "El dinero entregado en recepción (anticipo o pago total) queda ligado a la boleta y se descuenta después en Finanzas al liquidarla."
         ]}
       ]
     },
@@ -166,7 +168,7 @@
     },
     {
       "id": "finanzas",
-      "titulo": "7. Finanzas — Cuentas por Pagar",
+      "titulo": "7. Finanzas — Cuentas por Pagar y Liquidaciones",
       "contenido": [
         {"tipo": "p", "texto": "Centraliza el ciclo de cuentas por pagar a productores: cada recepción de báscula nace como una nota (CxP) pendiente y los pagos se aplican directo a las notas. El flujo de liquidaciones quedó unificado aquí."},
         {"tipo": "img", "src": "finanzas.png", "caption": "Control de Pagos — pestaña CxP con deuda viva por productor"},
@@ -195,7 +197,27 @@
           "3. El PDF incluye las notas (fecha, folio, kilos, precio, importe, pagado, saldo) y la lista de pagos registrados."
         ]},
         {"tipo": "p", "texto": "El monto de cada nota ya considera el descuento del costo de báscula capturado en Recepción cuando no fue pagado en efectivo."},
-        {"tipo": "p", "texto": "La pestaña 'Compras' integra facturas de proveedores con OCR — sube la foto del ticket y la IA captura proveedor, RFC, monto e IVA."}
+        {"tipo": "p", "texto": "La pestaña 'Compras' integra facturas de proveedores con OCR — sube la foto del ticket y la IA captura proveedor, RFC, monto e IVA."},
+        {"tipo": "h2", "texto": "Mesa de Control de Pagos — liquidar a un productor"},
+        {"tipo": "lista", "items": [
+          "1. Ir a Finanzas → 'Liquidaciones a Productores'.",
+          "2. Buscar al productor por su alias (Ej: \"Don Angel\") y seleccionarlo; se despliegan sus boletas pendientes de pago.",
+          "3. Marcar una o varias boletas con los checkboxes (o 'Seleccionar Todos') y revisar los totales acumulados en la barra inferior.",
+          "4. Pulsar 'Pagar' y verificar el desglose: boletas, kilos netos, precio promedio, subtotal fruta, (−) anticipos, (−) deducción de báscula, (−) deducción operativa ($30.00 por boleta), (−) provisión operativa JBM ($0.04/kg) e IMPORTE TOTAL NETO A PAGAR.",
+          "5. Confirmar: se registra la póliza, las boletas cambian a Pagadas o Pago parcial, se imprime el ticket de 80mm y se puede descargar la Boleta Oficial de Liquidación en PDF membretada."
+        ]},
+        {"tipo": "h2", "texto": "Abonos mixtos (pagos parciales o combinados)"},
+        {"tipo": "lista", "items": [
+          "1. En el 'Historial de Liquidaciones Emitidas' pulsar 'Abonar' en la fila.",
+          "2. Elegir Cheque (exige folio/referencia), Efectivo o Transferencia SPEI, y capturar el importe.",
+          "3. El modal proyecta el saldo en vivo; 'Liquidar Saldo Restante Completo' salda de un clic.",
+          "4. La liquidación permanece PARCIAL hasta llegar exactamente a $0.00, cuando cambia a PAGADA."
+        ]},
+        {"tipo": "h2", "texto": "Auxiliar contable y reportes"},
+        {"tipo": "lista", "items": [
+          "'Auxiliar Contable de Productores': alias, kilos históricos, precio promedio, pagos dispersados y cuentas por liquidar; emite el Estado de Cuenta Oficial en PDF.",
+          "'Deducción Operativa': consolidado diario, semanal, quincenal o mensual por productor con kilos y montos, exportable a Excel y PDF."
+        ]}
       ]
     },
     {
@@ -212,7 +234,11 @@
         {"tipo": "h2", "texto": "8.3 Inmutabilidad"},
         {"tipo": "p", "texto": "Tickets de báscula, ventas POS y cortes son inmutables. Las correcciones son asientos de ajuste con PIN."},
         {"tipo": "h2", "texto": "8.4 FIFO en CDMX"},
-        {"tipo": "p", "texto": "Las ventas POS descuentan stock siguiendo estricto FIFO sobre los lotes locales más antiguos."}
+        {"tipo": "p", "texto": "Las ventas POS descuentan stock siguiendo estricto FIFO sobre los lotes locales más antiguos."},
+        {"tipo": "h2", "texto": "8.5 Deducciones operativas fijas"},
+        {"tipo": "p", "texto": "Cada boleta liquidada descuenta $30.00 fijos más $0.04 por kilo neto. Son cargos operativos de JBM, separados de la cuota de báscula, y aparecen desglosados en la liquidación y en la boleta oficial."},
+        {"tipo": "h2", "texto": "8.6 Anticipos"},
+        {"tipo": "p", "texto": "El dinero entregado al productor en recepción queda ligado a la boleta y se amortiza antes de liberar cualquier remanente en la liquidación."}
       ]
     },
     {
@@ -231,7 +257,10 @@
           ["No puedo crear traslado", "Falta precio_base o lote sin stock", "Capturar precio por caja"],
           ["Calibre no aparece", "Mal escrito en catálogo", "Configuración → Calibres"],
           ["Login falla", "Cuenta sin rol asignado", "Admin asigna rol en /admin/usuarios"],
-          ["Corte no cuadra", "Venta o gasto sin registrar", "Revisar tickets y gastos del día"]
+          ["Corte no cuadra", "Venta o gasto sin registrar", "Revisar tickets y gastos del día"],
+          ["Tara inválida en recepción", "Tara mayor o igual al bruto", "Verificar las pesadas de la báscula"],
+          ["Anticipo excede el total", "Monto mayor al estimado", "Ajustar el monto o usar Pago total"],
+          ["Cheque sin folio", "Falta la referencia", "Capturar el folio del cheque"]
         ]}
       ]
     },
@@ -248,7 +277,11 @@
           ["FIFO", "First In First Out — sale primero el más antiguo"],
           ["PIN admin", "Código del admin para acciones sensibles"],
           ["Carta Porte", "Documento legal de transporte"],
-          ["Kardex", "Historial cronológico de movimientos de un lote"]
+          ["Kardex", "Historial cronológico de movimientos de un lote"],
+          ["Alias", "Apodo del productor para búsqueda rápida"],
+          ["Anticipo", "Pago entregado en recepción; se descuenta al liquidar"],
+          ["Deducción operativa", "Cargo fijo de $30 por boleta más $0.04 por kilo"],
+          ["PARCIAL / PAGADA", "Estado de la liquidación según quede saldo o llegue a $0.00"]
         ]}
       ]
     }
