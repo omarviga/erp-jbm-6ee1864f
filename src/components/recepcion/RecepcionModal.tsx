@@ -38,6 +38,8 @@ interface RecepcionModalProps {
   operadorSugerido?: string;
   /** Abre el alta de productor como modal superior sin perder captura. */
   onRequestNuevoProductor?: () => void;
+  /** Id de productor recién creado: se selecciona sin tocar lo demás. */
+  productorIdSugerido?: string;
   onSave: (payload: RecepcionPayload, opts: { imprimir: boolean }) => void | Promise<void>;
   isSaving?: boolean;
 }
@@ -59,6 +61,7 @@ export function RecepcionModal({
   tarifaManiobraDefault = TARIFA_MANIOBRA_DEFAULT,
   operadorSugerido = "",
   onRequestNuevoProductor,
+  productorIdSugerido,
   onSave,
   isSaving = false,
 }: RecepcionModalProps) {
@@ -86,6 +89,15 @@ export function RecepcionModal({
       setConfirmacion(null);
     }
   }, [open, cuotaBasculaDefault, tarifaManiobraDefault, operadorSugerido]);
+
+  // Selecciona al productor recién creado sin perder la captura.
+  useEffect(() => {
+    if (open && productorIdSugerido) {
+      setForm((f) =>
+        f.productorId === productorIdSugerido ? f : { ...f, productorId: productorIdSugerido },
+      );
+    }
+  }, [open, productorIdSugerido]);
 
   const set = <K extends keyof RecepcionFormState>(k: K, v: RecepcionFormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));

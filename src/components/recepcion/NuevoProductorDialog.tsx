@@ -22,6 +22,10 @@ const productorSchema = z.object({
   nombre: z.string()
     .min(2, "El nombre debe tener al menos 2 caracteres")
     .max(100, "El nombre no puede exceder 100 caracteres"),
+  alias: z.string()
+    .max(60, "El alias no puede exceder 60 caracteres")
+    .optional()
+    .or(z.literal("")),
   telefono: z.string()
     .regex(/^[0-9]{10}$/, "El teléfono debe tener 10 dígitos")
     .optional()
@@ -36,11 +40,18 @@ type ProductorInput = z.infer<typeof productorSchema>;
 
 interface NuevoProductorDialogProps {
   onProductorCreated?: (productorId: string) => void;
+  /** Modo controlado (para abrirlo desde el modal de boleta). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
-export function NuevoProductorDialog({ onProductorCreated }: NuevoProductorDialogProps) {
-  const [open, setOpen] = useState(false);
+export function NuevoProductorDialog({ onProductorCreated, open: openControlado, onOpenChange, hideTrigger = false }: NuevoProductorDialogProps) {
+  const [openInterno, setOpenInterno] = useState(false);
+  const open = openControlado ?? openInterno;
+  const setOpen = onOpenChange ?? setOpenInterno;
   const [nombre, setNombre] = useState("");
+  const [alias, setAlias] = useState("");
   const [telefono, setTelefono] = useState("");
   const [rfc, setRfc] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -49,27 +60,30 @@ export function NuevoProductorDialog({ onProductorCreated }: NuevoProductorDialo
 
   const createProductor = useMutation({
     mutationFn: async (data: ProductorInput) => {
+      // alias: columna de migración 20261001090000 (tipos aún sin regenerar).
       const { data: productor, error } = await supabase
         .from("productores")
         .insert({
           nombre: data.nombre.trim(),
           telefono: data.telefono?.trim() || null,
           rfc: data.rfc?.trim().toUpperCase() || null,
-        })
+          ...(data.alias?.trim() ? { alias: data.alias.trim() } : {}),
+        } as never)
         .select()
         .single();
 
       if (error) throw error;
-      return productor;
+      return productor as { id: string; nombre: string };
     },
     onSuccess: (productor) => {
       queryClient.invalidateQueries({ queryKey: ["productores"] });
       toast.success("✅ Productor registrado", {
         description: `${productor.nombre} ha sido agregado correctamente.`,
       });
-      
+
       // Reset form
       setNombre("");
+      setAlias("");
       setTelefono("");
       setRfc("");
       setErrors({});
@@ -89,6 +103,7 @@ export function NuevoProductorDialog({ onProductorCreated }: NuevoProductorDialo
     // Validar
     const result = productorSchema.safeParse({
       nombre,
+      alias: alias || undefined,
       telefono: telefono || undefined,
       rfc: rfc || undefined,
     });
@@ -110,11 +125,13 @@ export function NuevoProductorDialog({ onProductorCreated }: NuevoProductorDialo
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-14 w-14 shrink-0">
-          <Plus className="h-5 w-5" />
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="icon" className="h-14 w-14 shrink-0">
+            <Plus className="h-5 w-5" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -135,6 +152,20 @@ export function NuevoProductorDialog({ onProductorCreated }: NuevoProductorDialo
             />
             {errors.nombre && (
               <p className="text-sm text-destructive">{errors.nombre}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="alias">Alias / apodo (opcional)</Label>
+            <Input
+              id="alias"
+              value={alias}
+              onChange={(e) => setAlias(e.target.value.slice(0, 60))}
+              placeholder="Ej: Don Angel"
+              className={errors.alias ? "border-destructive" : ""}
+            />
+            {errors.alias && (
+              <p className="text-sm text-destructive">{errors.alias}</p>
             )}
           </div>
 

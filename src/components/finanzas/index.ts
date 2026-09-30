@@ -4,5 +4,6 @@ export { SettlementTicket, type DatosTicketLiquidacion } from "./SettlementTicke
 export { AbonoModal, type NuevoAbono } from "./AbonoModal";
 export { HistorialLiquidaciones } from "./HistorialLiquidaciones";
 export { AuxiliarProductores } from "./AuxiliarProductores";
-export { ReporteDeduccionOperativa } from "./ReporteDeduccionOperativa";
+export { ReporteDeduccionOperativa, type FilaReporteExport } from "./ReporteDeduccionOperativa";
+export { LiquidacionesTab } from "./LiquidacionesTab";
 export * from "./types";

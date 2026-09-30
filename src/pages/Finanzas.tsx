@@ -17,6 +17,7 @@ import {
   Download,
   Loader,
   ShoppingCart,
+  HandCoins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { ComprasTab } from "@/components/finanzas/ComprasTab";
 import { GastosResumenTab } from "@/components/finanzas/GastosResumenTab";
+import { LiquidacionesTab } from "@/components/finanzas/LiquidacionesTab";
 
 // Tipos basados en el esquema Supabase
 type Productor = Database['public']['Tables']['productores']['Row'];
@@ -584,9 +586,12 @@ export default function Finanzas() {
     <MainLayout title="Control de Pagos" subtitle="Cuentas por Pagar">
 
       <Tabs defaultValue="cxp" className="space-y-6">
-        <TabsList className="grid w-full max-w-4xl grid-cols-3 h-12 bg-muted p-1">
+        <TabsList className="grid w-full max-w-5xl grid-cols-4 h-12 bg-muted p-1">
           <TabsTrigger value="cxp" className="text-base font-medium">
             <Receipt className="h-4 w-4 mr-2" /> CxP
+          </TabsTrigger>
+          <TabsTrigger value="liquidaciones" className="text-base font-medium">
+            <HandCoins className="h-4 w-4 mr-2" /> Liquidaciones
           </TabsTrigger>
           <TabsTrigger value="resumen" className="text-base font-medium">
             <Wallet className="h-4 w-4 mr-2" /> Resumen
@@ -974,6 +979,11 @@ export default function Finanzas() {
           </Dialog>
         </TabsContent>
 
+
+        {/* --- PESTAÑA: LIQUIDACIONES --- */}
+        <TabsContent value="liquidaciones" className="space-y-6">
+          <LiquidacionesTab />
+        </TabsContent>
 
         {/* --- PESTAÑA: RESUMEN INGRESOS VS EGRESOS --- */}
         <TabsContent value="resumen" className="space-y-6">

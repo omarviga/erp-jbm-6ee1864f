@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Factory,
   Printer,
+  ReceiptText,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -52,6 +53,13 @@ import {
   type PropsSeccionRecepcion,
   type RecepcionFormState,
 } from "@/components/recepcion/tipos";
+import { RecepcionModal } from "@/components/recepcion/RecepcionModal";
+import { NuevoProductorDialog } from "@/components/recepcion/NuevoProductorDialog";
+import { payloadADatosRecepcion } from "@/components/recepcion/mapeo";
+import type {
+  ProductorOption,
+  RecepcionPayload,
+} from "@/components/recepcion/types";
 
 const CLAVE_OPERADOR = "recepcion.operador_bascula";
 
@@ -93,6 +101,9 @@ export default function Recepcion() {
   const [cortadoresLote, setCortadoresLote] = useState<CortadorDelLote[]>([]);
   const [resultado, setResultado] = useState<ResultadoGuardado | null>(null);
   const [pendienteImpresion, setPendienteImpresion] = useState(false);
+  const [boletaAbierta, setBoletaAbierta] = useState(false);
+  const [dialogoProductor, setDialogoProductor] = useState(false);
+  const [productorSugeridoBoleta, setProductorSugeridoBoleta] = useState<string | undefined>(undefined);
 
   const {
     productores,
@@ -142,6 +153,86 @@ export default function Recepcion() {
   const productorSeleccionado = useMemo(
     () => productores.find((p) => p.id === form.productorId),
     [productores, form.productorId]
+  );
+
+  const productoresOpciones: ProductorOption[] = useMemo(
+    () =>
+      productores.map((p) => ({
+        id: p.id,
+        nombre: p.nombre,
+        localidad: null,
+      })),
+    [productores]
+  );
+
+  const guardarBoleta = useCallback(
+    async (payload: RecepcionPayload, opts: { imprimir: boolean }) => {
+      try {
+        const res = await guardarRecepcion(payloadADatosRecepcion(payload));
+        const nombreProductor =
+          productores.find((p) => p.id === payload.productorId)?.nombre ??
+          "SIN ASIGNAR";
+        const ticket: TicketRecepcion = {
+          folioOficial: res.folio_recepcion ?? folioOficialPreview ?? "",
+          folioFisico: payload.folioBascula,
+          numeroLote: res.numero_lote,
+          productor: nombreProductor,
+          origen: "Compra externa",
+          huerto: "—",
+          localidad: "",
+          variedad: VARIEDAD_UNICA,
+          operador: payload.operadorBascula,
+          pesoBruto: payload.pesoBruto,
+          tara: payload.pesoTara,
+          pesoNeto: res.peso_neto,
+          kilosMerma: 0,
+          defectosPct: 0,
+          precioKg: payload.precioKg,
+          subtotal: payload.resumen.subtotalFruta,
+          costoBascula: payload.cuotaBascula,
+          basculaFormaPago: payload.formaPagoBascula,
+          cuotaManiobraKg: payload.tarifaManiobraKg,
+          cuotaManiobraConcepto: payload.conceptoManiobra,
+          cuotaManiobra: payload.resumen.cargoManiobraTotal,
+          totalDeducciones: payload.resumen.descuentoBascula + payload.resumen.cargoManiobraTotal,
+          total: res.total_liquidar,
+          precioNetoEfectivo: payload.resumen.precioNetoEfectivo,
+          fecha: formatearFechaHora(new Date()),
+          statusUrl: `${window.location.origin}/lotes/${res.id}`,
+          borrador: false,
+        };
+
+        setResultado({
+          loteId: res.id,
+          numeroLote: res.numero_lote,
+          folioRecepcion: res.folio_recepcion,
+          pesoNeto: res.peso_neto,
+          total: res.total_liquidar,
+          productorNombre: nombreProductor,
+          ticket,
+          viaRespaldo: res.viaRespaldo,
+        });
+
+        queryClient.invalidateQueries({ queryKey: ["lotes"] });
+        queryClient.invalidateQueries({ queryKey: ["productores"] });
+        queryClient.invalidateQueries({ queryKey: ["recepcion"] });
+
+        setBoletaAbierta(false);
+        if (opts.imprimir) setPendienteImpresion(true);
+
+        toast.success(`Lote ${res.numero_lote} recibido`, {
+          description: `Folio ${res.folio_recepcion ?? "sin folio"} · ${res.peso_neto.toLocaleString(
+            "es-MX"
+          )} kg netos · ${moneda(res.total_liquidar)}`,
+        });
+      } catch (error) {
+        toast.error("No se pudo registrar la boleta", {
+          description:
+            error instanceof Error ? error.message : "Intenta nuevamente",
+        });
+      }
+    },
+    [guardarRecepcion, productores, folioOficialPreview, queryClient]
   );
 
   const setCampo = useCallback(
@@ -424,6 +515,20 @@ export default function Recepcion() {
       subtitle="Pesaje de báscula, liquidación al productor y boleta de entrada"
     >
       <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Captura rápida con ticket en vivo, o el formulario completo por secciones.
+          </p>
+          <Button
+            type="button"
+            onClick={() => setBoletaAbierta(true)}
+            className="bg-emerald-700 hover:bg-emerald-800"
+          >
+            <ReceiptText className="mr-2 h-4 w-4" aria-hidden="true" />
+            Nueva Boleta de Recepción &amp; Pesaje
+          </Button>
+        </div>
+
         {aviso && (
           <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4">
             <AlertTriangle
@@ -556,6 +661,24 @@ export default function Recepcion() {
 
         <TicketBascula ticket={ticketMostrado} onImprimir={imprimir} />
       </div>
+
+      <RecepcionModal
+        open={boletaAbierta}
+        onClose={() => setBoletaAbierta(false)}
+        productores={productoresOpciones}
+        folioPreview={folioOficialPreview ?? ""}
+        operadorSugerido={operadorSugerido}
+        onRequestNuevoProductor={() => setDialogoProductor(true)}
+        productorIdSugerido={productorSugeridoBoleta}
+        onSave={guardarBoleta}
+        isSaving={guardando}
+      />
+      <NuevoProductorDialog
+        open={dialogoProductor}
+        onOpenChange={setDialogoProductor}
+        hideTrigger
+        onProductorCreated={(id) => setProductorSugeridoBoleta(id)}
+      />
     </MainLayout>
   );
 }

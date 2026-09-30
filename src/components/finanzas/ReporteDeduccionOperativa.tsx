@@ -13,10 +13,22 @@ import {
   generarHtmlReporteDeduccion,
 } from "../../lib/finanzas/documentos";
 
+export interface FilaReporteExport {
+  display: string;
+  nBoletas: number;
+  kilosNetos: number;
+  deduccionFija: number;
+  provision: number;
+  total: number;
+}
+
 interface ReporteDeduccionOperativaProps {
   /** Una fila por boleta procesada (productor + kilos + fecha). */
   movimientos: (MovimientoDeduccion & { folioBascula: string })[];
   nombres: Record<string, string>; // productorId -> display
+  /** Overrides de exportación (por defecto: CSV + ventana de impresión). */
+  onExportarExcel?: (periodo: string, filas: FilaReporteExport[]) => void | Promise<void>;
+  onExportarPdf?: (periodo: string, filas: FilaReporteExport[], total: number, kilos: number) => void | Promise<void>;
 }
 
 const MODOS: { id: ModoPeriodo; etiqueta: string }[] = [
@@ -33,6 +45,8 @@ const MODOS: { id: ModoPeriodo; etiqueta: string }[] = [
 export function ReporteDeduccionOperativa({
   movimientos,
   nombres,
+  onExportarExcel,
+  onExportarPdf,
 }: ReporteDeduccionOperativaProps) {
   const [modo, setModo] = useState<ModoPeriodo>("semanal");
   const [periodo, setPeriodo] = useState("");
@@ -54,8 +68,9 @@ export function ReporteDeduccionOperativa({
   const totalKilos = filas.reduce((s, f) => s + f.kilosNetos, 0);
   const total = filas.reduce((s, f) => s + f.total, 0);
 
-  const exportarExcel = () =>
-    exportarCsv(`deduccion_operativa_${periodoActivo}`, [
+  const exportarExcel = () => {
+    if (onExportarExcel) return onExportarExcel(periodoActivo, filas);
+    return exportarCsv(`deduccion_operativa_${periodoActivo}`, [
       "Productor",
       "Boletas",
       "Kilos netos",
@@ -63,9 +78,11 @@ export function ReporteDeduccionOperativa({
       "Provisión ($0.04/kg)",
       "Total",
     ], filas.map((f) => [f.display, f.nBoletas, f.kilosNetos, f.deduccionFija, f.provision, f.total]));
+  };
 
-  const exportarPdf = () =>
-    abrirVentanaImpresion(
+  const exportarPdf = () => {
+    if (onExportarPdf) return onExportarPdf(periodoActivo, filas, total, totalKilos);
+    return abrirVentanaImpresion(
       `Deducción operativa ${periodoActivo}`,
       generarHtmlReporteDeduccion(
         periodoActivo,
@@ -81,6 +98,7 @@ export function ReporteDeduccionOperativa({
         totalKilos,
       ),
     );
+  };
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4">

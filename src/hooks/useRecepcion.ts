@@ -54,6 +54,9 @@ export interface DatosRecepcion {
   estado_calidad?: string;
   notas?: string;
   cortadores?: CortadorDelLote[];
+  /** Monto pagado al productor en recepción (migración 20261001100000). */
+  anticipos?: number;
+  tipo_pago_recepcion?: "pendiente" | "anticipo" | "total";
 }
 
 export interface ResultadoRecepcion {
@@ -282,6 +285,8 @@ export function useRecepcion() {
           estado_calidad: datos.estado_calidad ?? "aceptado",
           notas: datos.notas ?? "",
           cortadores: cortadores.map((c) => ({ id: c.id, cajas: Number(c.cajas) })),
+          anticipos: datos.anticipos ?? 0,
+          tipo_pago_recepcion: datos.tipo_pago_recepcion ?? "pendiente",
         };
 
         const { data: rpcData, error: rpcError } = await supabase.rpc(
@@ -337,6 +342,11 @@ export function useRecepcion() {
           usuario_id: user?.id ?? null,
         };
 
+        // Columnas de migración 20261001100000 (aún no regeneradas en
+        // Database types): se agregan por spread para no romper el tipado.
+        const pagoRecepcion: { anticipos?: number; tipo_pago_recepcion?: string } =
+          datos.anticipos ? { anticipos: datos.anticipos, tipo_pago_recepcion: datos.tipo_pago_recepcion ?? "anticipo" } : {};
+
         const completo: LoteInsert = {
           ...base,
           variedad: datos.variedad ?? null,
@@ -347,6 +357,7 @@ export function useRecepcion() {
           operador_bascula: datos.operador_bascula ?? null,
           precio_caja_cortador: datos.precio_caja_cortador ?? 0,
           pago_cortadores_total: pagoCortadores,
+          ...pagoRecepcion,
         };
 
         let { data: lote, error: insertError } = await supabase
