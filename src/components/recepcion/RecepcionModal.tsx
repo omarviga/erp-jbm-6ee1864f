@@ -14,7 +14,7 @@ import {
   formatoKilos,
   formatoPesos,
   parseNumero,
-  validarRecepcion,
+  validarBoletaRecepcion,
   type ErrorValidacionRecepcion,
   type TipoPagoRecepcion,
 } from "../../lib/recepcion/calculos";
@@ -129,7 +129,7 @@ export function RecepcionModal({
   if (!open) return null;
 
   const iniciarAccion = (accion: AccionConfirmacion) => {
-    const errores = validarRecepcion({
+    const errores = validarBoletaRecepcion({
       productorId: form.productorId,
       folioBascula: form.folioBascula,
       pesoBruto: numeros.pesoBruto,

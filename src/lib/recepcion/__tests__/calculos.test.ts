@@ -3,7 +3,7 @@ import {
   calcularAnticipoRecepcion,
   calcularPesoNeto,
   calcularResumenRecepcion,
-  validarRecepcion,
+  validarBoletaRecepcion,
 } from "../calculos";
 
 describe("calcularPesoNeto", () => {
@@ -50,7 +50,7 @@ describe("calcularResumenRecepcion", () => {
   });
 });
 
-describe("validarRecepcion", () => {
+describe("validarBoletaRecepcion", () => {
   const ok = {
     productorId: "prod-1",
     folioBascula: "BAS-10492",
@@ -60,29 +60,29 @@ describe("validarRecepcion", () => {
   };
 
   it("acepta una captura válida", () => {
-    expect(validarRecepcion(ok)).toEqual([]);
+    expect(validarBoletaRecepcion(ok)).toEqual([]);
   });
 
   it("bloquea bruto ≤ 0", () => {
-    expect(validarRecepcion({ ...ok, pesoBruto: 0 }).map((e) => e.codigo)).toContain(
+    expect(validarBoletaRecepcion({ ...ok, pesoBruto: 0 }).map((e) => e.codigo)).toContain(
       "BRUTO_INVALIDO",
     );
   });
 
   it("bloquea tara ≥ bruto", () => {
-    expect(validarRecepcion({ ...ok, pesoTara: 18500 }).map((e) => e.codigo)).toContain(
+    expect(validarBoletaRecepcion({ ...ok, pesoTara: 18500 }).map((e) => e.codigo)).toContain(
       "TARA_INVALIDA",
     );
   });
 
   it("bloquea precio $0.00", () => {
-    expect(validarRecepcion({ ...ok, precioKg: 0 }).map((e) => e.codigo)).toContain(
+    expect(validarBoletaRecepcion({ ...ok, precioKg: 0 }).map((e) => e.codigo)).toContain(
       "PRECIO_INVALIDO",
     );
   });
 
   it("exige productor y folio físico", () => {
-    const codigos = validarRecepcion({ ...ok, productorId: "", folioBascula: " " }).map(
+    const codigos = validarBoletaRecepcion({ ...ok, productorId: "", folioBascula: " " }).map(
       (e) => e.codigo,
     );
     expect(codigos).toContain("PRODUCTOR_REQUERIDO");
@@ -91,17 +91,17 @@ describe("validarRecepcion", () => {
 
   it("bloquea anticipo en $0.00 y anticipo mayor al total", () => {
     expect(
-      validarRecepcion({ ...ok, tipoPago: "anticipo", montoAnticipo: 0, totalEstimado: 99580 }).map(
+      validarBoletaRecepcion({ ...ok, tipoPago: "anticipo", montoAnticipo: 0, totalEstimado: 99580 }).map(
         (e) => e.codigo,
       ),
     ).toContain("ANTICIPO_INVALIDO");
     expect(
-      validarRecepcion({ ...ok, tipoPago: "anticipo", montoAnticipo: 100000, totalEstimado: 99580 }).map(
+      validarBoletaRecepcion({ ...ok, tipoPago: "anticipo", montoAnticipo: 100000, totalEstimado: 99580 }).map(
         (e) => e.codigo,
       ),
     ).toContain("ANTICIPO_EXCEDE_TOTAL");
     expect(
-      validarRecepcion({ ...ok, tipoPago: "anticipo", montoAnticipo: 2000, totalEstimado: 99580 }),
+      validarBoletaRecepcion({ ...ok, tipoPago: "anticipo", montoAnticipo: 2000, totalEstimado: 99580 }),
     ).toEqual([]);
   });
 });

@@ -1,3 +1,44 @@
-node_modules/
+# Logs
+logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Build artifacts (se regeneran)
+*.tsbuildinfo
+
+# Drizzle (el proyecto usa migraciones de Supabase)
+drizzle/
+drizzle.config.ts
+
+# Sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Secrets (nunca commitear)
+.env
+.env.*
+!.env.example
+bun.lock
+bun.lockb
+repomix-output.xml
