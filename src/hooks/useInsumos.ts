@@ -7,6 +7,8 @@ export interface InsumoUI {
   id: string;
   nombre: string;
   categoria: string;
+  /** Tipo crudo del enum (para agrupar stock por material BOM). */
+  tipo: string;
   stock: number;
   minimo: number;
   costo: number;
@@ -49,6 +51,7 @@ export const useInsumos = () => {
         id: item.id,
         nombre: item.nombre,
         categoria: toCategoriaLabel(item.tipo),
+        tipo: item.tipo,
         stock: item.cantidad_disponible,
         minimo: item.cantidad_minima,
         costo: item.costo_unitario || 0,

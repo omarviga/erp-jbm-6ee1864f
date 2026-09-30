@@ -26,6 +26,7 @@ import { TipoMovimientoInsumo, useInsumos } from "@/hooks/useInsumos";
 import { useAuth } from "@/contexts/AuthContext";
 import { RecetasManager } from "@/components/insumos/RecetasManager";
 import { AltaInsumo } from "@/components/insumos/AltaInsumo";
+import { SimuladorBOM } from "@/components/insumos/SimuladorBOM";
 
 const tipoMovimientoMeta: Record<TipoMovimientoInsumo, { label: string; icon: ComponentType<{ className?: string }> }> = {
   entrada: { label: "Entrada", icon: ArrowUp },
@@ -360,6 +361,8 @@ export default function Insumos() {
       </div>
 
       <div className="mt-6 space-y-6">
+        <SimuladorBOM items={items} />
+
         {isAdmin && <RecetasManager />}
 
         {puedeDarAlta && (
