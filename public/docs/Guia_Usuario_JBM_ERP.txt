@@ -1,0 +1,462 @@
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 1
+Guía de Usuario — Sistema JBM
+ ERP
+ Manual operativo por rol · Limones Barragán
+ v1.2 · Septiembre 2026
+ Manual operativo paso a paso · Capturas reales del sistema
+ Novedades v1.2: Nueva Boleta de Recepción & Pesaje en pantalla dividida, pago/anticipos en recepción y módulo de Liquidaciones a Productores
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 2
+Tabla de contenidos
+ 1. Introducción al sistema JBM ERP
+ 2. Recepción / Báscula
+ 3. Producción / Empaque
+ 4. Inventarios / Cámara Fría
+ 5. Logística / Embarques
+ 6. Bodega CDMX (POS, Recepciones, Inventario, Corte, Gastos, Rentabilidad)
+ 7. Finanzas — Cuentas por Pagar y Liquidaciones
+ 8. Reglas de negocio críticas
+ 9. Flujo end-to-end
+ 10. Errores comunes y solución
+ 11. Glosario
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 3
+1. Introducción al sistema JBM ERP
+JBM ERP es el sistema integral de Limones Barragán. Cubre desde la llegada del camión a báscula en
+Michoacán hasta la venta final al cliente en Bodega CDMX, pasando por producción, cámara fría, logística,
+cuentas por pagar a productores y facturación.
+Inicio de sesión
+Acceda a la URL del ERP, ingrese correo y contraseña, presione INICIAR SESIÓN. Si no tiene
+credenciales contacte al administrador.
+[Imagen no encontrada: pant-login.png]
+Dashboard general
+Tras autenticarse el usuario llega al Dashboard, donde se muestran KPIs del día (kilos recibidos, cajas
+empacadas, stock en inventarios, stock molino), alertas de lotes por vencer, documentación faltante,
+merma controlada y un panel de acciones rápidas.
+ Dashboard principal con KPIs y acciones rápidas
+Mapa de roles
+Rol
+Módulos accesibles
+Restricciones
+admin_owner
+TODOS
+Único que ve Rentabilidad
+CDMX y Usuarios
+bascula
+Recepción, Productores
+Sin acceso a precios de venta
+produccion
+Producción, Inventarios
+(lectura)
+No modifica precios
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 4
+Rol
+Módulos accesibles
+Restricciones
+almacen / logistica
+Inventarios, Logística
+No vende
+cdmx_operator
+Bodega CDMX (sin
+Rentabilidad)
+Cotejo ciego activo
+finanzas
+Finanzas, Facturación, Gastos
+No modifica producción
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 5
+2. Recepción / Báscula
+Primer eslabón. Cada camión que llega del campo se pesa y se genera un ticket de recepción que da
+nacimiento a la deuda con el productor.
+ Pantalla de Recepción — Nueva Boleta de Recepción & Pesaje (captura + ticket en vivo)
+Cómo capturar una recepción (paso a paso)
+
+1. En el menú lateral abrir RECEPCIÓN y pulsar 'Nueva Boleta de Recepción & Pesaje'.
+
+2. En 'Productor / Proveedor' localizarlo por nombre o localidad. Si es nuevo, usar '+ Nuevo' sin perder la captura.
+
+3. En 'No. Folio Ticket Báscula' capturar el folio impreso por la báscula física. Ej: BAS-10492.
+
+4. Capturar 'Bruto (kg)' (camión cargado) y 'Tara (kg)' (camión vacío). El 'Neto (kg)' se calcula al instante en la tarjeta verde.
+
+5. Capturar 'Precio por Kilo ($/kg)' acordado; el 'Subtotal Fruta' se calcula solo.
+
+6. En 'Cuota de Báscula' elegir 'Descontar de liquidación' (resta la cuota, Ej: -$50.00) o 'Pagado en efectivo' (pagó en caseta, $0.00).
+
+7. Capturar 'Maniobra ($/kg)' (habitual $0.40), el concepto del cargo y el 'Operador de báscula'.
+
+8. En 'Pago al productor en recepción' elegir 'Pendiente de pago', 'Anticipo' (capturar el monto entregado en mano) o 'Pago total'. El sistema muestra el remanente estimado.
+
+9. Verificar el desglose (fruta, báscula, maniobra, precio neto efectivo real y TOTAL NETO A LIQUIDAR) y el ticket térmico en vivo a la derecha.
+
+10. Pulsar 'Guardar Boleta' o 'Guardar e Imprimir Directo' y confirmar en el diálogo (Peso Neto Certificado + Total Neto a Liquidar). Se genera la cuenta por pagar.
+
+Validaciones que impiden guardar: bruto menor o igual a 0, tara mayor o igual al bruto, precio en $0.00 y anticipo mayor al total estimado.
+Reglas críticas
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 6
+
+Una vez confirmado, el ticket es INMUTABLE. Los errores se corrigen con un ajuste autorizado por
+admin (PIN).
+
+El precio capturado se congela en el ticket — define la deuda con el productor.
+El dinero entregado en recepción (anticipo o pago total) queda ligado a la boleta y se descuenta después en Finanzas al liquidarla.
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 7
+3. Producción / Empaque
+Toma los lotes recibidos y los clasifica por calibre, generando cajas etiquetadas con QR para trazabilidad.
+ Pantalla de Clasificación de Producción
+Cómo registrar producción
+
+1. Abrir PRODUCCIÓN. Verá KPIs: Lotes Activos, Rendimiento Actual, Procesado (Hoy), Estado Planta.
+
+2. En 'LOTE EN LÍNEA' seleccionar el lote recibido a procesar (viene de Recepción).
+
+3. En 'CALIBRE' elegir primero el color (Verde / Alimonado / Amarillo) y luego la talla (V-4, V-5, V-X,
+V-XX, V-XXX, V-EXT, etc.).
+
+4. Capturar la cantidad de cajas producidas en cada calibre.
+
+5. Indicar la presentación (Caja Plástica 20kg, 10kg o Arpilla 17kg).
+
+6. Capturar mermas (kg de fruta rechazada).
+
+7. Pulsar 'Imprimir etiquetas' para sacar las etiquetas QR de cada caja.
+
+8. GUARDAR. Las cajas se mueven automáticamente a Inventarios → Cámara Fría y la merma se
+descuenta del rendimiento.
+Calibres oficiales (no usar otros nombres)
+Color
+Calibres válidos
+Verde
+V-4, V-5, V-X, V-XX, V-XXX, V-EXT
+Alimonado
+AL-4, AL-5, AL-X, AL-XX, AL-XXX, AL-EXT
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 8
+Color
+Calibres válidos
+Amarillo
+AM-X, AM-XX, AM-XXX, AM-EXT
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 9
+4. Inventarios / Cámara Fría
+Controla el stock físico en Michoacán: cámara fría, piso de empaque, fruta directa a transporte y
+transferencias hacia Bodega CDMX.
+ Cuadrícula de rotación de cámara fría con condiciones (Temperatura, Humedad, Capacidad)
+Lectura de la pantalla
+
+Tarjetas superiores: temperatura actual, humedad relativa, capacidad usada y semáforo de rotación.
+
+Pestañas: Cámara Fría · Piso Empaque · Directo a Transporte · Enviar a CDMX.
+
+Cuadrícula: cada celda (A-01, A-02, ...) representa un slot físico de la cámara. Si está vacío aparece
+'Vacío'; si tiene lote muestra el número de lote y calibre.
+
+Panel derecho 'Acciones': buscar lote por número o calibre, dar de baja por merma.
+Cómo dar de baja una caja por merma
+
+1. Localizar la celda en la cuadrícula y darle clic.
+
+2. En el panel derecho pulsar 'Dar de baja por merma'.
+
+3. Capturar cantidad y motivo (golpe, hongo, deshidratación, etc.).
+
+4. Confirmar. Queda registrado en el kardex del lote.
+Cómo enviar inventario a Bodega CDMX
+
+1. Pestaña 'Enviar a CDMX' → 'Nueva transferencia'.
+
+2. Seleccionar lotes/cajas con su calibre y presentación.
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 10
+
+3. Capturar PRECIO BASE por caja (Ej: $450/caja para V-EXT 20kg). Solo admin/finanzas lo ven.
+
+4. Capturar transportista, placas y chofer.
+
+5. GUARDAR. Genera la Carta Porte y deja la transferencia 'En tránsito'.
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 11
+5. Logística / Embarques
+Gestión de embarques, guías de salida y cartas porte para clientes externos y para Bodega CDMX.
+ Pantalla de Logística — Configuración de Embarque
+Cómo crear un embarque
+
+1. Botón verde superior derecho: 'Enviar a Bodega CDMX' (o usar el formulario para clientes externos).
+
+2. En 'Cliente / Destino' seleccionar al destinatario.
+
+3. En 'Folio Salida' capturar o aceptar el folio sugerido (Ej: GS-2024-001).
+
+4. En 'Carga Asignada' pulsar 'Agregar Productos' y elegir cajas desde Cámara o Piso.
+
+5. El panel derecho calcula automáticamente: Total Cajas, Peso Total, Volumen y Lotes incluidos.
+
+6. Pestaña 'Carta Porte': capturar transportista, placas, conductor y origen/destino.
+
+7. Pulsar 'Completar Requisitos' (se habilita al cumplir todos los campos).
+
+8. Imprimir la Carta Porte y entregársela al chofer.
+La pestaña 'Historial' muestra todos los embarques pasados, su estado y permite reimprimir
+documentación.
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 12
+6. Bodega CDMX (POS, Recepciones, Inventario,
+Corte, Gastos, Rentabilidad)
+Sucursal de alta seguridad. Tiene su propio sidebar con 6 sub-módulos. La pestaña 'Rentabilidad' SOLO la
+ve el admin.
+ Punto de Venta CDMX — catálogo de productos, carrito y numpad
+A) Cómo hacer una venta en el POS
+
+1. Sidebar: 'Punto de Venta'.
+
+2. Filtrar por Granel, Cajas o Arpillas (chips superiores). El sistema muestra disponibilidad de granel del
+día.
+
+3. Tocar la tarjeta del producto (Limón a granel, Arpilla 16/18/26 kg, Caja Reja 20 kg). Se agrega al
+carrito.
+
+4. En el numpad de la derecha: con QTY captura cantidad; con PRECIO sobreescribe (admin lo autoriza
+por PIN si baja el base); con DISC aplica descuento.
+
+5. Verificar Subtotal y TOTAL en la parte inferior derecha.
+
+6. Elegir método de pago: Efectivo · Transferencia · Cheque.
+
+7. Asociar cliente con 'Público en general' o buscar uno existente.
+
+8. Pulsar PAGAR (verde). Se imprime ticket y se descuenta inventario.
+B) Recepciones (cotejo ciego)
+
+1. Sidebar: 'Recepciones'. Llega el camión de Michoacán.
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 13
+
+2. El sistema NO muestra cuánto se envió. El operador cuenta físicamente cada calibre y captura
+cantidades.
+
+3. Al confirmar, el sistema compara con lo enviado. Si hay discrepancia mayor al margen, marca
+ALERTA y exige PIN admin + foto evidencia.
+
+4. Confirmado: el inventario CDMX se actualiza.
+C) Inventario
+Vista del stock CDMX por lote y calibre. Solo se muestra el precio_venta (público); el precio_base (costo)
+está oculto al operador.
+D) Corte de Caja (cierre de día)
+
+1. Sidebar: 'Corte de Caja' al cerrar la jornada.
+
+2. El operador declara CIEGAMENTE el efectivo físico contado en caja (sin ver el esperado).
+
+3. Al confirmar, el sistema muestra la diferencia vs el esperado. Faltantes/sobrantes mayores al umbral
+requieren PIN admin + nota.
+E) Gastos Locales
+Capturar gastos del centro de costo CDMX (rentas, comidas, fletes, combustible). Cada gasto requiere foto
+del ticket. La IA OCR extrae proveedor, monto e IVA. Se restan en Rentabilidad.
+F) Rentabilidad (solo admin)
+Utilidad Neta CDMX =
+Ventas Totales (precio_venta)
+− Costo Fruta (cajas vendidas × precio_base)
+− Gastos Locales CDMX
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 14
+7. Finanzas — Cuentas por Pagar y Liquidaciones
+Centraliza el pago a productores: mesa de control por alias, selección de boletas, liquidación con desglose transparente, abonos mixtos y reportes.
+ Control de Pagos — Mesa de Control de Pagos con deuda viva por productor
+Lectura de la pantalla
+
+Pestañas: Liquidaciones a Productores · Historial · Auxiliar · Reportes.
+
+La 'Mesa de Control de Pagos' filtra al productor por su alias o nombre legal (Ej: "Don Angel"). En pantalla y boleta se muestra el alias junto a la razón social.
+
+La tabla lista las boletas pendientes: folio de báscula, fecha, bruto, tara, kilos netos, precio/kg, anticipos, deducción de báscula y saldo neto por boleta.
+
+La barra inferior acumula en tiempo real: boletas seleccionadas, kilos netos, precio promedio y total neto.
+Cómo liquidar a un productor (paso a paso)
+
+1. Ir a Finanzas → 'Liquidaciones a Productores'.
+
+2. Buscar al productor por su alias y seleccionarlo; se despliegan sus boletas pendientes de pago.
+
+3. Marcar una o varias boletas con los checkboxes (o 'Seleccionar Todos') y revisar los totales acumulados.
+
+4. Pulsar 'Pagar' y verificar el desglose de confirmación: boletas procesadas, kilos netos totales, precio pactado promedio, subtotal fruta bruta, (−) anticipos amortizados, (−) deducción de báscula, (−) deducción operativa ($30.00 por boleta), (−) provisión operativa JBM ($0.04/kg) e IMPORTE TOTAL NETO A PAGAR.
+
+5. Confirmar: se registra la póliza contable, las boletas cambian a Pagadas o Pago parcial, se imprime el ticket de 80mm y se puede descargar la Boleta Oficial de Liquidación en PDF membretada (alias, folios, tara, netos, precio, deducciones, anticipos y firmas).
+Cómo registrar abonos mixtos (pagos parciales o combinados)
+
+1. En el 'Historial de Liquidaciones Emitidas' pulsar 'Abonar' en la fila de la liquidación.
+
+2. Elegir el método: Cheque (exige el folio/referencia obligatorio), Efectivo o Transferencia SPEI, y capturar el importe entregado.
+
+3. El modal proyecta el saldo pendiente en tiempo real; con 'Liquidar Saldo Restante Completo' se salda de un clic.
+
+4. La liquidación permanece en estado PARCIAL hasta que el saldo llega exactamente a $0.00, cuando cambia automáticamente a PAGADA.
+Auxiliar contable y reportes
+
+'Auxiliar Contable de Productores': cuentas corrientes con alias, kilos entregados históricamente, precio promedio, pagos dispersados y cuentas por liquidar; emite el Estado de Cuenta Oficial en PDF.
+
+'Deducción Operativa': consolidado diario, semanal, quincenal o mensual por productor con kilos y montos, exportable a Excel y PDF.
+proveedor, RFC, monto e IVA.
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 16
+8. Reglas de negocio críticas
+8.1 Doble precio por caja
+
+precio_base: costo interno al salir de Michoacán. Solo admin/finanzas.
+
+precio_venta: precio público. Visible al POS.
+8.2 Cotejo ciego CDMX
+El operador NUNCA ve la cantidad enviada hasta haber capturado lo recibido. Aplica a recepciones, corte
+de caja y gastos.
+8.3 Inmutabilidad
+Tickets de báscula, ventas POS y cortes son inmutables. Las correcciones son asientos de ajuste con PIN.
+8.4 FIFO en CDMX
+Las ventas POS descuentan stock siguiendo estricto FIFO sobre los lotes locales más antiguos.
+8.5 Deducciones operativas fijas
+
+Cada boleta liquidada descuenta $30.00 fijos más $0.04 por kilo neto. Son cargos operativos de JBM, separados de la cuota de báscula, y aparecen desglosados en la liquidación y en la boleta oficial.
+8.6 Anticipos
+
+El dinero entregado al productor en recepción queda ligado a la boleta y se amortiza antes de liberar cualquier remanente en la liquidación.
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 17
+9. Flujo end-to-end
+[Báscula] Recepción
+↓ kilos × precio = deuda al productor
+[Producción] Clasificación por calibre + QR
+↓
+[Inventarios] Cámara Fría / Piso Empaque
+↓ admin captura precio_base por caja
+[Logística] Transferencia a CDMX (en tránsito)
+↓ cotejo ciego
+[Bodega CDMX] Recepción confirmada
+↓
+[POS] Venta (precio_venta)
+↓
+[Corte de Caja] Conciliación efectivo
+↓
+[Rentabilidad] Ventas − Costo − Gastos
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 18
+10. Errores comunes y solución
+Error
+Causa
+Solución
+'No hay inventario para Caja'
+al vender
+La transferencia a CDMX no
+fue cotejada
+Ir a Recepciones CDMX y
+confirmar
+No puedo crear traslado
+Falta precio_base o lote sin
+stock
+Capturar precio por caja
+Calibre no aparece
+Mal escrito en catálogo
+Configuración → Calibres
+Login falla
+Cuenta sin rol asignado
+Admin asigna rol en
+/admin/usuarios
+Corte no cuadra
+Venta o gasto sin registrar
+Revisar tickets y gastos del día
+Tara inválida en recepción
+Tara mayor o igual al bruto
+Verificar las pesadas de la báscula
+Anticipo excede el total
+Monto mayor al estimado
+Ajustar el monto o usar Pago total
+Cheque sin folio
+Falta la referencia
+Capturar el folio del cheque
+
+
+JBM ERP — Guía de Usuario
+v1.2 · Septiembre 2026
+Página 19
+11. Glosario
+Término
+Significado
+Lote
+Conjunto de fruta de un mismo productor
+recibido en una fecha
+Calibre
+Clasificación de tamaño/calidad del limón
+Cotejo ciego
+Recepción sin conocer la cantidad enviada
+Precio base
+Costo interno de la caja
+Precio venta
+Precio público al cliente
+FIFO
+First In First Out — sale primero el más antiguo
+PIN admin
+Código del admin para acciones sensibles
+Carta Porte
+Documento legal de transporte
+Kardex
+Historial cronológico de movimientos de un lote
+
+Alias
+Apodo del productor para búsqueda rápida
+Anticipo
+Pago entregado en recepción; se descuenta al liquidar
+Deducción operativa
+Cargo fijo de $30 por boleta más $0.04 por kilo
+PARCIAL / PAGADA
+Estado de la liquidación según quede saldo o llegue a $0.00

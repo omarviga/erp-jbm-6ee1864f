@@ -1,0 +1,1850 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.lovable/
+  plan/
+    módulo-de-campo-fase-1-limón-2026-09-18.md
+docs/
+  PESO_NETO_RULE.md
+  PRODUCTION_READINESS_CHECKLIST.md
+  qa-flujo-operativo-compra-produccion-envio-pos-2026-03-10.md
+  qa-modulo-por-modulo-omarvieyra-2026-03-10.md
+  qa-omarvieyra-e2e.md
+  RECEPCION_MEJORAS_2026-08-13.md
+  RELEASE_READINESS_REPORT.md
+  reset_compra_transaccional.sql
+  ROLE_ACCESS_MATRIX.md
+  SUPABASE_PRODUCTION_AUDIT.md
+  SUPABASE_REMEDIATION_PLAN.md
+public/
+  docs/
+    img/
+      bodega-cdmx-pos.png
+      dashboard.png
+      finanzas.png
+      inventarios.png
+      logistica.png
+      pant-login.png
+      produccion.png
+      recepcion.png
+    Guia_Usuario_JBM_ERP.docx
+    Guia_Usuario_JBM_ERP.pdf
+    Guia_Usuario_JBM_ERP.txt
+  favicon.ico
+  logo-ticket.png
+  placeholder.svg
+  robots.txt
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".lovable/plan/módulo-de-campo-fase-1-limón-2026-09-18.md">
+# Módulo de Campo — Fase 1 (limón)
+
+## Situación actual verificada
+
+- Ya existe una tabla de **huertos** con nombre, ubicación (texto) y hectáreas, administrada desde Configuración. No tiene productor asociado, cultivo, variedad, fecha de plantación ni mapa.
+- Cada recepción de báscula ya guarda el huerto (`lotes.huerto_id`), pero el selector de huerto **solo aparece cuando la entrada se marca como cosecha propia**. Las compras a terceros quedan sin huerto de origen.
+- No existe nada de bitácora de labores, monitoreos ni estimaciones de cosecha.
+- Las tablas que menciona el brief (`batches`, `company_settings`, `cold_storage_settings`) no existen en este sistema; la recepción vive en `lotes`. El plan se ajusta a la estructura real.
+- El bug de la cuota de báscula queda fuera de este plan, como se acordó.
+
+## Lo que se construye
+
+### 1. Huertos con ficha completa y mapa
+
+Se amplía el huerto existente (sin perder los ya registrados) con: productor asociado, cultivo, variedad, municipio, superficie, fecha de plantación y **polígono dibujado sobre mapa**. Se añade además la opción de dividir un huerto en **lotes de campo** (secciones con su propio polígono y superficie), opcional.
+
+Pantalla nueva **Campo → Huertos**: listado con buscador, alta/edición con mapa para dibujar el contorno, y ficha de huerto.
+
+### 2. Bitácora de labores
+
+Registro por huerto (y opcionalmente por sección) de: riego, fertilización, aplicación fitosanitaria, poda y monitoreo. Cada registro guarda fecha, insumo y dosis, responsable, costo y notas.
+
+Listado con filtros por tipo y rango de fechas, y alta rápida pensada para celular (botones grandes, pocos campos obligatorios).
+
+### 3. Monitoreos con fotos
+
+Inspecciones con tipo de hallazgo, severidad, notas y fotos de evidencia guardadas de forma privada. Se deja reservado un campo para la clasificación automática de la Fase 2, sin usarse todavía.
+
+### 4. Estimaciones de cosecha
+
+Captura por huerto de fecha estimada de corte y volumen esperado. La ficha del huerto muestra la estimación vigente.
+
+### 5. Cierre del ciclo con báscula
+
+En Recepción, el selector de huerto pasa a estar **disponible también para compras a terceros**, filtrado por el productor elegido, y sigue siendo obligatorio solo en cosecha propia. Así cada camión queda ligado a su huerto de origen.
+
+### 6. Ficha de huerto
+
+Vista única por huerto: mapa, datos generales, últimas labores, estimación vigente y el historial de recepciones ya ligadas (folio, fecha, kilos), con el acumulado de kilos recibidos de ese huerto.
+
+### 7. Captura sin señal
+
+Las altas de labores, monitoreos y estimaciones se guardan en el propio teléfono cuando no hay internet y se envían automáticamente al recuperar señal. Indicador visible de "pendientes por sincronizar" y reintento manual. Las fotos también se conservan mientras no haya conexión.
+
+### 8. Accesos
+
+- Capataz / personal de campo: captura de labores, monitoreos y estimaciones.
+- Personal de empacadora: lo anterior más asociación en Recepción y consulta de historial.
+- Productor externo: acceso limitado de solo lectura y captura sobre **sus** huertos únicamente.
+
+## Detalles técnicos
+
+- Migraciones **aditivas**: nuevas columnas nulables en `huertos`, nuevas tablas `cultivos_catalogo`, `huerto_lotes`, `campo_eventos`, `campo_monitoreos`, `campo_estimaciones_cosecha`. Sin cambios destructivos en `lotes` (`huerto_id` ya existe).
+- Polígonos en GeoJSON (columna `jsonb`), mapa con Leaflet + Leaflet-Draw.
+- RLS por rol; el acceso del productor se resuelve con un vínculo usuario→productor y política que limita a sus huertos. Se siembra `cultivos_catalogo` con limón (papaya, aguacate y fresa quedan listos pero fuera de alcance).
+- Fotos en un bucket privado con URLs firmadas, siguiendo el patrón ya usado para tickets de gastos.
+- Cola offline en IndexedDB con reintento, siguiendo el patrón del flujo de báscula.
+- Nueva sección "Campo" en el menú, con rutas protegidas por rol.
+
+## Fuera de alcance
+
+Multi-tenant, otros cultivos, cualquier capa de IA/satelital, nómina a destajo, y el bug de cuota de báscula.
+
+## Piloto
+
+Dimensionado para 10 a 50 huertos y varios capataces/productores.
+</file>
+
+<file path="docs/PESO_NETO_RULE.md">
+# Regla Técnica: Peso Neto como Única Base de Cálculo
+
+Fecha: 2026-05-06  
+Estado: Vigente
+
+## Regla
+
+En JBM ERP, el único peso válido para cálculos operativos y financieros es `peso_neto`.
+
+Aplica para:
+- Recepción (subtotal y total a pagar)
+- Cuentas por pagar (CxP)
+- Liquidaciones
+- Producción (kilos disponibles y porcentaje usado)
+- Reportes derivados de pago por kilo
+
+## Estado de `peso_pagable`
+
+`peso_pagable` queda **deprecated** para lógica nueva.
+
+- No debe usarse en nuevos cálculos.
+- No debe usarse para UI de control operativo.
+- Si existe en base de datos por compatibilidad histórica, su valor debe mantenerse alineado con `peso_neto` durante la transición.
+
+## Motivo
+
+Evitar discrepancias entre módulos y asegurar que el peso pagado, procesado y reportado sea el mismo en todo el sistema.
+</file>
+
+<file path="docs/PRODUCTION_READINESS_CHECKLIST.md">
+# Checklist de Salida a Produccion
+
+Fecha base: 2026-03-13
+
+## 1. Infraestructura
+
+- confirmar proyecto Supabase de produccion separado del de pruebas
+- revisar `SUPABASE_URL`, `SUPABASE_ANON_KEY` y secretos del deploy
+- validar dominio final, HTTPS y headers basicos
+- confirmar backup automatico y responsable de restauracion
+- validar acceso de administradores al panel de Supabase y hosting
+
+## 2. Base de datos
+
+- aplicar todas las migraciones pendientes
+- documentar version exacta liberada
+- exportar snapshot previo a salida
+- ejecutar auditoria de politicas descrita en [SUPABASE_PRODUCTION_AUDIT.md](/C:/Users/oviey/erp-jbm-6ee1864f/docs/SUPABASE_PRODUCTION_AUDIT.md)
+- validar buckets y politicas de storage
+
+## 3. Roles y usuarios
+
+- crear usuarios reales por area
+- asignar rol correcto a cada usuario
+- probar login individual con:
+  - admin
+  - ventas
+  - almacen
+  - produccion
+  - finanzas
+- desactivar cuentas temporales o de prueba
+
+## 4. Catalogos base
+
+- presentaciones activas
+- clientes base, incluyendo `Público en general`
+- transportistas
+- productores, huertos y cortadores vigentes
+- conceptos de gastos y clasificaciones necesarias
+
+## 5. UAT por modulo
+
+### POS CDMX
+
+- buscar producto con stock
+- cambiar cliente
+- cobrar en efectivo
+- cobrar en transferencia
+- bloquear venta por precio debajo del minimo
+- verificar ticket en bitacora `tickets_pos_cdmx`
+- validar reimpresion y preview
+
+### Corte de Caja CDMX
+
+- abrir corte con ventas del periodo
+- verificar resumen por metodo de pago
+- revisar auditoria ligera
+- revisar conciliacion tickets vs pagos
+- cerrar corte cuadrado
+- confirmar registro en `cortes_caja_bodega`
+
+### Recepciones CDMX
+
+- abrir transferencia en transito
+- confirmar recepcion sin discrepancias
+- confirmar recepcion con discrepancias y evidencia
+- validar bloqueo si falta foto
+- revisar inventario actualizado
+
+### Inventario CDMX
+
+- verificar visibilidad para admin
+- verificar ocultamiento de costo para operador
+- confirmar promedios y cajas disponibles
+
+### Facturacion
+
+- emitir factura completa
+- cancelar factura
+- validar permisos por rol
+
+### Finanzas
+
+- registrar gasto
+- consultar resumen
+- generar impresion/reporte
+
+### Logistica
+
+- generar guia
+- consultar historial
+- validar datos SAT y transportista
+
+## 6. Operacion y soporte
+
+- definir responsable de primer nivel
+- definir a quien escalar errores de Supabase
+- preparar canal de incidencias
+- documentar horario de monitoreo de primera semana
+- dejar procedimiento simple para:
+  - reimpresion de ticket
+  - ajuste operativo permitido
+  - reporte de discrepancia
+  - respaldo de evidencia
+
+## 7. Monitoreo de salida
+
+Primeras 72 horas:
+
+- revisar errores frontend cada 2-4 horas
+- revisar fallos de RPC en Supabase
+- revisar inserciones de:
+  - `ventas`
+  - `pagos_clientes`
+  - `tickets_pos_cdmx`
+  - `transferencias_bodega`
+  - `cortes_caja_bodega`
+- confirmar que no existan tickets huerfanos ni pagos descuadrados
+
+## 8. Comandos de validacion antes de liberar
+
+```sh
+npm run lint
+npm test
+npm run build
+```
+
+## 9. Criterio de go-live
+
+La app se considera lista para produccion cuando:
+
+- `lint`, `test` y `build` estan en verde
+- no hay migraciones pendientes
+- roles reales ya fueron probados
+- UAT critica por modulo fue firmada
+- auditoria Supabase quedo en amarillo controlado o verde
+- existe backup valido y responsable de soporte
+</file>
+
+<file path="docs/qa-flujo-operativo-compra-produccion-envio-pos-2026-03-10.md">
+# QA funcional de flujo operativo (compra → producción → movimientos → envío CDMX → venta POS)
+
+Fecha: 2026-03-10
+Usuario probado: `omarvieyra@hotmail.com`
+
+> Nota de acceso: con `omarvieyra@hotnail.com` el login falla; con `omarvieyra@hotmail.com` + la contraseña proporcionada sí entra.
+
+## 1) Compra/Recepción de limón
+- Se abrió el módulo de recepción y se intentó captura automática de datos mínimos.
+- Resultado: **parcial**. La UI de recepción está disponible y se detecta texto de ticket en pantalla; no se pudo confirmar de forma totalmente determinística en automático que el guardado persistió en DB.
+- Evidencias:
+  - Vista recepción: `browser:/tmp/codex_browser_invocations/de3cb59bc0d09023/artifacts/artifacts/flujo/step1-recepcion-view.png`
+  - Intento de acción: `browser:/tmp/codex_browser_invocations/780407338f40d660/artifacts/artifacts/flujo/step1-recepcion-action.png`
+
+## 2) Procesar a Producción
+- Se abrió el módulo de producción correctamente.
+- Resultado: **parcial**. Se validó acceso y carga del panel de clasificación, pero la automatización no ejecutó una clasificación completa de lote (faltó seleccionar lote y parametrización completa para confirmar guardado).
+- Evidencia:
+  - `browser:/tmp/codex_browser_invocations/ad234aacb1a69db7/artifacts/artifacts/flujo/step2-produccion.png`
+
+## 3) Movimientos en Inventarios
+- Se abrió inventarios y se ejecutó interacción real (apertura de historial kardex de lote).
+- Resultado: **OK en interacción**, **parcial en flujo** (no se completó baja/traslado persistente end-to-end en esta corrida).
+- Evidencia:
+  - `browser:/tmp/codex_browser_invocations/3dff2eb2775c9fc0/artifacts/artifacts/flujo/step3-inventarios-mov.png`
+
+## 4) Envío a Bodega CDMX
+- Se abrió pestaña `Enviar a CDMX` en inventarios.
+- Resultado: **parcial**. Se validó entrada al flujo de transferencias; no quedó confirmación inequívoca de transferencia creada en esta corrida automatizada.
+- Evidencia:
+  - `browser:/tmp/codex_browser_invocations/0db3d7c6e01bdfdb/artifacts/artifacts/flujo/step4-envio-cdmx.png`
+
+## 5) Venta en Punto de Venta (Bodega CDMX)
+- Se abrió POS, se agregó producto al carrito (carrito con item visible, total > 0, botón `Pagar` habilitado).
+- Al intentar cobrar, aparece error de backend:
+  - **`Error al procesar la venta`**
+  - **`null value in column "cliente_id" of relation "pagos_clientes" violates not-null constraint`**
+- Resultado: **FAIL funcional** (la venta no se completa).
+- Evidencia:
+  - Estado con carrito y total: `browser:/tmp/codex_browser_invocations/8e02f9a79e113935/artifacts/artifacts/flujo/step5-pos-venta-processed3.png`
+
+## Conclusión ejecutiva
+- El flujo completo solicitado **no pasa end-to-end**.
+- Bloqueador crítico detectado y reproducido: **venta POS falla por `cliente_id` nulo al insertar en `pagos_clientes`**.
+- Siguiente corrección recomendada: revisar función RPC/proceso de cobro para garantizar `cliente_id` válido (fallback a “Público en general”) antes de insertar pago.
+</file>
+
+<file path="docs/qa-modulo-por-modulo-omarvieyra-2026-03-10.md">
+# Prueba funcional módulo por módulo — Omar Vieyra
+
+Fecha: 2026-03-10
+Ambiente: local (`http://127.0.0.1:4173`)
+
+## Hallazgo inicial de acceso
+- Con el correo proporcionado `omarvieyra@hotnail.com` el sistema rechaza login: **"Correo o contraseña incorrectos"**.
+- Con `omarvieyra@hotmail.com` + `Romaesoj21` el login **sí** entra y permite navegar módulos.
+
+## Resultado por módulo (sesión autenticada)
+- Dashboard (`/`): PASS (carga inicial OK)
+- Recepción (`/recepcion`): PASS (carga inicial OK)
+- Producción (`/produccion`): PASS (carga inicial OK)
+- Inventarios (`/inventarios`): PASS (carga inicial OK)
+- Ventas (`/ventas`): PASS (carga inicial OK)
+- Finanzas (`/finanzas`): PASS (carga inicial OK)
+- Logística (`/logistica`): PASS (carga inicial OK)
+- Facturación (`/facturacion`): PASS (carga inicial OK)
+- Configuración (`/configuracion`): PASS (carga inicial OK)
+- Bodega CDMX (`/bodega-cdmx`): PASS (carga inicial OK)
+- Productores (`/productores`): PASS (carga inicial OK)
+
+> Nota: esta corrida validó **carga y navegación inicial** de cada módulo. No cubre todavía flujos profundos transaccionales por módulo (crear/editar/procesar fin a fin).
+
+## Evidencias (capturas)
+### Parte 1
+- Dashboard: `browser:/tmp/codex_browser_invocations/0b8142fe79b90cfb/artifacts/artifacts/modcheck/part1-01-Dashboard.png`
+- Recepción: `browser:/tmp/codex_browser_invocations/0b8142fe79b90cfb/artifacts/artifacts/modcheck/part1-02-Recepcion.png`
+- Producción: `browser:/tmp/codex_browser_invocations/0b8142fe79b90cfb/artifacts/artifacts/modcheck/part1-03-Produccion.png`
+- Inventarios: `browser:/tmp/codex_browser_invocations/0b8142fe79b90cfb/artifacts/artifacts/modcheck/part1-04-Inventarios.png`
+- Ventas: `browser:/tmp/codex_browser_invocations/0b8142fe79b90cfb/artifacts/artifacts/modcheck/part1-05-Ventas.png`
+- Finanzas: `browser:/tmp/codex_browser_invocations/0b8142fe79b90cfb/artifacts/artifacts/modcheck/part1-06-Finanzas.png`
+
+### Parte 2
+- Logística: `browser:/tmp/codex_browser_invocations/4f257ed475472edd/artifacts/artifacts/modcheck/part2-01-Logistica.png`
+- Facturación: `browser:/tmp/codex_browser_invocations/4f257ed475472edd/artifacts/artifacts/modcheck/part2-02-Facturacion.png`
+- Configuración: `browser:/tmp/codex_browser_invocations/4f257ed475472edd/artifacts/artifacts/modcheck/part2-03-Configuracion.png`
+- Bodega CDMX: `browser:/tmp/codex_browser_invocations/4f257ed475472edd/artifacts/artifacts/modcheck/part2-04-BodegaCDMX.png`
+- Productores: `browser:/tmp/codex_browser_invocations/4f257ed475472edd/artifacts/artifacts/modcheck/part2-05-Productores.png`
+</file>
+
+<file path="docs/qa-omarvieyra-e2e.md">
+# Prueba funcional integral por módulos (usuario: omarvieyra@hotnail.com)
+
+Fecha: 2026-03-10
+
+## Resultado general
+No fue posible ejecutar pruebas autenticadas por módulo porque el inicio de sesión falló con las credenciales proporcionadas.
+
+## Evidencia de autenticación
+- Intento de login en `/login` con:
+  - correo: `omarvieyra@hotnail.com`
+  - contraseña: `Romaesoj21`
+- Resultado en UI: **"Correo o contraseña incorrectos"**.
+- URL posterior al intento: `http://127.0.0.1:4173/login` (sin sesión activa).
+
+Captura:
+- `browser:/tmp/codex_browser_invocations/2aa755ce93fae2ec/artifacts/artifacts/e2e/login-attempt.png`
+
+## Rutas verificadas (sin sesión)
+Se intentó navegación a módulos principales, pero al no autenticarse se redirecciona a login o se bloquea el acceso:
+- `/recepcion`
+- `/produccion`
+- `/inventarios`
+- `/ventas`
+- `/finanzas`
+- `/logistica`
+- `/facturacion`
+- `/configuracion`
+- `/bodega-cdmx`
+- `/productores`
+
+## Siguiente paso requerido para completar la prueba "módulo por módulo"
+1. Confirmar credenciales válidas del usuario de pruebas (posible typo en dominio de correo).
+2. Repetir barrido E2E autenticado en cada módulo y documentar:
+   - carga de listados,
+   - creación/edición mínima,
+   - permisos por rol,
+   - errores de red/RLS.
+</file>
+
+<file path="docs/RECEPCION_MEJORAS_2026-08-13.md">
+# Recepción: correcciones y mejoras (2026-08-13)
+
+## Cómo aplicar las migraciones
+
+Archivos, en orden:
+
+1. `supabase/migrations/20260813090000_recepcion_doble_pesada_cuotas_y_folio.sql`
+   — columnas de transporte/cuotas, folio consecutivo y `registrar_recepcion`
+   (**ya aplicada**).
+2. `supabase/migrations/20260813100000_diagnostico_correccion_cosecha_propia.sql`
+   — solo lectura: crea `diagnostico_correccion_cosecha_propia()`.
+3. `supabase/migrations/20260813110000_corregir_cosecha_propia_cxp.sql`
+   — corrección de datos con respaldo y reversión.
+4. `supabase/migrations/20260813120000_recepcion_operador_y_concepto_cargo.sql`
+   — `operador_bascula`, `cuota_maniobra_concepto` y variedad única.
+
+Todas son idempotentes y retrocompatibles.
+
+```bash
+# CLI de Supabase
+supabase db push
+
+# O pegar cada archivo en el panel → SQL Editor
+```
+
+La app funciona **sin** las migraciones 2-4: `useRecepcion` detecta que la RPC
+esperada no está desplegada y guarda por la ruta de respaldo (con un aviso
+visible en pantalla).
+
+## Rediseño del formulario (2026-08-13, segunda iteración)
+
+Cambios pedidos por operación:
+
+- **Se eliminó el bloque de transporte** (chofer, placas del camión y
+  rejas/huacales) y la tara de rejas. Ahora se captura una sola **tara del
+  vehículo**.
+- **Se eliminó el selector de variedad**: en Michoacán solo se trabaja limón
+  mexicano, así que se registra automáticamente (`VARIEDAD_UNICA`).
+- **El huerto solo aparece en cosecha propia**; en compra a terceros el campo ya
+  no existe y `huerto_id` se guarda en `NULL`.
+- **Se agregó el operador de báscula** responsable (se sugiere desde la sesión y
+  se recuerda en el navegador) y el **concepto del cargo** por kilo.
+- **Se eliminó el asistente por pasos**: todo el flujo quedó en una sola
+  pantalla, en el orden operativo (origen → pesaje → calidad → báscula → cargos
+  → resumen → operador → guardar), con dos acciones: **Guardar e imprimir
+  directo** y **Guardar boleta**.
+- El **resumen en tiempo real** muestra el desglose completo y el **precio neto
+  efectivo real** (`total a liquidar ÷ kilos netos`), la métrica de
+  transparencia para el productor.
+
+Las columnas `chofer`, `placas`, `rejas` y `tara_rejas_kg` **se conservan en la
+base** (no se eliminan datos); simplemente dejan de capturarse y quedan en
+`NULL` / `0`.
+
+## Qué se corrigió
+
+| # | Problema | Corrección |
+|---|----------|------------|
+| 1 | `huerto_id` nunca se guardaba: el operador lo seleccionaba y se descartaba | Se persiste en la RPC y en la ruta de respaldo |
+| 2 | Las cajas por cortador se capturaban pero no se guardaban | `registrar_recepcion` inserta en `lote_cortadores` (esa tabla solo permite INSERT a admin/producción por RLS, por eso se hace desde la RPC `SECURITY DEFINER`) |
+| 3 | `peso_neto` (columna GENERATED) nunca se aprovechaba y `formData.placas` era código muerto | `peso_neto` se usa como base de pago |
+| 4 | **Cosecha propia se guardaba con `es_cosecha_propia = false` y el precio por caja escrito en `precio_pactado_kg`** | Ahora `es_cosecha_propia = true`, el precio por caja va a `precio_caja_cortador` y `precio_pactado_kg` queda como costo opcional de costeo |
+| 5 | El paso 2 se titulaba "Detalles de Pesaje y Precio" pero solo tenía el slider de defectos | Un solo flujo lineal de captura |
+| 6 | La tarjeta del paso previo se veía deshabilitada (`opacity-60 grayscale`) pero sus campos seguían editables | Ya no hay pasos: todo es visible y editable a la vez |
+| 7 | No existía pantalla de revisión previa al ingreso | Checklist de cierre en el panel lateral + resumen en tiempo real |
+| 8 | El historial de precios estaba hardcodeado (3 valores fijos de enero 2026) | Se consultan los últimos lotes reales del productor, con promedio, rango y variación |
+| 9 | `calcularResumenRecepcion` y `obtenerCostoBasculaConfigurado` se importaban sin usarse | Cálculo único en `src/lib/recepcion/calculos.ts`, con pruebas |
+
+## Qué se agregó
+
+- **Pesaje de báscula**: 1ª pesada (camión cargado), 2ª pesada (vehículo vacío) y
+  peso neto automático, con marca de tiempo en `peso_bruto_at` / `peso_tara_at`.
+- **Cuota de báscula con forma de cobro**: `efectivo` (se cobra al momento y **no**
+  se descuenta de la liquidación) o `liquidacion`.
+- **Cargo operativo por kilo** con tarifa ($0.40/kg por omisión) y concepto.
+- **Precio neto efectivo real** (`total a liquidar ÷ kilos netos`), la métrica de
+  transparencia que ve el productor.
+- **Folio consecutivo oficial** `REC-2026-001` con bloqueo `pg_advisory_xact_lock`
+  para evitar consecutivos duplicados en recepciones simultáneas.
+- **Operador de báscula responsable** en la boleta y en la trazabilidad.
+- **Boleta/ticket 80 mm** con membrete institucional, ambos folios, trazabilidad
+  por QR, desglose de deducciones y firmas de operador y productor/chofer.
+- **Disponibilidad inmediata en producción**: al guardar se muestra el lote
+  creado con acceso directo a su expediente y al módulo de Producción.
+
+## Cambios de esquema
+
+Columnas nuevas en `lotes` (migración `20260813090000`): `folio_recepcion`,
+`bascula_forma_pago`, `cuota_maniobra_kg`, `cuota_maniobra_total`,
+`precio_caja_cortador`, `pago_cortadores_total`, `peso_bruto_at`, `peso_tara_at`,
+`variedad`, y las de transporte `chofer`, `placas`, `rejas`, `tara_rejas_kg`
+(estas últimas ya no se capturan desde la interfaz).
+
+Columnas nuevas en `lotes` (migración `20260813120000`): `operador_bascula` y
+`cuota_maniobra_concepto`.
+
+> `peso_neto` es `GENERATED (peso_bruto - peso_tara)`. Nunca se envía en un
+> INSERT: se calcula en la base a partir del bruto y la tara.
+
+Funciones:
+
+- `siguiente_folio_recepcion()` — solo lectura, para la vista previa del folio.
+- `registrar_recepcion(JSONB)` — alta atómica: lote + cortadores + recálculo de CxP.
+- `sync_cxp_from_lote()` y `sync_productor_saldo_pendiente()` — ahora restan la
+  cuota de maniobra y solo descuentan la báscula cuando su forma de pago es
+  `liquidacion`. También se alineó el saldo del productor para que excluya la
+  cosecha propia, igual que `cuentas_por_pagar`.
+
+## Corrección de datos: cosecha propia registrada como compra
+
+Archivos:
+
+1. `supabase/migrations/20260813100000_diagnostico_correccion_cosecha_propia.sql`
+   (solo lectura: crea una función de consulta y reporta el impacto)
+2. `supabase/migrations/20260813110000_corregir_cosecha_propia_cxp.sql`
+   (aplica la corrección con respaldo y reversión)
+
+> La consulta comentada al final de `20260813090000` usaba
+> `huerto_id IS NOT NULL` como criterio. **Es incorrecta**: el huerto solo se
+> captura en cosecha propia, así que por sí solo no distingue nada. El criterio
+> vigente es `es_cosecha_propia = false AND origen = 'interno'`, implementado en
+> `diagnostico_correccion_cosecha_propia()`.
+
+### Antes de aplicar
+
+```sql
+SELECT * FROM public.diagnostico_correccion_cosecha_propia();
+SELECT clasificacion, COUNT(*), SUM(monto_total) AS importe_inflado
+FROM public.diagnostico_correccion_cosecha_propia()
+GROUP BY clasificacion;
+```
+
+### Qué hace la corrección
+
+1. **Respalda** el estado previo de cada lote y de su nota en
+   `cxp_correccion_cosecha_propia_log` (incluye importes, saldos y estado).
+2. **Marca los lotes** como `es_cosecha_propia = true`. Al hacerlo, el trigger
+   `trg_sync_cxp_from_lote` deja la nota en saldo 0.
+3. **Recupera el precio por caja** que se capturó en `precio_pactado_kg`,
+   moviéndolo a `precio_caja_cortador` y dejando el precio por kilo en 0, para
+   que el costeo de producción no siga usando un valor por caja como si fuera
+   por kilo.
+   Interruptor al inicio del paso 5: `v_mover_precio_a_caja BOOLEAN := true`.
+   Ponlo en `false` para conservar `precio_pactado_kg` tal cual.
+4. **Anula el importe** de las notas que **no** tienen pagos aplicados: pone
+   `monto_total = 0`, `precio_kg = 0` y `saldo_pendiente = 0`. Los kilos de la
+   nota se conservan porque siempre fueron correctos (peso neto real).
+5. **No toca** las notas con pagos ya aplicados, con abonos asignados o de lotes
+   liquidados: quedan marcadas como `requiere_revision_manual` para que finanzas
+   las concilie a mano.
+6. **Resincroniza** `productores.saldo_pendiente`.
+
+### Incluye una corrección de cálculo
+
+`sync_productor_saldo_pendiente` calculaba el pendiente **bruto** (sin restar
+los pagos ya aplicados), mientras `aplicar_pago_cxp` lo calculaba **neto** desde
+`cuentas_por_pagar`. Cada recepción nueva volvía a inflar el saldo de un
+productor que ya había cobrado.
+
+Ahora el cálculo se hace en `recalcular_saldo_productor` (sin chequeo de rol,
+para poder invocarlo desde migraciones donde `auth.uid()` es NULL) y
+`sync_productor_saldo_pendiente` solo valida el rol y delega. Las tres rutas
+—sincronización, aplicación de pagos y liquidación— coinciden.
+
+**Efecto visible:** los productores que ya recibieron pagos verán su
+`saldo_pendiente` bajar al valor real. Es el comportamiento correcto.
+
+### Verificación
+
+```sql
+-- Debe devolver 0 filas
+SELECT * FROM public.diagnostico_correccion_cosecha_propia();
+
+-- Detalle de lo corregido
+SELECT accion, COUNT(*), SUM(monto_total_original) AS importe_previo
+FROM public.cxp_correccion_cosecha_propia_log
+GROUP BY accion;
+```
+
+### Reversión
+
+```sql
+SELECT * FROM public.revertir_correccion_cosecha_propia();
+```
+
+Restaura el estado anterior **incluido el error original** (fue solo una
+creación de función: no se ejecuta sola). Tras revertir, el log queda marcado y
+una nueva aplicación de la migración vuelve a tomar el respaldo del estado
+actual.
+
+### No se pudo recuperar
+
+Las cajas de los cortadores de esos lotes nunca se guardaron (`lote_cortadores`
+quedó vacío) y `pago_cortadores_total` quedó en 0. Ese dato hay que capturarlo
+de nuevo desde las boletas físicas si se necesita el pago retroactivo.
+</file>
+
+<file path="docs/RELEASE_READINESS_REPORT.md">
+# Release Readiness Report
+
+Fecha: 2026-09-29. Base: `main` @ `360505f` + migracion P0 `20260929200300`
+(aplicada en prod) + calibracion de timeouts vitest (sin commit).
+Metodo: consultas directas al catalogo de produccion (`pg_policies`,
+`pg_tables`, `storage.buckets`, grants), revision de codigo y corridas
+reproducibles. Sin PII en evidencias (conteos, no emails).
+
+## Veredicto global
+
+| Seccion | Veredicto | Detalle |
+|---|---|---|
+| 1A Politicas legacy `USING (true)` | REMEDIATED | 31 politicas en 11 tablas cerradas a roles; hoy 0 |
+| 1B `transportistas` y fletes | PASS | Ya endurecida por rol; anon sin acceso |
+| 1C Bucket `gastos-tickets` | PASS | Privado + politicas por rol + signed URLs 60 min |
+| 1D Migracion de cierre | PASS | Aplicada, verificada C1/C2/C3, datos intactos |
+| 2A Usuarios reales por rol | FAIL | 1 usuario por rol (cuentas de prueba); falta matriz con logins reales |
+| 2B Catalogos base | FAIL | Vacios (0 filas); limpio de mocks pero sin carga |
+| 2C UAT end-to-end | PENDING | Requiere planta; acta plantilla incluida abajo |
+| 3 Flow tests | PASS | Causa raiz corregida; 5/5 corridas verdes (8 archivos, 33 tests) |
+
+## 1A. Politicas legacy — REMEDIATED
+
+Inventario (antes): 31 politicas `authenticated USING/WITH CHECK (true)`:
+
+| Tabla | Cmds abiertos | Riesgo |
+|---|---|---|
+| `usuarios` | SELECT/INSERT/UPDATE | Alta: directorio con email/rol editable por cualquiera |
+| `liquidacion_pagos`, `ventas_cdmx`, `venta_detalles_cdmx`, `ventas_exportacion` | SELECT/INSERT/UPDATE | Alta: datos financieros/ventas |
+| `fletes_productor`, `precios_calidad` | SELECT/INSERT/UPDATE | Media: tarifas y precios |
+| `clientes_maquila`, `ordenes_maquila` | SELECT/INSERT/UPDATE | Media: operacion maquila |
+| `rutas_validas`, `cat_clasificaciones` | SELECT (+I/U rutas) | Baja: catalogos |
+| DELETE en las 10 | denegado no-admin | Ya era solo admin |
+
+Contexto: RLS activo en 68/68 tablas public; 0 politicas para `anon`.
+Los GRANTs son amplios por defecto Supabase (hasta `anon` tiene ALL a
+nivel grant), asi que las politicas RLS son la unica capa de control:
+por eso cada cierre se condiciona a `has_role(auth.uid(), ...)`.
+Las 31 politicas eran deriva (no existian en `supabase/migrations`).
+
+Despues (migracion `20260929200300_p0_cierre_authenticated_true.sql`):
+maquila a admin+produccion (ruta `/maquila`); `usuarios` SELECT a
+admin+produccion+almacen (Kardex en `/inventarios`), writes admin;
+`cat_clasificaciones` sin SELECT abierto (admin via ALL existente);
+las 7 sin uso en app (`fletes_productor`, `liquidacion_pagos`,
+`precios_calidad`, `rutas_validas`, `ventas_exportacion`,
+`venta_detalles_cdmx`, `ventas_cdmx`) a solo admin.
+
+Metrica reproducible (SQL Editor, esperado 0 filas):
+
+```sql
+select tablename, policyname, cmd from pg_policies
+where schemaname = 'public'
+  and (qual = 'true' or with_check = 'true');
+```
+
+Resultado observado: 0 filas. Familia por tabla: 41 politicas exactas
+segun diseno, sin restos "Autenticados ...", DELETE solo admin.
+
+Residuales conscientes (verificados, no son hallazgo): SELECT abierto
+en 3 catalogos de cultivo (`cultivo_*`, referencia agronomica);
+`notificaciones` INSERT limitado a `user_id = auth.uid()` (propias);
+ALL admin/finanzas heredados P2 (`clientes_sensible`,
+`facturacion_config`, `factura_timbrado_intentos`).
+
+## 1B. `transportistas` — PASS
+
+Ya endurecida (SELECT admin/ventas/almacen/finanzas; INSERT/UPDATE
+admin/almacen; DELETE admin). Columnas sensibles (`rfc`, `telefono`,
+`numero_permiso`, `poliza_seguro`) sin politica anon/publica:
+`anon` recibe 0 filas por ausencia de politica aplicable.
+Nota: los roles ejemplo del alcance (`coordinador_logistica`,
+`operador_empaque`) no existen en el enum real
+(admin, produccion, finanzas, ventas, almacen, campo); la matriz
+aplicada usa los roles reales y cubre el mismo principio.
+Prueba HTTP en vivo con anon key no ejecutable desde el sandbox
+(sin egreso); reproducible con:
+
+```bash
+curl "$URL/rest/v1/transportistas?select=id&limit=3" \
+  -H "apikey: $ANON" -H "Authorization: Bearer $ANON"
+# esperado: 200 con []
+```
+
+## 1C. Bucket `gastos-tickets` — PASS
+
+- `storage.buckets.public = false` (privado).
+- Politicas `storage.objects` por rol (SELECT/INSERT
+  admin/finanzas/ventas/almacen; DELETE admin), condicionadas a
+  `bucket_id = 'gastos-tickets'`.
+- Codigo solo usa URLs firmadas: `useGastos.ts` y
+  `BodegaCDMX/GastosTab.tsx` via `createSignedUrl(path, 3600)`
+  (TTL 60 min, dentro del rango 15-60). Sin URLs `object/public` en `src`.
+- Prueba directa de URL bloqueada por egreso del sandbox; reproducible:
+
+```bash
+curl -o /dev/null -w "%{http_code}\n" \
+  "$URL/storage/v1/object/public/gastos-tickets/<obj>"
+# esperado: 400 (bucket no publico)
+```
+
+## 1D. Migracion de cierre — PASS
+
+- Archivo: `supabase/migrations/20260929200300_p0_cierre_authenticated_true.sql`
+  (61 DROP, 30 CREATE POLICY, 10 GRANT; solo DDL de politicas).
+- `supabase db push --linked`: aplicado sin errores; `migration list`
+  sin pendientes (incluye `20260929200300`).
+- Integridad: conteos antes = despues (`cat_clasificaciones` 31,
+  `usuarios` 1, resto 0). Sin cambios de datos ni FK tocadas.
+- Cobertura durable: sin harness SQL en el repo; el chequeo
+  reproducible es el SQL de verificacion del header de la migracion
+  (Criterios C1/C2/C3). No se agrego framework nuevo.
+
+## 2A. Usuarios por rol — FAIL (pendiente negocio)
+
+Asignaciones reales en `user_roles` (conteo): 1 admin, 1 produccion,
+1 finanzas, 1 ventas, 1 almacen, 0 campo. Patron de cuentas de
+prueba, no de operacion. Verdad de codigo ruta x rol (base para la
+matriz de logins; admin pasa siempre):
+
+| Ruta | Roles |
+|---|---|
+| `/recepcion` | almacen |
+| `/produccion`, `/maquila` | produccion |
+| `/inventarios` | produccion, almacen |
+| `/logistica` | almacen |
+| `/facturacion`, `/finanzas`, `/gastos` | finanzas |
+| Bodega CDMX (POS/corte/inventario) | ventas, almacen (+ finanzas corte) |
+
+Acta pendiente (lideres): por cada rol, login real, modulo permitido
+OK y modulo bloqueado verificado (ej. almacen no ve `/finanzas`).
+Plantilla: usuario | rol | permitido verificado | bloqueado
+verificado | firma.
+
+## 2B. Catalogos base — FAIL (pendiente carga)
+
+Conteos prod: productores 0, clientes 0, transportistas 0, huertos 0,
+cortadores 0. Limpio de mocks, pero sin datos para operar: bloquear
+salida hasta cargar padron real (RFC, huertas, registros
+fitosanitarios) + insumos con minimos.
+Observacion bascula: `CUOTA_BASCULA_DEFAULT = 50`
+(`src/lib/recepcion/calculos.ts`) es solo default editable del
+formulario (el operador lo cambia por recepcion); no hay config
+central en BD. Sugerencia no bloqueante: tabla de parametros.
+
+## 2C. UAT end-to-end — PENDING (pendiente planta)
+
+No ejecutable sin operacion fisica. Acta minima por viaje de prueba:
+boleta de bascula (bruto/tara) -> ticket termico; corrida de
+calibres con descuento de cajas/etiquetas; ingreso a camara con mapa
+de bahias y alerta termica; Carta Porte + guia PDF + poliza CSV.
+Cada paso: evidencia (folio/archivo) + firma del responsable.
+
+## 3. Flow tests — PASS
+
+Diagnostico: no era colision de datos (tests con mocks) sino
+timeouts bajo contencion paralela. El test POSTab "cobra usando el
+cliente..." tarda 7-12 s y traia timeout local de 10 s
+(`POSTab.flow.test.tsx:197,248`), que prevalece sobre el global;
+un full run de 23 archivos lo empujaba sobre el limite.
+Precedente: `Recepcion.flow.test.tsx` ya usaba 20 s locales.
+
+Cambios:
+
+- `vitest.config.ts`: `testTimeout`/`hookTimeout` 15000 global.
+- `POSTab.flow.test.tsx`: 2 timeouts locales 10 s -> 30 s
+  (peor observado 12 s + margen).
+
+Metrica: set de 8 flows (POSTab, InventarioTab, CorteCajaTab,
+RecepcionesTab, Inventarios, Logistica, Recepcion, TicketBascula;
+33 tests) en 5/5 corridas consecutivas verdes, 0 FAIL.
+Confirmacion full suite (23 archivos en paralelo): 121/121 verdes.
+Colaterales: `tsc --noEmit` 0 errores; eslint limpio en cambiados.
+Recomendacion no bloqueante: `pool: 'vmThreads'` (jsdom se crea 8
+veces por corrida; 27-38% del tiempo) y mover la metrica 5x al CI.
+
+## Entregables
+
+- [x] Reporte SQL: 0 politicas permisivas, 68/68 tablas con RLS,
+      0 politicas anon, bucket privado.
+- [x] Matriz de roles (codigo + RLS); ejecucion de logins reales: pendiente.
+- [ ] Acta UAT de planta: pendiente de operacion.
+- Archivos: migracion `20260929200300`, este reporte,
+  `vitest.config.ts`, `POSTab.flow.test.tsx` (estos dos ultimos sin
+  commit ni push al cierre del reporte).
+</file>
+
+<file path="docs/reset_compra_transaccional.sql">
+-- Reset transaccional de compras de terceros sin borrar catalogos maestros.
+-- Preserva: productores, clientes, huertos, cortadores, presentaciones, insumos.
+--
+-- Alcance:
+-- - lotes de terceros (es_cosecha_propia = false)
+-- - su cadena operativa: lote_cortadores, produccion, camara_fria,
+--   registro_temperaturas, stock_molino
+-- - detalle logistico derivado: guia_detalles ligados a stock/camara de esos lotes
+-- - liquidacion_lotes asociados
+-- - liquidaciones que queden sin lotes asociados
+-- - inventario_kardex, solo si la tabla existe
+--
+-- No toca por defecto:
+-- - productores
+-- - clientes
+-- - ventas / venta_detalles / pagos_clientes
+-- - transferencias CDMX e inventario_bodega_cdmx
+-- - anticipos (se deja un bloque opcional al final)
+--
+-- Uso recomendado:
+-- 1. Ejecuta completo tal cual y revisa los NOTICE y los conteos.
+-- 2. Si el resultado es correcto, cambia el ROLLBACK final por COMMIT.
+
+BEGIN;
+
+-- =============================================
+-- 1. Seleccion de lotes objetivo
+-- =============================================
+CREATE TEMP TABLE tmp_target_lotes AS
+SELECT id, productor_id, numero_lote
+FROM public.lotes
+WHERE es_cosecha_propia = false;
+
+CREATE TEMP TABLE tmp_target_produccion AS
+SELECT p.id
+FROM public.produccion p
+JOIN tmp_target_lotes tl ON tl.id = p.lote_id;
+
+CREATE TEMP TABLE tmp_target_camara AS
+SELECT cf.id
+FROM public.camara_fria cf
+JOIN tmp_target_produccion tp ON tp.id = cf.produccion_id;
+
+CREATE TEMP TABLE tmp_target_stock_molino AS
+SELECT sm.id
+FROM public.stock_molino sm
+JOIN tmp_target_lotes tl ON tl.id = sm.lote_id;
+
+CREATE TEMP TABLE tmp_target_liquidaciones AS
+SELECT DISTINCT ll.liquidacion_id AS id
+FROM public.liquidacion_lotes ll
+JOIN tmp_target_lotes tl ON tl.id = ll.lote_id;
+
+CREATE TEMP TABLE tmp_target_productores AS
+SELECT DISTINCT productor_id
+FROM tmp_target_lotes
+WHERE productor_id IS NOT NULL;
+
+-- =============================================
+-- 2. Preview de impacto
+-- =============================================
+SELECT 'lotes_objetivo' AS tabla, COUNT(*)::bigint AS registros FROM tmp_target_lotes
+UNION ALL
+SELECT 'lote_cortadores', COUNT(*) FROM public.lote_cortadores WHERE lote_id IN (SELECT id FROM tmp_target_lotes)
+UNION ALL
+SELECT 'produccion', COUNT(*) FROM public.produccion WHERE lote_id IN (SELECT id FROM tmp_target_lotes)
+UNION ALL
+SELECT 'camara_fria', COUNT(*) FROM public.camara_fria WHERE id IN (SELECT id FROM tmp_target_camara)
+UNION ALL
+SELECT 'registro_temperaturas', COUNT(*) FROM public.registro_temperaturas WHERE camara_fria_id IN (SELECT id FROM tmp_target_camara)
+UNION ALL
+SELECT 'stock_molino', COUNT(*) FROM public.stock_molino WHERE id IN (SELECT id FROM tmp_target_stock_molino)
+UNION ALL
+SELECT 'guia_detalles', COUNT(*) FROM public.guia_detalles
+WHERE camara_fria_id IN (SELECT id FROM tmp_target_camara)
+   OR stock_molino_id IN (SELECT id FROM tmp_target_stock_molino)
+UNION ALL
+SELECT 'liquidacion_lotes', COUNT(*) FROM public.liquidacion_lotes WHERE lote_id IN (SELECT id FROM tmp_target_lotes)
+UNION ALL
+SELECT 'liquidaciones_con_lotes_objetivo', COUNT(*) FROM tmp_target_liquidaciones
+ORDER BY tabla;
+
+DO $$
+DECLARE
+  v_kardex_count bigint;
+BEGIN
+  IF to_regclass('public.inventario_kardex') IS NOT NULL THEN
+    EXECUTE $sql$
+      SELECT COUNT(*)
+      FROM public.inventario_kardex
+      WHERE lote_id IN (SELECT id FROM tmp_target_lotes)
+    $sql$
+    INTO v_kardex_count;
+
+    RAISE NOTICE 'inventario_kardex: % registros objetivo', v_kardex_count;
+  ELSE
+    RAISE NOTICE 'inventario_kardex: tabla no existe en este entorno, se omitira.';
+  END IF;
+END $$;
+
+-- =============================================
+-- 3. Borrado en orden seguro
+-- =============================================
+
+-- 3.1 Detalles logisticos que bloquean stock/camara
+DELETE FROM public.guia_detalles
+WHERE camara_fria_id IN (SELECT id FROM tmp_target_camara)
+   OR stock_molino_id IN (SELECT id FROM tmp_target_stock_molino);
+
+-- 3.2 Registros financieros ligados a lotes
+DELETE FROM public.liquidacion_lotes
+WHERE lote_id IN (SELECT id FROM tmp_target_lotes);
+
+DELETE FROM public.liquidaciones l
+WHERE l.id IN (SELECT id FROM tmp_target_liquidaciones)
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.liquidacion_lotes ll
+    WHERE ll.liquidacion_id = l.id
+  );
+
+-- 3.3 Cadena operativa opcional
+DO $$
+BEGIN
+  IF to_regclass('public.inventario_kardex') IS NOT NULL THEN
+    EXECUTE $sql$
+      DELETE FROM public.inventario_kardex
+      WHERE lote_id IN (SELECT id FROM tmp_target_lotes)
+    $sql$;
+  END IF;
+END $$;
+
+DELETE FROM public.lote_cortadores
+WHERE lote_id IN (SELECT id FROM tmp_target_lotes);
+
+DELETE FROM public.lotes
+WHERE id IN (SELECT id FROM tmp_target_lotes);
+
+-- =============================================
+-- 4. Verificacion posterior
+-- =============================================
+SELECT 'lotes_restantes_objetivo' AS chequeo, COUNT(*)::bigint AS registros
+FROM public.lotes
+WHERE id IN (SELECT id FROM tmp_target_lotes)
+UNION ALL
+SELECT 'liquidacion_lotes_restantes', COUNT(*)
+FROM public.liquidacion_lotes
+WHERE lote_id IN (SELECT id FROM tmp_target_lotes)
+UNION ALL
+SELECT 'guia_detalles_restantes', COUNT(*)
+FROM public.guia_detalles
+WHERE camara_fria_id IN (SELECT id FROM tmp_target_camara)
+   OR stock_molino_id IN (SELECT id FROM tmp_target_stock_molino)
+ORDER BY chequeo;
+
+DO $$
+DECLARE
+  v_kardex_remaining bigint;
+BEGIN
+  IF to_regclass('public.inventario_kardex') IS NOT NULL THEN
+    EXECUTE $sql$
+      SELECT COUNT(*)
+      FROM public.inventario_kardex
+      WHERE lote_id IN (SELECT id FROM tmp_target_lotes)
+    $sql$
+    INTO v_kardex_remaining;
+
+    RAISE NOTICE 'inventario_kardex_restante: %', v_kardex_remaining;
+  END IF;
+END $$;
+
+-- =============================================
+-- 5. Opcional: anticipos de productores involucrados
+-- =============================================
+-- Si tambien quieres resetear anticipos financieros de los productores
+-- involucrados en estos lotes, descomenta esta sentencia antes del COMMIT:
+--
+-- DELETE FROM public.anticipos
+-- WHERE productor_id IN (SELECT productor_id FROM tmp_target_productores);
+
+ROLLBACK;
+-- Sustituye por COMMIT cuando hayas validado los conteos.
+</file>
+
+<file path="docs/ROLE_ACCESS_MATRIX.md">
+# Matriz de Acceso por Rol (JBM ERP)
+
+Fecha: 2026-05-06  
+Estado: Vigente
+
+## Objetivo
+Definir de forma explícita qué módulos puede usar cada rol implementado en el sistema y cómo se alinea con los nombres operativos de la guía de usuario.
+
+## Equivalencia de Roles (Guía -> Sistema)
+
+| Guía operativa | Rol técnico en sistema |
+| --- | --- |
+| `admin_owner` | `admin` |
+| `bascula` | `almacen` |
+| `almacen / logistica` | `almacen` |
+| `cdmx_operator` | `ventas` |
+| `produccion` | `produccion` |
+| `finanzas` | `finanzas` |
+
+## Matriz de Módulos por Rol
+
+| Módulo / Ruta | admin | almacen | produccion | finanzas | ventas |
+| --- | --- | --- | --- | --- | --- |
+| Dashboard `/` | Si | Si | Si | Si | Si |
+| Recepción `/recepcion` | Si | Si | No | No | No |
+| Producción `/produccion` | Si | No | Si | No | No |
+| Inventarios `/inventarios` | Si | Si | Si | No | No |
+| Logística `/logistica` | Si | Si | No | No | No |
+| Bodega CDMX `/bodega-cdmx` | Si | Si | No | Si | Si |
+| Facturación `/facturacion` | Si | No | No | Si | No |
+| Finanzas `/finanzas` | Si | No | No | Si | No |
+| Insumos `/insumos` | Si | Si | Si | No | No |
+| Reportes `/reportes` | Si | No | No | Si | No |
+| Productores `/productores` | Si | Si | No | Si | No |
+| Configuración `/configuracion` | Si | No | No | No | No |
+| Lote Expediente `/lotes/:loteId` | Si | Si | Si | Si | No |
+| Maquila `/maquila` | Si | No | Si | No | No |
+| Gastos `/gastos` | Si | No | No | Si | No |
+| Gestión de Usuarios `/admin/usuarios` | Si | No | No | No | No |
+| Ayuda `/ayuda` | Si | Si | Si | Si | Si |
+
+## Rol `campo` (Campo / Capataz)
+
+- Sin rutas asignadas en el front: ninguna `allowedRoles` ni `hasRole("campo")` lo usa; existe como valor del enum `app_role` con etiqueta en `access-control.ts`.
+- En prod SÍ tiene accesos RLS vía helper `es_personal_campo()` (= admin/campo/produccion/almacen): `huertos` (SELECT vía `puede_ver_huerto`, INSERT, UPDATE) y tablas del módulo campo (`campo_eventos`, `campo_monitoreos`, `campo_estimaciones_cosecha`, `huerto_clima_diario`, `huerto_lotes`, `riego_eventos`).
+- Portados al repo en `20260929200200_p2_port_deriva_campo.sql` (9 tablas incl. `productor_usuarios`, `huerto_balance_hidrico`, `riego_recomendaciones`; 4 helpers; triggers, índices y 29 políticas).
+- Corrige la afirmación P2 de "reservado sin accesos": aplica a rutas, no a RLS.
+
+## Notas de implementación
+
+- La restricción por ruta se aplica en `ProtectedRoute` con `allowedRoles`.
+- El menú lateral filtra módulos por rol para evitar accesos visuales incorrectos.
+- `admin` conserva acceso total.
+- Por acuerdo operativo, no se aplica validación de flujo ciego como requisito de cumplimiento.
+</file>
+
+<file path="docs/SUPABASE_PRODUCTION_AUDIT.md">
+# Auditoria Supabase para Produccion
+
+Fecha: 2026-03-13
+
+## Objetivo
+
+Este documento resume el estado actual de Supabase para salida a produccion y los puntos que conviene cerrar antes del go-live.
+
+## Hallazgos
+
+### 1. Base general de RLS muy abierta en tablas historicas
+
+En la migracion inicial [20260117162601_58c72984-0d2a-40fc-8aa1-878fa929ae6c.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260117162601_58c72984-0d2a-40fc-8aa1-878fa929ae6c.sql) se habilita RLS, pero muchas politicas permiten `SELECT/INSERT/UPDATE` a `authenticated` con `USING (true)` o `WITH CHECK (true)`.
+
+Impacto:
+- cualquier usuario autenticado puede tener mas alcance del deseado si no hubo endurecimiento posterior tabla por tabla
+- el riesgo mas importante no es CDMX, sino tablas legacy del core
+
+Accion requerida:
+- levantar un inventario final de politicas efectivas por tabla critica
+- confirmar especialmente `ventas`, `venta_detalles`, `pagos_clientes`, `produccion`, `camara_fria`, `insumos`, `guias_salida`, `guia_detalles`
+
+### 2. Clientes ya tiene endurecimiento parcial, pero debe verificarse politica efectiva final
+
+Hay ajustes posteriores en:
+- [20260126184139_0eb0016b-45d1-4b8d-b149-f3e59096e830.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260126184139_0eb0016b-45d1-4b8d-b149-f3e59096e830.sql)
+- [20260201121000_secure_clientes.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260201121000_secure_clientes.sql)
+- [20260305231340_4e17b276-3d3e-4089-9a6f-8e6cd1530cd2.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260305231340_4e17b276-3d3e-4089-9a6f-8e6cd1530cd2.sql)
+
+Accion requerida:
+- validar con consultas reales que `ventas` no puede modificar datos financieros sensibles
+- validar que solo roles correctos ven `clientes_sensible`
+
+### 3. Facturacion y transportistas siguen demasiado abiertos
+
+En [20260202140000_logistica_facturacion_schema.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260202140000_logistica_facturacion_schema.sql) `transportistas`, `facturas` y `factura_detalles` quedaron con politica de `ALL` para `authenticated`.
+
+Impacto:
+- cualquier usuario autenticado podria leer y modificar registros de facturacion/logistica si no hay otra capa compensatoria
+
+Accion requerida:
+- reemplazar esa politica por acceso por rol
+- separar al menos `SELECT` de `INSERT/UPDATE/DELETE`
+
+Prioridad:
+- alta
+
+### 4. CDMX esta mejor endurecido que el resto
+
+La capa CDMX tiene politicas especificas en:
+- [20260309040512_a7ed14e8-d583-4ea7-b324-04f50b6bd985.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309040512_a7ed14e8-d583-4ea7-b324-04f50b6bd985.sql)
+- [20260309133000_fix_transferencias_visibility_and_permissions.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309133000_fix_transferencias_visibility_and_permissions.sql)
+- [20260312150000_add_tickets_pos_cdmx_table.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260312150000_add_tickets_pos_cdmx_table.sql)
+
+Puntos favorables:
+- `inventario_bodega_cdmx` solo lectura por rol
+- escrituras sensibles forzadas por funciones
+- `tickets_pos_cdmx` solo visible para admin/ventas
+- `procesar_venta_cdmx` valida rol dentro de la funcion
+
+Accion requerida:
+- validar que operadores de caja usen rol `ventas`
+- validar que almacen/produccion no puedan ver tickets POS si eso no es deseado
+
+### 5. Recepcion de transferencias ya fuerza autenticacion, pero necesita verificacion de permisos reales
+
+`procesar_recepcion_transferencia` fue reforzada en:
+- [20260309061506_879f338e-0076-458e-af8e-8600568ca0ad.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309061506_879f338e-0076-458e-af8e-8600568ca0ad.sql)
+
+Accion requerida:
+- probar con usuarios de `almacen`, `produccion`, `ventas` y `admin`
+- confirmar exactamente quien puede ejecutar recepcion y quien solo puede consultar
+
+### 6. Tickets de gastos/evidencias pueden ser demasiado publicos
+
+En [20260309033821_43fd723e-a557-4f50-90de-9af533c9233c.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309033821_43fd723e-a557-4f50-90de-9af533c9233c.sql) aparece politica tipo `Anyone can view tickets`.
+
+Impacto:
+- si el bucket contiene comprobantes sensibles, la exposicion puede ser mayor a la deseada
+
+Accion requerida:
+- verificar si el bucket realmente debe ser publico
+- si no, mover a acceso firmado o por rol
+
+Prioridad:
+- alta si hay documentos fiscales o evidencias internas
+
+### 7. Falta evidencia explicita de grants finales para todos los RPC criticos
+
+Se observan grants para varios RPC operativos, por ejemplo en:
+- [20260309090000_add_inventario_rpc.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309090000_add_inventario_rpc.sql)
+- [20260309093000_add_registrar_envio_cdmx_rpc.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309093000_add_registrar_envio_cdmx_rpc.sql)
+- [20260309101500_add_envio_cdmx_transporte_directo_rpc.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309101500_add_envio_cdmx_transporte_directo_rpc.sql)
+- [20260309143000_add_sync_productor_saldo_pendiente_rpc.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309143000_add_sync_productor_saldo_pendiente_rpc.sql)
+
+Accion requerida:
+- confirmar grants efectivos de `procesar_venta_cdmx`, `procesar_recepcion_transferencia` y `calcular_efectivo_teorico_corte`
+- documentar lista final de RPC productivos y roles esperados
+
+## Semaforo actual
+
+- Verde:
+  - modulo CDMX principal
+  - tickets POS separados
+  - corte y recepcion con reglas endurecidas
+- Amarillo:
+  - grants y RLS efectivos deben auditarse en entorno real
+  - storage/tickets necesita confirmacion
+- Rojo:
+  - politicas legacy demasiado abiertas en tablas historicas
+  - facturacion/logistica con `ALL` para `authenticated`
+
+## Checklist tecnico antes de go-live
+
+- listar politicas efectivas con:
+  - `select schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check from pg_policies order by tablename, policyname;`
+- listar funciones `SECURITY DEFINER` con:
+  - `select n.nspname as schema, p.proname as function_name, p.prosecdef from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' order by p.proname;`
+- listar grants ejecutables con:
+  - `select routine_name, privilege_type, grantee from information_schema.routine_privileges where specific_schema = 'public' order by routine_name, grantee;`
+- probar manualmente login con roles:
+  - `admin`
+  - `ventas`
+  - `almacen`
+  - `produccion`
+  - `finanzas`
+- confirmar acceso real a:
+  - `clientes`
+  - `clientes_sensible`
+  - `facturas`
+  - `transportistas`
+  - `ventas`
+  - `pagos_clientes`
+  - `tickets_pos_cdmx`
+  - `inventario_bodega_cdmx`
+  - `transferencias_bodega`
+
+## Recomendacion final
+
+No haria go-live pleno sin antes cerrar:
+1. reemplazo de politicas `authenticated + true` en tablas legacy sensibles
+2. endurecimiento de `facturas`, `factura_detalles` y `transportistas`
+3. validacion final de storage para tickets/evidencias
+</file>
+
+<file path="docs/SUPABASE_REMEDIATION_PLAN.md">
+# Plan de Remediacion Supabase
+
+Fecha: 2026-03-13
+
+## Prioridad P0
+
+### 1. Cerrar politicas legacy con acceso total a `authenticated`
+
+Fuente principal:
+- [20260117162601_58c72984-0d2a-40fc-8aa1-878fa929ae6c.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260117162601_58c72984-0d2a-40fc-8aa1-878fa929ae6c.sql#L345)
+
+Problema:
+- muchas tablas quedaron con `SELECT`, `INSERT` o `UPDATE` habilitados a cualquier usuario autenticado con `USING (true)` o `WITH CHECK (true)`
+
+Riesgo:
+- sobreexposicion de datos
+- modificaciones no autorizadas en modulos legacy
+
+Accion:
+- crear una migracion de endurecimiento que reemplace politicas abiertas por politicas por rol
+- empezar por tablas sensibles:
+  - `ventas`
+  - `venta_detalles`
+  - `pagos_clientes`
+  - `clientes`
+  - `produccion`
+  - `camara_fria`
+  - `guias_salida`
+  - `guia_detalles`
+
+### 2. Endurecer `facturas`, `factura_detalles` y `transportistas`
+
+Fuente:
+- [20260202140000_logistica_facturacion_schema.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260202140000_logistica_facturacion_schema.sql#L68)
+
+Problema:
+- las tres tablas usan `FOR ALL TO authenticated USING (true)`
+
+Riesgo:
+- cualquier usuario autenticado podria leer y modificar facturacion o catalogo de transportistas
+
+Accion:
+- dividir politicas en `SELECT`, `INSERT`, `UPDATE`, `DELETE`
+- sugerencia de alcance:
+  - `admin` y `finanzas`: lectura/escritura en `facturas` y `factura_detalles`
+  - `ventas`: solo lectura o acciones controladas si de verdad se necesitan
+  - `transportistas`: `admin` y logistica/ventas segun operacion real
+
+### 3. Revisar storage publico de tickets/evidencias
+
+Fuente:
+- [20260309033821_43fd723e-a557-4f50-90de-9af533c9233c.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309033821_43fd723e-a557-4f50-90de-9af533c9233c.sql#L59)
+
+Problema:
+- el bucket `gastos-tickets` se crea como publico
+- la politica de lectura esta pensada para `authenticated`, pero el bucket publico puede hacer eso irrelevante
+
+Riesgo:
+- exposicion de tickets, comprobantes o evidencias internas
+
+Accion:
+- confirmar si de verdad debe ser publico
+- si no, cambiar bucket a privado y usar URLs firmadas
+- separar evidencias operativas de comprobantes financieros si conviene
+
+## Prioridad P1
+
+### 4. Auditar grants ejecutables de RPC criticos
+
+Funciones criticas localizadas en:
+- [20260309040512_a7ed14e8-d583-4ea7-b324-04f50b6bd985.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309040512_a7ed14e8-d583-4ea7-b324-04f50b6bd985.sql#L136)
+- [20260309040512_a7ed14e8-d583-4ea7-b324-04f50b6bd985.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309040512_a7ed14e8-d583-4ea7-b324-04f50b6bd985.sql#L274)
+- [20260312150000_add_tickets_pos_cdmx_table.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260312150000_add_tickets_pos_cdmx_table.sql#L32)
+
+Funciones:
+- `procesar_recepcion_transferencia`
+- `calcular_efectivo_teorico_corte`
+- `procesar_venta_cdmx`
+
+Accion:
+- ejecutar consulta real sobre `information_schema.routine_privileges`
+- documentar que roles/usuarios pueden ejecutar cada RPC
+- confirmar que no haya grants heredados o ausentes
+
+### 5. Revisar notificaciones y otros objetos de sistema
+
+Fuentes:
+- [20260309045429_eda699d2-57e0-440a-967b-d25dc310ed82.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309045429_eda699d2-57e0-440a-967b-d25dc310ed82.sql)
+- [20260309061506_879f338e-0076-458e-af8e-8600568ca0ad.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309061506_879f338e-0076-458e-af8e-8600568ca0ad.sql)
+
+Accion:
+- confirmar que las politicas de notificaciones no dejan crear registros desde clientes no deseados
+- verificar que los cambios de refuerzo posteriores sean los efectivos
+
+### 6. Revisar acceso a `inventario_kardex`
+
+Fuente:
+- [20260309124500_enable_kardex_read_for_authenticated.sql](/C:/Users/oviey/erp-jbm-6ee1864f/supabase/migrations/20260309124500_enable_kardex_read_for_authenticated.sql#L5)
+
+Problema:
+- lectura abierta para `authenticated`
+
+Accion:
+- decidir si cualquier rol autenticado debe ver kardex completo
+- si no, limitar a `admin`, `almacen`, `produccion`
+
+## Prioridad P2
+
+### 7. Consolidar estrategia de roles por modulo
+
+Hoy se ve mezcla de criterios entre:
+- `admin`
+- `ventas`
+- `almacen`
+- `produccion`
+- `finanzas`
+
+Accion:
+- definir matriz oficial rol x modulo x accion
+- usar esa matriz para alinear politicas y RPCs
+
+## Entregables sugeridos
+
+### Migracion A: `hardening_legacy_rls.sql`
+
+Objetivo:
+- cerrar tablas legacy abiertas
+
+### Migracion B: `lock_down_facturacion_transportistas.sql`
+
+Objetivo:
+- sustituir `FOR ALL TO authenticated USING (true)` por politicas por rol
+
+### Migracion C: `secure_storage_tickets.sql`
+
+Objetivo:
+- privatizar bucket o separar acceso firmado
+
+## Consulta minima para ejecutar en produccion
+
+```sql
+select schemaname, tablename, policyname, roles, cmd, qual, with_check
+from pg_policies
+order by tablename, policyname;
+
+select routine_name, privilege_type, grantee
+from information_schema.routine_privileges
+where specific_schema = 'public'
+order by routine_name, grantee;
+```
+
+## Criterio de cierre
+
+La auditoria se considera cerrada cuando:
+
+- no existan politicas sensibles con `USING (true)` o `WITH CHECK (true)` para modulos criticos
+- `facturas` y `transportistas` ya no esten abiertos a todo `authenticated`
+- el acceso a storage quede explicitamente decidido
+- RPCs criticos tengan grants verificados
+</file>
+
+<file path="public/docs/Guia_Usuario_JBM_ERP.txt">
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 1
+Guía de Usuario — Sistema JBM
+ ERP
+ Manual operativo por rol · Limones Barragán
+ v1.1 · Mayo 2026
+ Manual operativo paso a paso · Capturas reales del sistema
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 2
+Tabla de contenidos
+ 1. Introducción al sistema JBM ERP
+ 2. Recepción / Báscula
+ 3. Producción / Empaque
+ 4. Inventarios / Cámara Fría
+ 5. Logística / Embarques
+ 6. Bodega CDMX (POS, Recepciones, Inventario, Corte, Gastos, Rentabilidad)
+ 7. Finanzas — Cuentas por Pagar y Liquidaciones
+ 8. Reglas de negocio críticas
+ 9. Flujo end-to-end
+ 10. Errores comunes y solución
+ 11. Glosario
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 3
+1. Introducción al sistema JBM ERP
+JBM ERP es el sistema integral de Limones Barragán. Cubre desde la llegada del camión a báscula en
+Michoacán hasta la venta final al cliente en Bodega CDMX, pasando por producción, cámara fría, logística,
+cuentas por pagar a productores y facturación.
+Inicio de sesión
+Acceda a la URL del ERP, ingrese correo y contraseña, presione INICIAR SESIÓN. Si no tiene
+credenciales contacte al administrador.
+[Imagen no encontrada: pant-login.png]
+Dashboard general
+Tras autenticarse el usuario llega al Dashboard, donde se muestran KPIs del día (kilos recibidos, cajas
+empacadas, stock en inventarios, stock molino), alertas de lotes por vencer, documentación faltante,
+merma controlada y un panel de acciones rápidas.
+ Dashboard principal con KPIs y acciones rápidas
+Mapa de roles
+Rol
+Módulos accesibles
+Restricciones
+admin_owner
+TODOS
+Único que ve Rentabilidad
+CDMX y Usuarios
+bascula
+Recepción, Productores
+Sin acceso a precios de venta
+produccion
+Producción, Inventarios
+(lectura)
+No modifica precios
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 4
+Rol
+Módulos accesibles
+Restricciones
+almacen / logistica
+Inventarios, Logística
+No vende
+cdmx_operator
+Bodega CDMX (sin
+Rentabilidad)
+Cotejo ciego activo
+finanzas
+Finanzas, Facturación, Gastos
+No modifica producción
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 5
+2. Recepción / Báscula
+Primer eslabón. Cada camión que llega del campo se pesa y se genera un ticket de recepción que da
+nacimiento a la deuda con el productor.
+ Pantalla de Recepción — paso 1: Origen y Control
+Cómo capturar una recepción (paso a paso)
+
+1. En el menú lateral abrir RECEPCIÓN.
+
+2. Elegir la pestaña 'Compra a Terceros' (o 'Cosecha Propia' si es del huerto propio).
+
+3. En 'Folio del Ticket Físico (Báscula)' capturar el folio del ticket impreso por la báscula. Ej: B-10293.
+
+4. En 'Productor *' usar el buscador para localizarlo por nombre, o seleccionarlo del dropdown. Si es
+nuevo, presionar el botón + para alta rápida.
+
+5. Capturar 'Peso Bruto (kg)' — el peso total del camión cargado.
+
+6. Capturar 'Tara (kg)' — peso del camión vacío. El sistema calcula automáticamente el 'Peso Neto
+Real'.
+
+7. Capturar 'Precio por kilo' acordado en campo (en pesos).
+
+8. Pulsar 'Siguiente' y completar Calidad/Origen, Documentación y Línea de Producción asignada.
+
+9. Verificar el resumen de liquidación en el panel oscuro de la derecha (Ticket #, total $).
+
+10. Pulsar 'CONFIRMAR INGRESO'. Se imprime el ticket y se genera la cuenta por pagar.
+Reglas críticas
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 6
+
+Una vez confirmado, el ticket es INMUTABLE. Los errores se corrigen con un ajuste autorizado por
+admin (PIN).
+
+El precio capturado se congela en el ticket — define la deuda con el productor.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 7
+3. Producción / Empaque
+Toma los lotes recibidos y los clasifica por calibre, generando cajas etiquetadas con QR para trazabilidad.
+ Pantalla de Clasificación de Producción
+Cómo registrar producción
+
+1. Abrir PRODUCCIÓN. Verá KPIs: Lotes Activos, Rendimiento Actual, Procesado (Hoy), Estado Planta.
+
+2. En 'LOTE EN LÍNEA' seleccionar el lote recibido a procesar (viene de Recepción).
+
+3. En 'CALIBRE' elegir primero el color (Verde / Alimonado / Amarillo) y luego la talla (V-4, V-5, V-X,
+V-XX, V-XXX, V-EXT, etc.).
+
+4. Capturar la cantidad de cajas producidas en cada calibre.
+
+5. Indicar la presentación (Caja Plástica 20kg, 10kg o Arpilla 17kg).
+
+6. Capturar mermas (kg de fruta rechazada).
+
+7. Pulsar 'Imprimir etiquetas' para sacar las etiquetas QR de cada caja.
+
+8. GUARDAR. Las cajas se mueven automáticamente a Inventarios → Cámara Fría y la merma se
+descuenta del rendimiento.
+Calibres oficiales (no usar otros nombres)
+Color
+Calibres válidos
+Verde
+V-4, V-5, V-X, V-XX, V-XXX, V-EXT
+Alimonado
+AL-4, AL-5, AL-X, AL-XX, AL-XXX, AL-EXT
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 8
+Color
+Calibres válidos
+Amarillo
+AM-X, AM-XX, AM-XXX, AM-EXT
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 9
+4. Inventarios / Cámara Fría
+Controla el stock físico en Michoacán: cámara fría, piso de empaque, fruta directa a transporte y
+transferencias hacia Bodega CDMX.
+ Cuadrícula de rotación de cámara fría con condiciones (Temperatura, Humedad, Capacidad)
+Lectura de la pantalla
+
+Tarjetas superiores: temperatura actual, humedad relativa, capacidad usada y semáforo de rotación.
+
+Pestañas: Cámara Fría · Piso Empaque · Directo a Transporte · Enviar a CDMX.
+
+Cuadrícula: cada celda (A-01, A-02, ...) representa un slot físico de la cámara. Si está vacío aparece
+'Vacío'; si tiene lote muestra el número de lote y calibre.
+
+Panel derecho 'Acciones': buscar lote por número o calibre, dar de baja por merma.
+Cómo dar de baja una caja por merma
+
+1. Localizar la celda en la cuadrícula y darle clic.
+
+2. En el panel derecho pulsar 'Dar de baja por merma'.
+
+3. Capturar cantidad y motivo (golpe, hongo, deshidratación, etc.).
+
+4. Confirmar. Queda registrado en el kardex del lote.
+Cómo enviar inventario a Bodega CDMX
+
+1. Pestaña 'Enviar a CDMX' → 'Nueva transferencia'.
+
+2. Seleccionar lotes/cajas con su calibre y presentación.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 10
+
+3. Capturar PRECIO BASE por caja (Ej: $450/caja para V-EXT 20kg). Solo admin/finanzas lo ven.
+
+4. Capturar transportista, placas y chofer.
+
+5. GUARDAR. Genera la Carta Porte y deja la transferencia 'En tránsito'.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 11
+5. Logística / Embarques
+Gestión de embarques, guías de salida y cartas porte para clientes externos y para Bodega CDMX.
+ Pantalla de Logística — Configuración de Embarque
+Cómo crear un embarque
+
+1. Botón verde superior derecho: 'Enviar a Bodega CDMX' (o usar el formulario para clientes externos).
+
+2. En 'Cliente / Destino' seleccionar al destinatario.
+
+3. En 'Folio Salida' capturar o aceptar el folio sugerido (Ej: GS-2024-001).
+
+4. En 'Carga Asignada' pulsar 'Agregar Productos' y elegir cajas desde Cámara o Piso.
+
+5. El panel derecho calcula automáticamente: Total Cajas, Peso Total, Volumen y Lotes incluidos.
+
+6. Pestaña 'Carta Porte': capturar transportista, placas, conductor y origen/destino.
+
+7. Pulsar 'Completar Requisitos' (se habilita al cumplir todos los campos).
+
+8. Imprimir la Carta Porte y entregársela al chofer.
+La pestaña 'Historial' muestra todos los embarques pasados, su estado y permite reimprimir
+documentación.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 12
+6. Bodega CDMX (POS, Recepciones, Inventario,
+Corte, Gastos, Rentabilidad)
+Sucursal de alta seguridad. Tiene su propio sidebar con 6 sub-módulos. La pestaña 'Rentabilidad' SOLO la
+ve el admin.
+ Punto de Venta CDMX — catálogo de productos, carrito y numpad
+A) Cómo hacer una venta en el POS
+
+1. Sidebar: 'Punto de Venta'.
+
+2. Filtrar por Granel, Cajas o Arpillas (chips superiores). El sistema muestra disponibilidad de granel del
+día.
+
+3. Tocar la tarjeta del producto (Limón a granel, Arpilla 16/18/26 kg, Caja Reja 20 kg). Se agrega al
+carrito.
+
+4. En el numpad de la derecha: con QTY captura cantidad; con PRECIO sobreescribe (admin lo autoriza
+por PIN si baja el base); con DISC aplica descuento.
+
+5. Verificar Subtotal y TOTAL en la parte inferior derecha.
+
+6. Elegir método de pago: Efectivo · Transferencia · Cheque.
+
+7. Asociar cliente con 'Público en general' o buscar uno existente.
+
+8. Pulsar PAGAR (verde). Se imprime ticket y se descuenta inventario.
+B) Recepciones (cotejo ciego)
+
+1. Sidebar: 'Recepciones'. Llega el camión de Michoacán.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 13
+
+2. El sistema NO muestra cuánto se envió. El operador cuenta físicamente cada calibre y captura
+cantidades.
+
+3. Al confirmar, el sistema compara con lo enviado. Si hay discrepancia mayor al margen, marca
+ALERTA y exige PIN admin + foto evidencia.
+
+4. Confirmado: el inventario CDMX se actualiza.
+C) Inventario
+Vista del stock CDMX por lote y calibre. Solo se muestra el precio_venta (público); el precio_base (costo)
+está oculto al operador.
+D) Corte de Caja (cierre de día)
+
+1. Sidebar: 'Corte de Caja' al cerrar la jornada.
+
+2. El operador declara CIEGAMENTE el efectivo físico contado en caja (sin ver el esperado).
+
+3. Al confirmar, el sistema muestra la diferencia vs el esperado. Faltantes/sobrantes mayores al umbral
+requieren PIN admin + nota.
+E) Gastos Locales
+Capturar gastos del centro de costo CDMX (rentas, comidas, fletes, combustible). Cada gasto requiere foto
+del ticket. La IA OCR extrae proveedor, monto e IVA. Se restan en Rentabilidad.
+F) Rentabilidad (solo admin)
+Utilidad Neta CDMX =
+Ventas Totales (precio_venta)
+− Costo Fruta (cajas vendidas × precio_base)
+− Gastos Locales CDMX
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 14
+7. Finanzas — Cuentas por Pagar y Liquidaciones
+Centraliza el ciclo de cuentas por pagar a productores en 4 fases (nacimiento → anticipos → liquidación
+semanal → pago y conciliación).
+ Control de Pagos — pestaña CxP con deuda viva por productor
+Lectura de la pantalla
+
+Pestañas: CxP · Liquidaciones · Resumen · Conciliación · Compras.
+
+Tarjetas superiores: Deuda Total Viva (suma de saldos), Productores con saldo, Tickets pendientes.
+
+Tabla 'Cuentas por Pagar por Productor': lista ordenada por mayor deuda. Click en la fila despliega los
+tickets pendientes.
+
+Panel derecho 'REGISTRAR ADELANTO': permite capturar un anticipo (efectivo, cheque, transferencia).
+Cómo registrar un anticipo a un productor
+
+1. Ir a Finanzas → CxP.
+
+2. Hacer clic en la fila del productor para expandir sus tickets.
+
+3. En el panel derecho 'REGISTRAR ADELANTO' seleccionar la forma de pago (Cheque, Efectivo,
+Transferencia).
+
+4. Capturar No. de Cheque/Transferencia y monto.
+
+5. Pulsar 'Registrar adelanto a [Productor]'. El saldo vivo disminuye al instante.
+Cómo liquidar la semana
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 15
+
+1. Pestaña 'Liquidaciones'. El sistema cruza tickets de la semana vs anticipos.
+
+2. Revisar el saldo neto por productor.
+
+3. Generar PDF del estado de cuenta (botón Imprimir) y enviar por WhatsApp.
+
+4. Al pagar, registrar el comprobante en pestaña 'Conciliación'.
+La pestaña 'Compras' integra facturas de proveedores con OCR — sube la foto del ticket y la IA captura
+proveedor, RFC, monto e IVA.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 16
+8. Reglas de negocio críticas
+8.1 Doble precio por caja
+
+precio_base: costo interno al salir de Michoacán. Solo admin/finanzas.
+
+precio_venta: precio público. Visible al POS.
+8.2 Cotejo ciego CDMX
+El operador NUNCA ve la cantidad enviada hasta haber capturado lo recibido. Aplica a recepciones, corte
+de caja y gastos.
+8.3 Inmutabilidad
+Tickets de báscula, ventas POS y cortes son inmutables. Las correcciones son asientos de ajuste con PIN.
+8.4 FIFO en CDMX
+Las ventas POS descuentan stock siguiendo estricto FIFO sobre los lotes locales más antiguos.
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 17
+9. Flujo end-to-end
+[Báscula] Recepción
+↓ kilos × precio = deuda al productor
+[Producción] Clasificación por calibre + QR
+↓
+[Inventarios] Cámara Fría / Piso Empaque
+↓ admin captura precio_base por caja
+[Logística] Transferencia a CDMX (en tránsito)
+↓ cotejo ciego
+[Bodega CDMX] Recepción confirmada
+↓
+[POS] Venta (precio_venta)
+↓
+[Corte de Caja] Conciliación efectivo
+↓
+[Rentabilidad] Ventas − Costo − Gastos
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 18
+10. Errores comunes y solución
+Error
+Causa
+Solución
+'No hay inventario para Caja'
+al vender
+La transferencia a CDMX no
+fue cotejada
+Ir a Recepciones CDMX y
+confirmar
+No puedo crear traslado
+Falta precio_base o lote sin
+stock
+Capturar precio por caja
+Calibre no aparece
+Mal escrito en catálogo
+Configuración → Calibres
+Login falla
+Cuenta sin rol asignado
+Admin asigna rol en
+/admin/usuarios
+Corte no cuadra
+Venta o gasto sin registrar
+Revisar tickets y gastos del día
+
+
+JBM ERP — Guía de Usuario
+v1.1 · Mayo 2026
+Página 19
+11. Glosario
+Término
+Significado
+Lote
+Conjunto de fruta de un mismo productor
+recibido en una fecha
+Calibre
+Clasificación de tamaño/calidad del limón
+Cotejo ciego
+Recepción sin conocer la cantidad enviada
+Precio base
+Costo interno de la caja
+Precio venta
+Precio público al cliente
+FIFO
+First In First Out — sale primero el más antiguo
+PIN admin
+Código del admin para acciones sensibles
+Carta Porte
+Documento legal de transporte
+Kardex
+Historial cronológico de movimientos de un lote
+</file>
+
+<file path="public/placeholder.svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" fill="none"><rect width="1200" height="1200" fill="#EAEAEA" rx="3"/><g opacity=".5"><g opacity=".5"><path fill="#FAFAFA" d="M600.709 736.5c-75.454 0-136.621-61.167-136.621-136.62 0-75.454 61.167-136.621 136.621-136.621 75.453 0 136.62 61.167 136.62 136.621 0 75.453-61.167 136.62-136.62 136.62Z"/><path stroke="#C9C9C9" stroke-width="2.418" d="M600.709 736.5c-75.454 0-136.621-61.167-136.621-136.62 0-75.454 61.167-136.621 136.621-136.621 75.453 0 136.62 61.167 136.62 136.621 0 75.453-61.167 136.62-136.62 136.62Z"/></g><path stroke="url(#a)" stroke-width="2.418" d="M0-1.209h553.581" transform="scale(1 -1) rotate(45 1163.11 91.165)"/><path stroke="url(#b)" stroke-width="2.418" d="M404.846 598.671h391.726"/><path stroke="url(#c)" stroke-width="2.418" d="M599.5 795.742V404.017"/><path stroke="url(#d)" stroke-width="2.418" d="m795.717 796.597-391.441-391.44"/><path fill="#fff" d="M600.709 656.704c-31.384 0-56.825-25.441-56.825-56.824 0-31.384 25.441-56.825 56.825-56.825 31.383 0 56.824 25.441 56.824 56.825 0 31.383-25.441 56.824-56.824 56.824Z"/><g clip-path="url(#e)"><path fill="#666" fill-rule="evenodd" d="M616.426 586.58h-31.434v16.176l3.553-3.554.531-.531h9.068l.074-.074 8.463-8.463h2.565l7.18 7.181V586.58Zm-15.715 14.654 3.698 3.699 1.283 1.282-2.565 2.565-1.282-1.283-5.2-5.199h-6.066l-5.514 5.514-.073.073v2.876a2.418 2.418 0 0 0 2.418 2.418h26.598a2.418 2.418 0 0 0 2.418-2.418v-8.317l-8.463-8.463-7.181 7.181-.071.072Zm-19.347 5.442v4.085a6.045 6.045 0 0 0 6.046 6.045h26.598a6.044 6.044 0 0 0 6.045-6.045v-7.108l1.356-1.355-1.282-1.283-.074-.073v-17.989h-38.689v23.43l-.146.146.146.147Z" clip-rule="evenodd"/></g><path stroke="#C9C9C9" stroke-width="2.418" d="M600.709 656.704c-31.384 0-56.825-25.441-56.825-56.824 0-31.384 25.441-56.825 56.825-56.825 31.383 0 56.824 25.441 56.824 56.825 0 31.383-25.441 56.824-56.824 56.824Z"/></g><defs><linearGradient id="a" x1="554.061" x2="-.48" y1=".083" y2=".087" gradientUnits="userSpaceOnUse"><stop stop-color="#C9C9C9" stop-opacity="0"/><stop offset=".208" stop-color="#C9C9C9"/><stop offset=".792" stop-color="#C9C9C9"/><stop offset="1" stop-color="#C9C9C9" stop-opacity="0"/></linearGradient><linearGradient id="b" x1="796.912" x2="404.507" y1="599.963" y2="599.965" gradientUnits="userSpaceOnUse"><stop stop-color="#C9C9C9" stop-opacity="0"/><stop offset=".208" stop-color="#C9C9C9"/><stop offset=".792" stop-color="#C9C9C9"/><stop offset="1" stop-color="#C9C9C9" stop-opacity="0"/></linearGradient><linearGradient id="c" x1="600.792" x2="600.794" y1="403.677" y2="796.082" gradientUnits="userSpaceOnUse"><stop stop-color="#C9C9C9" stop-opacity="0"/><stop offset=".208" stop-color="#C9C9C9"/><stop offset=".792" stop-color="#C9C9C9"/><stop offset="1" stop-color="#C9C9C9" stop-opacity="0"/></linearGradient><linearGradient id="d" x1="404.85" x2="796.972" y1="403.903" y2="796.02" gradientUnits="userSpaceOnUse"><stop stop-color="#C9C9C9" stop-opacity="0"/><stop offset=".208" stop-color="#C9C9C9"/><stop offset=".792" stop-color="#C9C9C9"/><stop offset="1" stop-color="#C9C9C9" stop-opacity="0"/></linearGradient><clipPath id="e"><path fill="#fff" d="M581.364 580.535h38.689v38.689h-38.689z"/></clipPath></defs></svg>
+</file>
+
+<file path="public/robots.txt">
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: *
+Allow: /
+</file>
+
+</files>
