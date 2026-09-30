@@ -53,6 +53,21 @@ export interface FilaAbono {
 const num = (v: number | null | undefined): number =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
 
+/**
+ * Importe congelado de deducción de un ticket. En tickets legados sin
+ * snapshot de importe se deriva de la tasa congelada (ambos del ticket).
+ */
+export function importeDeduccionCongelado(
+  pesoNeto: number | null | undefined,
+  tasaKg: number | null | undefined,
+  totalSnapshot: number | null | undefined,
+): number {
+  return (
+    num(totalSnapshot) ||
+    Math.round(num(pesoNeto) * num(tasaKg) * 100) / 100
+  );
+}
+
 export function productorACuenta(p: FilaProductor): ProductorCuenta {
   return { id: p.id, alias: p.alias ?? null, nombreLegal: p.nombre };
 }
@@ -64,11 +79,11 @@ export function cxpYLoteABoleta(
 ): BoletaLiquidable & { productorId: string } {
   const kilos = num(cxp.kilos_netos);
   const tasaSnapshot = num(lote?.cuota_maniobra_kg);
-  // Importe congelado del ticket; en tickets legados sin snapshot de
-  // importe se deriva de la tasa congelada (ambos valores del ticket).
-  const deduccionMonto =
-    num(lote?.cuota_maniobra_total) ||
-    Math.round(kilos * tasaSnapshot * 100) / 100;
+  const deduccionMonto = importeDeduccionCongelado(
+    kilos,
+    tasaSnapshot,
+    lote?.cuota_maniobra_total,
+  );
   return {
     id: cxp.id,
     productorId: cxp.productor_id,
@@ -117,10 +132,11 @@ export function construirDetalleTickets(
       const lote = porId.get(n.lote_id);
       const kilos = num(n.kilos_netos);
       const precio = num(n.precio_kg);
-      const tasaSnapshot = num(lote?.cuota_maniobra_kg);
-      const deduccion =
-        num(lote?.cuota_maniobra_total) ||
-        Math.round(kilos * tasaSnapshot * 100) / 100;
+      const deduccion = importeDeduccionCongelado(
+        kilos,
+        lote?.cuota_maniobra_kg,
+        lote?.cuota_maniobra_total,
+      );
       const bascula =
         lote?.bascula_forma_pago === "efectivo" ? 0 : num(lote?.costo_bascula);
       return {

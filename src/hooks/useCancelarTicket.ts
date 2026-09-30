@@ -17,7 +17,9 @@ export function useCancelarTicket() {
         p_lote_id: loteId,
         p_motivo: motivo.trim(),
       });
-      if (error) throw error;
+      // Sin throwOnError, PostgREST devuelve un objeto plano (no Error):
+      // normalizarlo para que el toast muestre el mensaje real del servidor.
+      if (error) throw new Error(error.message || "No se pudo cancelar el ticket");
       await queryClient.invalidateQueries({ queryKey: ["finanzas"] });
     } finally {
       setCancelando(false);
