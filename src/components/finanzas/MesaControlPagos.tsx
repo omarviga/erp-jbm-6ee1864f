@@ -3,8 +3,8 @@ import { Banknote, CheckSquare, Search, Square } from "lucide-react";
 import { formatoKilos, formatoPesos } from "../../lib/recepcion/calculos";
 import {
   buscarProductores,
-  calcularDesgloseBoleta,
   calcularTotalesLiquidacion,
+  leerDesgloseBoleta,
   nombreProductorDisplay,
   type BoletaLiquidable,
 } from "../../lib/finanzas/calculos";
@@ -138,7 +138,7 @@ export function MesaControlPagos({
 
       {/* Tabla de boletas pendientes */}
       <section className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-        <table className="w-full min-w-[880px] text-sm">
+        <table className="w-full min-w-[960px] text-sm">
           <thead>
             <tr className="bg-slate-100 text-left text-xs tracking-wide text-slate-600 uppercase">
               <th className="px-3 py-2">
@@ -160,12 +160,13 @@ export function MesaControlPagos({
               <th className="px-3 py-2 text-right">Precio/kg</th>
               <th className="px-3 py-2 text-right">Anticipos</th>
               <th className="px-3 py-2 text-right">Ded. báscula</th>
+              <th className="px-3 py-2 text-right">Ded. oper.</th>
               <th className="px-3 py-2 text-right">Saldo boleta</th>
             </tr>
           </thead>
           <tbody>
             {boletasProductor.map((b) => {
-              const d = calcularDesgloseBoleta(b);
+              const d = leerDesgloseBoleta(b);
               const checked = seleccion.has(b.id);
               return (
                 <tr
@@ -195,6 +196,9 @@ export function MesaControlPagos({
                   <td className="px-3 py-2 text-right font-mono text-rose-600">
                     {d.descuentoBascula > 0 ? `-${formatoPesos(d.descuentoBascula)}` : "—"}
                   </td>
+                  <td className="px-3 py-2 text-right font-mono text-rose-600">
+                    {d.deduccionOperativa > 0 ? `-${formatoPesos(d.deduccionOperativa)}` : "—"}
+                  </td>
                   <td className="px-3 py-2 text-right font-mono font-black">
                     {formatoPesos(d.saldoNeto)}
                   </td>
@@ -203,7 +207,7 @@ export function MesaControlPagos({
             })}
             {boletasProductor.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-6 text-center text-slate-500">
+                <td colSpan={11} className="px-3 py-6 text-center text-slate-500">
                   {productorId
                     ? "Sin boletas pendientes para este productor."
                     : "Selecciona un productor para ver sus boletas pendientes."}

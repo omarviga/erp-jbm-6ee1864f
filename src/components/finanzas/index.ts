@@ -6,4 +6,5 @@ export { HistorialLiquidaciones } from "./HistorialLiquidaciones";
 export { AuxiliarProductores } from "./AuxiliarProductores";
 export { ReporteDeduccionOperativa, type FilaReporteExport } from "./ReporteDeduccionOperativa";
 export { LiquidacionesTab } from "./LiquidacionesTab";
+export { CancelarTicketModal } from "./CancelarTicketModal";
 export * from "./types";

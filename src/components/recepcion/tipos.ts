@@ -3,7 +3,6 @@ import type { CortadorDelLote } from "@/hooks/useRecepcion";
 import {
   CONCEPTO_MANIOBRA_DEFAULT,
   CUOTA_BASCULA_DEFAULT,
-  TARIFA_MANIOBRA_DEFAULT,
   VARIEDAD_UNICA,
   type DictamenCalidad,
   type FormaPagoBascula,
@@ -61,7 +60,9 @@ export const crearEstadoInicial = (
   defectos: 0,
   costoBascula: String(CUOTA_BASCULA_DEFAULT),
   basculaFormaPago: "liquidacion",
-  cuotaManiobraKg: String(TARIFA_MANIOBRA_DEFAULT),
+  // Captura manual del basculero según el mercado del día; queda congelada
+  // al guardar el ticket y Finanzas la lee (no la recalcula).
+  cuotaManiobraKg: "",
   cuotaManiobraConcepto: CONCEPTO_MANIOBRA_DEFAULT,
   operadorBascula: operadorSugerido,
   notas: "",

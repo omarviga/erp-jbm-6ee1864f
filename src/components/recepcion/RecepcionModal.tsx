@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import {
   CUOTA_BASCULA_DEFAULT,
-  TARIFA_MANIOBRA_DEFAULT,
   calcularAnticipoRecepcion,
   calcularResumenRecepcion,
   formatoKilos,
@@ -34,7 +33,6 @@ interface RecepcionModalProps {
   /** Folio oficial consecutivo (vista previa vía siguiente_folio_recepcion). */
   folioPreview?: string;
   cuotaBasculaDefault?: number;
-  tarifaManiobraDefault?: number;
   operadorSugerido?: string;
   /** Abre el alta de productor como modal superior sin perder captura. */
   onRequestNuevoProductor?: () => void;
@@ -58,7 +56,6 @@ export function RecepcionModal({
   productores,
   folioPreview = "",
   cuotaBasculaDefault = CUOTA_BASCULA_DEFAULT,
-  tarifaManiobraDefault = TARIFA_MANIOBRA_DEFAULT,
   operadorSugerido = "",
   onRequestNuevoProductor,
   productorIdSugerido,
@@ -68,7 +65,6 @@ export function RecepcionModal({
   const [form, setForm] = useState<RecepcionFormState>(() => ({
     ...ESTADO_INICIAL_RECEPCION,
     cuotaBascula: String(cuotaBasculaDefault),
-    tarifaManiobraKg: String(tarifaManiobraDefault),
     operadorBascula: operadorSugerido,
   }));
   const [confirmacion, setConfirmacion] = useState<{
@@ -83,12 +79,11 @@ export function RecepcionModal({
       setForm({
         ...ESTADO_INICIAL_RECEPCION,
         cuotaBascula: String(cuotaBasculaDefault),
-        tarifaManiobraKg: String(tarifaManiobraDefault),
         operadorBascula: operadorSugerido,
       });
       setConfirmacion(null);
     }
-  }, [open, cuotaBasculaDefault, tarifaManiobraDefault, operadorSugerido]);
+  }, [open, cuotaBasculaDefault, operadorSugerido]);
 
   // Selecciona al productor recién creado sin perder la captura.
   useEffect(() => {
@@ -332,9 +327,24 @@ export function RecepcionModal({
                 </div>
               </div>
 
-              <p className="mt-4 mb-1 text-sm font-bold text-slate-700">
-                Cuota de Báscula
-              </p>
+              <div className="mt-4 mb-1 flex flex-wrap items-end justify-between gap-2">
+                <p className="text-sm font-bold text-slate-700">
+                  Cuota de Báscula
+                </p>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="recepcion-bascula" className="text-xs font-bold text-slate-500">
+                    Monto ($)
+                  </label>
+                  <input
+                    id="recepcion-bascula"
+                    inputMode="decimal"
+                    value={form.cuotaBascula}
+                    onChange={(e) => set("cuotaBascula", e.target.value)}
+                    autoComplete="off"
+                    className={`${inputBase} w-28 py-1 font-mono text-sm font-bold`}
+                  />
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Forma de cobro de báscula">
                 <button
                   type="button"
@@ -381,6 +391,9 @@ export function RecepcionModal({
                     autoComplete="off"
                     className={`${inputBase} font-mono font-bold`}
                   />
+                  <p className="mt-1 text-[11px] font-medium text-slate-500">
+                    Captura manual del día; queda congelada al guardar.
+                  </p>
                 </div>
                 <div>
                   <label htmlFor="recepcion-concepto" className="mb-1 block text-sm font-bold text-slate-700">

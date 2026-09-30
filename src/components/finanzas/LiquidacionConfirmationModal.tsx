@@ -51,13 +51,8 @@ export function LiquidacionConfirmationModal({
           <Linea e="(−) Anticipos amortizados" v={`-${formatoPesos(t.anticipos)}`} rojo />
           <Linea e="(−) Deducción báscula" v={`-${formatoPesos(t.deduccionBascula)}`} rojo />
           <Linea
-            e={`(−) Deducción operativa ($30 × ${t.nBoletas})`}
-            v={`-${formatoPesos(t.deduccionOperativaFija)}`}
-            rojo
-          />
-          <Linea
-            e="(−) Provisión operativa JBM ($0.04/kg)"
-            v={`-${formatoPesos(t.provisionOperativa)}`}
+            e="(−) Deducción operativa por kilo"
+            v={`-${formatoPesos(t.deduccionOperativa)}`}
             rojo
           />
         </dl>

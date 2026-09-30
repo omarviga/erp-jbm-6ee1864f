@@ -56,7 +56,7 @@ th{background:#0f172a;color:#fff;font-size:11px}
 .firmas div{flex:1;border-top:1px solid #0f172a;padding-top:4px;text-align:center}
 @media print{body{margin:0}.noprint{display:none}}
 </style></head><body>${cuerpoHtml}
-<script>window.onload=()=>{window.print()}<\/script></body></html>`);
+<script>window.onload=()=>{window.print()}</script></body></html>`);
   w.document.close();
 }
 
@@ -73,8 +73,7 @@ export interface BoletaPdfRow {
   precioKg: number;
   anticipos: number;
   descuentoBascula: number;
-  deduccionFija: number;
-  provision: number;
+  deduccionOperativa: number;
   saldoNeto: number;
 }
 
@@ -94,6 +93,8 @@ export function generarHtmlBoletaLiquidacion(d: DatosBoletaLiquidacion): string 
 <td>${escaparHtml(b.folioBascula)}</td><td>${escaparHtml(b.fechaEntrada)}</td>
 <td class="num">${formatoKilos(b.pesoBruto)}</td><td class="num">${formatoKilos(b.pesoTara)}</td>
 <td class="num">${formatoKilos(b.kilosNetos)}</td><td class="num">${formatoPesos(b.precioKg)}</td>
+<td class="num">-${formatoPesos(b.descuentoBascula)}</td>
+<td class="num">-${formatoPesos(b.deduccionOperativa)}</td>
 <td class="num">${formatoPesos(b.saldoNeto)}</td></tr>`,
     )
     .join("");
@@ -103,14 +104,13 @@ export function generarHtmlBoletaLiquidacion(d: DatosBoletaLiquidacion): string 
 <p>Fecha: ${escaparHtml(d.fecha)}</p></div>
 <p><strong>Productor beneficiario:</strong> ${escaparHtml(d.productorDisplay)}</p>
 <p><strong>Boletas procesadas:</strong> ${t.nBoletas} &nbsp; <strong>Kilos netos totales:</strong> ${formatoKilos(t.kilosNetos)} &nbsp; <strong>Precio promedio:</strong> ${formatoPesos(t.precioPromedio)}/kg</p>
-<table><thead><tr><th>Folio báscula</th><th>Fecha</th><th>Bruto</th><th>Tara</th><th>Netos</th><th>Precio/kg</th><th>Saldo boleta</th></tr></thead>
+<table><thead><tr><th>Folio báscula</th><th>Fecha</th><th>Bruto</th><th>Tara</th><th>Netos</th><th>Precio/kg</th><th>Báscula</th><th>Ded. oper.</th><th>Saldo boleta</th></tr></thead>
 <tbody>${filas}</tbody></table>
 <table><tbody>
 <tr><td>Subtotal Fruta Bruta</td><td class="num">${formatoPesos(t.subtotalFruta)}</td></tr>
 <tr><td>(−) Anticipos amortizados</td><td class="num">-${formatoPesos(t.anticipos)}</td></tr>
 <tr><td>(−) Deducción báscula</td><td class="num">-${formatoPesos(t.deduccionBascula)}</td></tr>
-<tr><td>(−) Deducción operativa ($30.00 × ${t.nBoletas} boletas)</td><td class="num">-${formatoPesos(t.deduccionOperativaFija)}</td></tr>
-<tr><td>(−) Provisión operativa JBM ($0.04/kg)</td><td class="num">-${formatoPesos(t.provisionOperativa)}</td></tr>
+<tr><td>(−) Deducción operativa por kilo</td><td class="num">-${formatoPesos(t.deduccionOperativa)}</td></tr>
 <tr class="total"><td>IMPORTE TOTAL NETO A PAGAR</td><td class="num">${formatoPesos(t.totalNeto)}</td></tr>
 </tbody></table>
 <div class="firmas"><div>Productor (conformidad)</div><div>Pagador / Administración — ${escaparHtml(d.pagadorNombre)}</div></div>`;
@@ -182,9 +182,19 @@ export interface FilaReporteDeduccion {
   productorDisplay: string;
   nBoletas: number;
   kilosNetos: number;
-  deduccionFija: number;
-  provision: number;
-  total: number;
+  deduccion: number;
+}
+
+export interface FilaDetalleReporte {
+  fecha: string;
+  ticket: string;
+  productorDisplay: string;
+  kilosNetos: number;
+  precioKg: number;
+  subtotal: number;
+  deduccion: number;
+  bascula: number;
+  neto: number;
 }
 
 export function generarHtmlReporteDeduccion(
@@ -192,18 +202,34 @@ export function generarHtmlReporteDeduccion(
   filas: FilaReporteDeduccion[],
   total: number,
   kilos: number,
+  detalle: FilaDetalleReporte[] = [],
 ): string {
   const cuerpo = filas
     .map(
       (f) => `<tr><td>${escaparHtml(f.productorDisplay)}</td>
 <td class="num">${f.nBoletas}</td><td class="num">${formatoKilos(f.kilosNetos)}</td>
-<td class="num">${formatoPesos(f.deduccionFija)}</td><td class="num">${formatoPesos(f.provision)}</td>
-<td class="num">${formatoPesos(f.total)}</td></tr>`,
+<td class="num">${formatoPesos(f.deduccion)}</td></tr>`,
     )
     .join("");
+  const cuerpoDetalle = detalle
+    .map(
+      (f) => `<tr><td>${escaparHtml(f.fecha)}</td><td>${escaparHtml(f.ticket)}</td>
+<td>${escaparHtml(f.productorDisplay)}</td>
+<td class="num">${formatoKilos(f.kilosNetos)}</td><td class="num">${formatoPesos(f.precioKg)}</td>
+<td class="num">${formatoPesos(f.subtotal)}</td><td class="num">-${formatoPesos(f.deduccion)}</td>
+<td class="num">-${formatoPesos(f.bascula)}</td><td class="num">${formatoPesos(f.neto)}</td></tr>`,
+    )
+    .join("");
+  const seccionDetalle =
+    detalle.length === 0
+      ? ""
+      : `<h2>Detalle por ticket</h2>
+<table><thead><tr><th>Fecha</th><th>Ticket</th><th>Productor</th><th>Kilos</th><th>Precio</th><th>Subtotal</th><th>Deducción</th><th>Báscula</th><th>Neto</th></tr></thead>
+<tbody>${cuerpoDetalle}</tbody></table>`;
   return `<div class="membrete"><h1>JBM CÍTRICOS PREMIUM</h1>
 <p>Consolidado de Deducción Operativa — ${escaparHtml(periodo)}</p></div>
-<table><thead><tr><th>Productor</th><th>Boletas</th><th>Kilos</th><th>Ded. fija ($30/bol)</th><th>Provisión ($0.04/kg)</th><th>Total</th></tr></thead>
+<table><thead><tr><th>Productor</th><th>Boletas</th><th>Kilos</th><th>Deducción</th></tr></thead>
 <tbody>${cuerpo}</tbody></table>
-<p><strong>Total periodo:</strong> ${formatoPesos(total)} &nbsp; <strong>Kilos:</strong> ${formatoKilos(kilos)}</p>`;
+<p><strong>Total periodo:</strong> ${formatoPesos(total)} &nbsp; <strong>Kilos:</strong> ${formatoKilos(kilos)}</p>
+${seccionDetalle}`;
 }

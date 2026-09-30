@@ -9,7 +9,7 @@ import {
   obtenerDictamen,
   validarRecepcion,
   CONCEPTO_MANIOBRA_DEFAULT,
-  TARIFA_MANIOBRA_DEFAULT,
+  CUOTA_BASCULA_DEFAULT,
   type EntradaCalculoRecepcion,
   type EntradaValidacionRecepcion,
   type PrecioHistorico,
@@ -313,7 +313,9 @@ describe("utilidades varias", () => {
   });
 
   it("expone los valores habituales del cargo operativo", () => {
-    expect(TARIFA_MANIOBRA_DEFAULT).toBe(0.4);
+    // La tasa por kilo es captura manual (sin default en código); la
+    // báscula sugiere $30 editable por ticket.
     expect(CONCEPTO_MANIOBRA_DEFAULT).toBe("Servicios operativos y maniobra");
+    expect(CUOTA_BASCULA_DEFAULT).toBe(30);
   });
 });

@@ -126,6 +126,13 @@ const llenarPesaje = (bruto: string, tara: string, precio: string) => {
   });
 };
 
+/** La tasa de deducción es captura manual del basculero (sin default). */
+const llenarTarifa = (tarifa: string) => {
+  fireEvent.change(screen.getByLabelText(/tarifa por kg/i), {
+    target: { value: tarifa },
+  });
+};
+
 describe("Recepción flow", () => {
   beforeEach(() => {
     toastError.mockClear();
@@ -197,19 +204,20 @@ describe("Recepción flow", () => {
     renderPagina();
 
     llenarPesaje("14500", "4200", "18.50");
+    llenarTarifa("0.40");
 
     // 14500 - 4200 = 10,300 kg
     expect(screen.getByTestId("peso-neto")).toHaveTextContent("10,300.00");
     // 10,300 × 18.50
     expect(screen.getByTestId("subtotal-fruta")).toHaveTextContent("$190,550.00");
     expect(screen.getByTestId("resumen-fruta")).toHaveTextContent("$190,550.00");
-    // 10,300 × 0.40 = 4,120 + 50 de báscula (también aparece en el ticket)
-    expect(screen.getAllByText("- $4,170.00").length).toBeGreaterThan(0);
+    // 10,300 × 0.40 = 4,120 + 30 de báscula (también aparece en el ticket)
+    expect(screen.getAllByText("- $4,150.00").length).toBeGreaterThan(0);
     // 10,300 × 0.40
     expect(screen.getAllByText("- $4,120.00").length).toBeGreaterThan(0);
     expect(screen.getAllByText("$18.10 / kg").length).toBeGreaterThan(0);
-    // 190,550 - 4,170
-    expect(screen.getByTestId("total-neto")).toHaveTextContent("$186,380.00");
+    // 190,550 - 4,150
+    expect(screen.getByTestId("total-neto")).toHaveTextContent("$186,400.00");
   });
 
   it("bloquea el guardado y lista lo que falta", () => {
@@ -232,7 +240,7 @@ describe("Recepción flow", () => {
       numero_lote: "L-000009-001",
       folio_recepcion: "REC-2026-008",
       peso_neto: 10300,
-      total_liquidar: 186380,
+      total_liquidar: 186400,
       productor_nombre: "Citrícola del Valle",
       viaRespaldo: false,
     });
@@ -247,6 +255,7 @@ describe("Recepción flow", () => {
     });
 
     llenarPesaje("14500", "4200", "18.5");
+    llenarTarifa("0.40");
 
     // El operador se sugiere desde la sesión.
     const operador = screen.getByLabelText(/operador de báscula/i);
@@ -262,7 +271,7 @@ describe("Recepción flow", () => {
     expect(enviado.peso_bruto).toBe(14500);
     expect(enviado.peso_tara).toBe(4200);
     expect(enviado.precio_pactado_kg).toBe(18.5);
-    expect(enviado.costo_bascula).toBe(50);
+    expect(enviado.costo_bascula).toBe(30);
     expect(enviado.bascula_forma_pago).toBe("liquidacion");
     expect(enviado.cuota_maniobra_kg).toBe(0.4);
     expect(enviado.cuota_maniobra_concepto).toBe(

@@ -19,7 +19,8 @@ export interface FilaCxp {
   productor_id: string;
   lote_id: string;
   numero_lote: string;
-  fecha_ticket: string;
+  /** Nullable en BD (sin NOT NULL ni default). */
+  fecha_ticket: string | null;
   kilos_netos: number | null;
   precio_kg: number | null;
   monto_total: number | null;
@@ -38,6 +39,10 @@ export interface FilaLote {
   costo_bascula: number | null;
   bascula_forma_pago: string;
   anticipos?: number | null;
+  /** Tasa congelada capturada en el ticket ($/kg). */
+  cuota_maniobra_kg?: number | null;
+  /** Importe congelado de deducción del ticket. */
+  cuota_maniobra_total?: number | null;
 }
 
 export interface FilaAbono {
@@ -57,19 +62,82 @@ export function cxpYLoteABoleta(
   cxp: FilaCxp,
   lote: FilaLote | undefined,
 ): BoletaLiquidable & { productorId: string } {
+  const kilos = num(cxp.kilos_netos);
+  const tasaSnapshot = num(lote?.cuota_maniobra_kg);
+  // Importe congelado del ticket; en tickets legados sin snapshot de
+  // importe se deriva de la tasa congelada (ambos valores del ticket).
+  const deduccionMonto =
+    num(lote?.cuota_maniobra_total) ||
+    Math.round(kilos * tasaSnapshot * 100) / 100;
   return {
     id: cxp.id,
     productorId: cxp.productor_id,
     folioBascula: lote?.folio_fisico?.trim() || cxp.numero_lote,
-    fechaEntrada: cxp.fecha_ticket,
+    fechaEntrada: cxp.fecha_ticket ?? "",
     pesoBruto: lote ? num(lote.peso_bruto) : 0,
     pesoTara: lote ? num(lote.peso_tara) : 0,
-    kilosNetos: num(cxp.kilos_netos),
+    kilosNetos: kilos,
     precioKg: num(cxp.precio_kg),
+    tarifaDeduccionKg: tasaSnapshot,
+    deduccionOperativaMonto: deduccionMonto,
+    montoNetoTicket: num(cxp.monto_total),
     anticipos: num(lote?.anticipos),
     cuotaBascula: num(lote?.costo_bascula),
     formaPagoBascula: lote?.bascula_forma_pago === "efectivo" ? "efectivo" : "liquidacion",
   };
+}
+
+/** Fila del reporte de deducción a nivel ticket (valores del ticket). */
+export interface FilaDetalleTicket {
+  id: string;
+  fecha: string; // ISO
+  ticket: string;
+  productorId: string;
+  productorDisplay: string;
+  kilosNetos: number;
+  precioKg: number;
+  subtotal: number;
+  deduccion: number;
+  bascula: number;
+  neto: number;
+}
+
+/**
+ * Detalle ticket por ticket para auditoría: une cada nota CxP con su lote
+ * y lee los importes congelados (sin recalcular con tasas propias).
+ */
+export function construirDetalleTickets(
+  cxp: FilaCxp[],
+  lotes: FilaLote[],
+  nombres: Record<string, string>,
+): FilaDetalleTicket[] {
+  const porId = new Map(lotes.map((l) => [l.id, l]));
+  return cxp
+    .map((n) => {
+      const lote = porId.get(n.lote_id);
+      const kilos = num(n.kilos_netos);
+      const precio = num(n.precio_kg);
+      const tasaSnapshot = num(lote?.cuota_maniobra_kg);
+      const deduccion =
+        num(lote?.cuota_maniobra_total) ||
+        Math.round(kilos * tasaSnapshot * 100) / 100;
+      const bascula =
+        lote?.bascula_forma_pago === "efectivo" ? 0 : num(lote?.costo_bascula);
+      return {
+        id: n.id,
+        fecha: n.fecha_ticket ?? "",
+        ticket: lote?.folio_fisico?.trim() || n.numero_lote,
+        productorId: n.productor_id,
+        productorDisplay: nombres[n.productor_id] ?? n.productor_id,
+        kilosNetos: Math.round(kilos * 100) / 100,
+        precioKg: precio,
+        subtotal: Math.round(kilos * precio * 100) / 100,
+        deduccion,
+        bascula,
+        neto: num(n.monto_total),
+      } satisfies FilaDetalleTicket;
+    })
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
 export function loteAMovimiento(
@@ -79,6 +147,7 @@ export function loteAMovimiento(
     fecha: lote.fecha_recepcion,
     productorId: lote.productor_id ?? "",
     kilosNetos: num(lote.peso_neto),
+    tasaKg: num(lote.cuota_maniobra_kg),
     folioBascula: lote.folio_fisico ?? "",
   };
 }

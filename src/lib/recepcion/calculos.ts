@@ -24,14 +24,14 @@ export const PORCENTAJE_CORTADOR = 0.3;
 /** En la zona de operación solo se recibe Limón Mexicano. */
 export const VARIEDAD_UNICA = "Limón Mexicano";
 
-/** Cuota habitual del cargo operativo por kilo recibido. */
-export const TARIFA_MANIOBRA_DEFAULT = 0.4;
-
 /** Concepto habitual del cargo operativo. */
 export const CONCEPTO_MANIOBRA_DEFAULT = "Servicios operativos y maniobra";
 
-/** Importe habitual del servicio de báscula. */
-export const CUOTA_BASCULA_DEFAULT = 50;
+/**
+ * Importe sugerido del servicio de báscula. Es solo un default editable por
+ * el operador en cada ticket (ej. $40 para ciertos vehículos).
+ */
+export const CUOTA_BASCULA_DEFAULT = 30;
 
 export interface EntradaCalculoRecepcion {
   pesoBruto: number;

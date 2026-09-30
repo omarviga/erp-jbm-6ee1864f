@@ -56,8 +56,7 @@ export function SettlementTicket({ datos }: { datos: DatosTicketLiquidacion }) {
         <Fila etiqueta="Subtotal fruta:" valor={`+${formatoPesos(t.subtotalFruta)}`} />
         <Fila etiqueta="Anticipos:" valor={`-${formatoPesos(t.anticipos)}`} />
         <Fila etiqueta="Ded. báscula:" valor={`-${formatoPesos(t.deduccionBascula)}`} />
-        <Fila etiqueta="Ded. operativa:" valor={`-${formatoPesos(t.deduccionOperativaFija)}`} />
-        <Fila etiqueta="Provisión JBM:" valor={`-${formatoPesos(t.provisionOperativa)}`} />
+        <Fila etiqueta="Ded. operativa:" valor={`-${formatoPesos(t.deduccionOperativa)}`} />
         <div className="my-2 border-t border-dashed border-slate-400" />
         <div className="text-center">
           <p className="text-[10px]">TOTAL NETO PAGADO</p>

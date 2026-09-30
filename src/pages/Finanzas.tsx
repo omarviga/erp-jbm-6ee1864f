@@ -38,6 +38,9 @@ import type { Database } from "@/integrations/supabase/types";
 import { ComprasTab } from "@/components/finanzas/ComprasTab";
 import { GastosResumenTab } from "@/components/finanzas/GastosResumenTab";
 import { LiquidacionesTab } from "@/components/finanzas/LiquidacionesTab";
+import { CancelarTicketModal } from "@/components/finanzas/CancelarTicketModal";
+import { useCancelarTicket } from "@/hooks/useCancelarTicket";
+import { esNotaCancelacionSinPagos } from "@/lib/tickets/cancelacion";
 
 // Tipos basados en el esquema Supabase
 type Productor = Database['public']['Tables']['productores']['Row'];
@@ -47,6 +50,7 @@ type AplicarPagoCxpResultado = Database['public']['Functions']['aplicar_pago_cxp
 
 interface CxPTicketDetalle {
   id: string;
+  loteId: string;
   folio: string;
   fecha: string;
   kilos: number;
@@ -125,6 +129,8 @@ export default function Finanzas() {
   const [dialogExcelAbierto, setDialogExcelAbierto] = useState(false);
   const [productoresExcelSeleccionados, setProductoresExcelSeleccionados] = useState<string[]>([]);
   const [generandoExcel, setGenerandoExcel] = useState(false);
+  const [ticketACancelar, setTicketACancelar] = useState<{ loteId: string; folio: string } | null>(null);
+  const { cancelar: cancelarTicket, cancelando } = useCancelarTicket();
   // Cargar productores desde Supabase - CORREGIDO
   const {
     productores: productoresDB, // Productores del hook
@@ -148,7 +154,8 @@ export default function Finanzas() {
 
         const { data: cxpData, error: errorCxp } = await supabase
           .from('cuentas_por_pagar')
-          .select('id, productor_id, numero_lote, fecha_ticket, kilos_netos, precio_kg, monto_total, monto_pagado, saldo_pendiente, estado')
+          .select('id, lote_id, productor_id, numero_lote, fecha_ticket, kilos_netos, precio_kg, monto_total, monto_pagado, saldo_pendiente, estado')
+          .neq('estado', 'cancelado')
           .order('fecha_ticket', { ascending: true });
 
         if (errorCxp) throw errorCxp;
@@ -170,6 +177,7 @@ export default function Finanzas() {
 
                 return {
                   id: ticket.id,
+                  loteId: ticket.lote_id,
                   folio: ticket.numero_lote,
                   fecha: ticket.fecha_ticket,
                   kilos,
@@ -296,6 +304,25 @@ export default function Finanzas() {
   const productorPdf = productorCxpDetalle
     ? productores.find(p => p.id === productorCxpDetalle.productorId) || null
     : null;
+
+  const handleConfirmarCancelacion = async (motivo: string) => {
+    if (!ticketACancelar) return;
+    try {
+      await cancelarTicket(ticketACancelar.loteId, motivo);
+      setTicketACancelar(null);
+      setCxpRefreshKey((prev) => prev + 1);
+      toast({
+        title: "✅ Ticket cancelado",
+        description: `La nota ${ticketACancelar.folio} quedó anulada con trazabilidad.`,
+      });
+    } catch (error) {
+      toast({
+        title: "❌ No se pudo cancelar",
+        description: error instanceof Error ? error.message : "Intenta nuevamente",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleDescargarEstadoCuenta = async () => {
     const productor = productorPdf;
@@ -749,9 +776,20 @@ export default function Finanzas() {
                                     </p>
                                   </div>
                                 </div>
-                                <p className="mt-1 text-xs text-slate-500">
-                                  {ticket.kilos.toLocaleString("es-MX")} kg × ${ticket.precio.toLocaleString("es-MX", { minimumFractionDigits: 2 })}/kg
-                                </p>
+                                <div className="mt-1 flex items-center justify-between gap-2">
+                                  <p className="text-xs text-slate-500">
+                                    {ticket.kilos.toLocaleString("es-MX")} kg × ${ticket.precio.toLocaleString("es-MX", { minimumFractionDigits: 2 })}/kg
+                                  </p>
+                                  {esNotaCancelacionSinPagos(ticket.montoPagado) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setTicketACancelar({ loteId: ticket.loteId, folio: ticket.folio })}
+                                      className="rounded-lg px-2 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-50"
+                                    >
+                                      Cancelar nota
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             ))
                           )}
@@ -995,6 +1033,13 @@ export default function Finanzas() {
           <ComprasTab />
         </TabsContent>
       </Tabs>
+      <CancelarTicketModal
+        open={ticketACancelar !== null}
+        folio={ticketACancelar?.folio ?? ""}
+        isSaving={cancelando}
+        onConfirm={(motivo) => void handleConfirmarCancelacion(motivo)}
+        onBack={() => setTicketACancelar(null)}
+      />
     </MainLayout>
   );
 }

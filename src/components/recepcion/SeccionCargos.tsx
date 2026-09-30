@@ -2,7 +2,7 @@ import { Forklift, Info } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { moneda, TARIFA_MANIOBRA_DEFAULT } from "@/lib/recepcion/calculos";
+import { moneda } from "@/lib/recepcion/calculos";
 import type { PropsSeccionRecepcion } from "./tipos";
 
 export function SeccionCargos({
@@ -28,7 +28,8 @@ export function SeccionCargos({
       <CardContent className="space-y-5 pt-2">
         <p className="flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50/60 p-3 text-xs text-indigo-800">
           <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          Tarifa habitual: {moneda(TARIFA_MANIOBRA_DEFAULT)}/kg
+          Captura manual según el mercado del día. Queda congelada al guardar
+          el ticket y Finanzas la lee sin recalcular.
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   buscarProductores,
-  calcularDesgloseBoleta,
   calcularSaldoLiquidacion,
   calcularTotalesLiquidacion,
   clavePeriodo,
   consolidarDeducciones,
+  leerDesgloseBoleta,
   nombreProductorDisplay,
   validarAbono,
   type BoletaLiquidable,
@@ -20,43 +20,58 @@ const boleta = (over: Partial<BoletaLiquidable> = {}): BoletaLiquidable => ({
   pesoTara: 6200,
   kilosNetos: 12300,
   precioKg: 8.5,
+  tarifaDeduccionKg: 0.4,
+  deduccionOperativaMonto: 4920, // 12300 × 0.4, congelado en el ticket
+  montoNetoTicket: 99580, // 104550 − 50 − 4920, neto congelado (CxP)
   anticipos: 2000,
   cuotaBascula: 50,
   formaPagoBascula: "liquidacion",
   ...over,
 });
 
-describe("calcularDesgloseBoleta", () => {
-  it("aplica $30 fijos + $0.04/kg separados de báscula", () => {
-    const d = calcularDesgloseBoleta(boleta());
+describe("leerDesgloseBoleta", () => {
+  it("lee los importes congelados del ticket sin fórmula propia", () => {
+    const d = leerDesgloseBoleta(boleta());
     expect(d.subtotalFruta).toBe(104550);
     expect(d.descuentoBascula).toBe(50);
-    expect(d.deduccionOperativaFija).toBe(30);
-    expect(d.provisionOperativa).toBe(492); // 12300 × 0.04
-    expect(d.saldoNeto).toBe(101978); // 104550 − 2000 − 50 − 30 − 492
+    expect(d.deduccionOperativa).toBe(4920);
+    expect(d.saldoNeto).toBe(97580); // neto del ticket − anticipos
   });
 
   it("no descuenta báscula pagada en efectivo", () => {
-    const d = calcularDesgloseBoleta(boleta({ formaPagoBascula: "efectivo" }));
+    const d = leerDesgloseBoleta(
+      boleta({ formaPagoBascula: "efectivo", montoNetoTicket: 99630 }),
+    );
     expect(d.descuentoBascula).toBe(0);
-    expect(d.saldoNeto).toBe(102028);
+    expect(d.saldoNeto).toBe(97630);
+  });
+
+  it("respeta el importe congelado aunque difiera de kilos × tasa", () => {
+    const d = leerDesgloseBoleta(boleta({ deduccionOperativaMonto: 999 }));
+    expect(d.deduccionOperativa).toBe(999);
   });
 });
 
 describe("calcularTotalesLiquidacion", () => {
   it("acumula boletas con precio promedio ponderado", () => {
     const t = calcularTotalesLiquidacion([
-      boleta({ id: "b1", kilosNetos: 10000, precioKg: 8 }),
-      boleta({ id: "b2", kilosNetos: 5000, precioKg: 9, anticipos: 0 }),
+      boleta({
+        id: "b1", kilosNetos: 10000, precioKg: 8,
+        deduccionOperativaMonto: 4000, montoNetoTicket: 75950, // 80000 − 50 − 4000
+      }),
+      boleta({
+        id: "b2", kilosNetos: 5000, precioKg: 9, anticipos: 0,
+        deduccionOperativaMonto: 2000, montoNetoTicket: 42950, // 45000 − 50 − 2000
+      }),
     ]);
     expect(t.nBoletas).toBe(2);
     expect(t.kilosNetos).toBe(15000);
     expect(t.subtotalFruta).toBe(125000);
     expect(t.precioPromedio).toBe(8.33); // 125000 / 15000, redondeado a 2 decimales
-    expect(t.deduccionOperativaFija).toBe(60); // 2 × 30
-    expect(t.provisionOperativa).toBe(600); // 15000 × 0.04
+    expect(t.deduccionOperativa).toBe(6000);
+    expect(t.deduccionBascula).toBe(100);
     expect(t.anticipos).toBe(2000);
-    expect(t.totalNeto).toBe(122240); // 125000 − 2000 − 100 − 60 − 600
+    expect(t.totalNeto).toBe(116900); // (75950 − 2000) + 42950
   });
 });
 
@@ -119,14 +134,20 @@ describe("reporte de deducción operativa", () => {
 
   it("consolida kilos y deducciones por productor", () => {
     const [c] = consolidarDeducciones([
-      { fecha: "2026-09-20", productorId: "p1", kilosNetos: 10000 },
-      { fecha: "2026-09-21", productorId: "p1", kilosNetos: 5000 },
+      { fecha: "2026-09-20", productorId: "p1", kilosNetos: 10000, tasaKg: 0.4 },
+      { fecha: "2026-09-21", productorId: "p1", kilosNetos: 5000, tasaKg: 0.4 },
     ]);
     expect(c.nBoletas).toBe(2);
     expect(c.kilosNetos).toBe(15000);
-    expect(c.deduccionFija).toBe(60);
-    expect(c.provision).toBe(600);
-    expect(c.total).toBe(660);
+    expect(c.deduccion).toBe(6000);
+  });
+
+  it("respeta la tasa congelada de cada ticket (2023 y 2026 conviven)", () => {
+    const [c] = consolidarDeducciones([
+      { fecha: "2023-02-06", productorId: "p1", kilosNetos: 10000, tasaKg: 0.04 },
+      { fecha: "2026-09-21", productorId: "p1", kilosNetos: 5000, tasaKg: 0.4 },
+    ]);
+    expect(c.deduccion).toBe(2400); // 400 + 2000
   });
 });
 

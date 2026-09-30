@@ -10,9 +10,11 @@ import { descargarDeduccionExcel } from "@/lib/export/deduccionExcel";
 import { nombreProductorDisplay } from "@/lib/finanzas/calculos";
 import {
   construirCuentasCorrientes,
+  construirDetalleTickets,
   loteAMovimiento,
   type FilaAbono,
   type FilaCxp,
+  type FilaDetalleTicket,
   type FilaLote,
   type FilaProductor,
 } from "@/lib/finanzas/mapeo";
@@ -36,6 +38,7 @@ export function LiquidacionesTab() {
       const { data, error } = await supabase
         .from("cuentas_por_pagar")
         .select("id, productor_id, lote_id, numero_lote, fecha_ticket, kilos_netos, precio_kg, monto_total, monto_pagado, saldo_pendiente")
+        .neq("estado", "cancelado")
         .order("fecha_ticket", { ascending: true });
       if (error) throw error;
       return (data ?? []) as FilaCxp[];
@@ -47,10 +50,21 @@ export function LiquidacionesTab() {
     queryFn: async (): Promise<FilaLote[]> => {
       const { data, error } = await supabase
         .from("lotes")
-        .select("id, productor_id, folio_fisico, fecha_recepcion, peso_bruto, peso_tara, peso_neto, costo_bascula, bascula_forma_pago")
+        .select("id, productor_id, folio_fisico, fecha_recepcion, peso_bruto, peso_tara, peso_neto, costo_bascula, bascula_forma_pago, cuota_maniobra_kg, cuota_maniobra_total")
         .order("fecha_recepcion", { ascending: true });
       if (error) throw error;
       return (data ?? []) as FilaLote[];
+    },
+  });
+
+  const { data: cancelados = [] } = useQuery({
+    queryKey: ["finanzas", "cancelaciones"],
+    queryFn: async (): Promise<string[]> => {
+      const { data, error } = await supabase
+        .from("ticket_cancelaciones")
+        .select("lote_id");
+      if (error) throw error;
+      return (data ?? []).map((r) => r.lote_id);
     },
   });
 
@@ -81,7 +95,13 @@ export function LiquidacionesTab() {
     [filasProductor, cxp, abonos],
   );
 
-  const movimientos = useMemo(() => lotes.map(loteAMovimiento), [lotes]);
+  const lotesVigentes = useMemo(() => {
+    if (cancelados.length === 0) return lotes;
+    const set = new Set(cancelados);
+    return lotes.filter((l) => !set.has(l.id));
+  }, [lotes, cancelados]);
+
+  const movimientos = useMemo(() => lotesVigentes.map(loteAMovimiento), [lotesVigentes]);
 
   const nombres = useMemo(() => {
     const map: Record<string, string> = {};
@@ -90,6 +110,11 @@ export function LiquidacionesTab() {
     }
     return map;
   }, [filasProductor]);
+
+  const detalle = useMemo(
+    () => construirDetalleTickets(cxp, lotesVigentes, nombres),
+    [cxp, lotesVigentes, nombres],
+  );
 
   const descargarEstadoCuenta = async (productorId: string) => {
     const productor = (productores as ProductorConAlias[]).find((p) => p.id === productorId);
@@ -154,17 +179,20 @@ export function LiquidacionesTab() {
     }
   };
 
-  const exportarDeduccionExcel = (periodo: string, filas: FilaReporteExport[]) =>
+  const exportarDeduccionExcel = (
+    periodo: string,
+    filas: FilaReporteExport[],
+    detallePeriodo: FilaDetalleTicket[],
+  ) =>
     descargarDeduccionExcel(
       periodo,
       filas.map((f) => ({
         productor: f.display,
         boletas: f.nBoletas,
         kilos: f.kilosNetos,
-        fija: f.deduccionFija,
-        provision: f.provision,
-        total: f.total,
+        deduccion: f.deduccion,
       })),
+      detallePeriodo,
     );
 
   if (cargandoProductores || cargandoCxp || cargandoLotes || cargandoAbonos) {
@@ -185,7 +213,10 @@ export function LiquidacionesTab() {
       <ReporteDeduccionOperativa
         movimientos={movimientos}
         nombres={nombres}
-        onExportarExcel={(periodo, filas) => void exportarDeduccionExcel(periodo, filas)}
+        detalle={detalle}
+        onExportarExcel={(periodo, filas, detallePeriodo) =>
+          void exportarDeduccionExcel(periodo, filas, detallePeriodo)
+        }
       />
     </div>
   );

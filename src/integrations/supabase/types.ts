@@ -2420,6 +2420,38 @@ export type Database = {
           },
         ]
       }
+      ticket_cancelaciones: {
+        Row: {
+          cancelado_por: string | null
+          created_at: string
+          id: string
+          lote_id: string
+          motivo: string
+        }
+        Insert: {
+          cancelado_por?: string | null
+          created_at?: string
+          id?: string
+          lote_id: string
+          motivo: string
+        }
+        Update: {
+          cancelado_por?: string | null
+          created_at?: string
+          id?: string
+          lote_id?: string
+          motivo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_cancelaciones_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: true
+            referencedRelation: "lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transferencia_detalles: {
         Row: {
           cantidad_enviada: number
@@ -2867,6 +2899,10 @@ export type Database = {
       calcular_efectivo_teorico_corte: {
         Args: { p_fecha_fin: string; p_fecha_inicio: string }
         Returns: number
+      }
+      cancelar_ticket: {
+        Args: { p_lote_id: string; p_motivo: string }
+        Returns: Json
       }
       convertir_presentacion_a_granel_cdmx: {
         Args: {

@@ -1,19 +1,15 @@
 // Lógica pura del Módulo de Finanzas y Liquidaciones — JBM Cítricos ERP.
 // Sin dependencias de UI: reutilizable en mesa de control, reportes y tests.
 //
-// Reglas de negocio:
-// - Deducción operativa fija: $30.00 MXN por boleta procesada, automática.
-// - Provisión operativa JBM: $0.04/kg sobre kilos netos.
-// - Ambas se desglosan por separado y NUNCA se mezclan con cargos de báscula.
+// Reglas de negocio (docs/TASA_DEDUCCION_RULE.md):
+// - Solo dos deducciones al productor: deducción operativa por kilo y
+//   costo de báscula del ticket. No existe ningún cobro fijo por boleta.
+// - El ticket es la fuente única de verdad: precio y tasa se capturan en
+//   Recepción y quedan congelados; Finanzas lee sus importes, no recalcula.
 // - Anticipos de campo/tolva se amortizan antes de liberar remanente.
 // - Una liquidación es PARCIAL hasta que el saldo llega exactamente a $0.00.
 
 import { redondear2 } from "../recepcion/calculos";
-
-/** Descuento fijo e inamovible por ticket/boleta procesada (MXN). */
-export const DEDUCCION_OPERATIVA_POR_BOLETA = 30;
-/** Provisión operativa JBM por kilo neto (MXN/kg). */
-export const PROVISION_OPERATIVA_POR_KG = 0.04;
 
 export type EstadoLiquidacion = "parcial" | "pagada";
 export type MetodoAbono = "cheque" | "efectivo" | "spei";
@@ -27,6 +23,15 @@ export interface BoletaLiquidable {
   pesoTara: number;
   kilosNetos: number;
   precioKg: number;
+  /** Tasa congelada del ticket ($/kg). Informativa para auditoría. */
+  tarifaDeduccionKg: number;
+  /** Importe congelado de deducción operativa (cuota_maniobra_total). */
+  deduccionOperativaMonto: number;
+  /**
+   * Neto congelado del ticket (CxP.monto_total): el trigger lo persiste con
+   * la fórmula del ticket, Finanzas lo lee sin recalcular.
+   */
+  montoNetoTicket: number;
   /** Anticipos de campo/tolva vinculados al lote. */
   anticipos: number;
   cuotaBascula: number;
@@ -36,8 +41,7 @@ export interface BoletaLiquidable {
 export interface DesgloseBoleta {
   subtotalFruta: number;
   descuentoBascula: number;
-  deduccionOperativaFija: number;
-  provisionOperativa: number;
+  deduccionOperativa: number;
   anticipos: number;
   saldoNeto: number;
 }
@@ -50,33 +54,27 @@ export interface TotalesLiquidacion {
   subtotalFruta: number;
   anticipos: number;
   deduccionBascula: number;
-  deduccionOperativaFija: number;
-  provisionOperativa: number;
+  deduccionOperativa: number;
   totalNeto: number;
 }
 
-/** Saldo neto de una boleta con todas las deducciones aplicadas. */
-export function calcularDesgloseBoleta(b: BoletaLiquidable): DesgloseBoleta {
+/**
+ * Desglose de una boleta LEYENDO los valores congelados del ticket.
+ * No aplica tasas ni fórmulas propias: el subtotal multiplica escalares
+ * congelados (kilos × precio) y el resto se lee tal cual (el neto del
+ * ticket menos anticipos por amortizar).
+ */
+export function leerDesgloseBoleta(b: BoletaLiquidable): DesgloseBoleta {
   const subtotalFruta = redondear2(b.kilosNetos * b.precioKg);
   const descuentoBascula =
     b.formaPagoBascula === "liquidacion" ? redondear2(b.cuotaBascula) : 0;
-  const deduccionOperativaFija = DEDUCCION_OPERATIVA_POR_BOLETA;
-  const provisionOperativa = redondear2(
-    b.kilosNetos * PROVISION_OPERATIVA_POR_KG,
-  );
+  const deduccionOperativa = redondear2(b.deduccionOperativaMonto);
   const anticipos = redondear2(b.anticipos);
-  const saldoNeto = redondear2(
-    subtotalFruta -
-      anticipos -
-      descuentoBascula -
-      deduccionOperativaFija -
-      provisionOperativa,
-  );
+  const saldoNeto = redondear2(b.montoNetoTicket - anticipos);
   return {
     subtotalFruta,
     descuentoBascula,
-    deduccionOperativaFija,
-    provisionOperativa,
+    deduccionOperativa,
     anticipos,
     saldoNeto,
   };
@@ -93,31 +91,26 @@ export function calcularTotalesLiquidacion(
     subtotalFruta: 0,
     anticipos: 0,
     deduccionBascula: 0,
-    deduccionOperativaFija: 0,
-    provisionOperativa: 0,
+    deduccionOperativa: 0,
     totalNeto: 0,
   };
   for (const b of boletas) {
-    const d = calcularDesgloseBoleta(b);
+    const d = leerDesgloseBoleta(b);
     acc.kilosNetos = redondear2(acc.kilosNetos + b.kilosNetos);
     acc.subtotalFruta = redondear2(acc.subtotalFruta + d.subtotalFruta);
     acc.anticipos = redondear2(acc.anticipos + d.anticipos);
     acc.deduccionBascula = redondear2(
       acc.deduccionBascula + d.descuentoBascula,
     );
-    acc.deduccionOperativaFija = redondear2(
-      acc.deduccionOperativaFija + d.deduccionOperativaFija,
-    );
-    acc.provisionOperativa = redondear2(
-      acc.provisionOperativa + d.provisionOperativa,
+    acc.deduccionOperativa = redondear2(
+      acc.deduccionOperativa + d.deduccionOperativa,
     );
   }
   acc.totalNeto = redondear2(
     acc.subtotalFruta -
       acc.anticipos -
       acc.deduccionBascula -
-      acc.deduccionOperativaFija -
-      acc.provisionOperativa,
+      acc.deduccionOperativa,
   );
   acc.precioPromedio =
     acc.kilosNetos > 0 ? redondear2(acc.subtotalFruta / acc.kilosNetos) : 0;
@@ -223,15 +216,15 @@ export interface MovimientoDeduccion {
   fecha: string; // ISO
   productorId: string;
   kilosNetos: number;
+  /** Tasa del snapshot del ticket ($/kg). */
+  tasaKg: number;
 }
 
 export interface ConsolidadoProductor {
   productorId: string;
   nBoletas: number;
   kilosNetos: number;
-  deduccionFija: number;
-  provision: number;
-  total: number;
+  deduccion: number;
 }
 
 /** Clave ordenable del periodo que contiene la fecha (YYYY-MM-DD / semana / Q1-Q2 / mes). */
@@ -270,18 +263,12 @@ export function consolidarDeducciones(
         productorId: mv.productorId,
         nBoletas: 0,
         kilosNetos: 0,
-        deduccionFija: 0,
-        provision: 0,
-        total: 0,
+        deduccion: 0,
       } satisfies ConsolidadoProductor);
     c.nBoletas += 1;
     c.kilosNetos = redondear2(c.kilosNetos + mv.kilosNetos);
-    c.deduccionFija = redondear2(c.deduccionFija + DEDUCCION_OPERATIVA_POR_BOLETA);
-    c.provision = redondear2(
-      c.provision + mv.kilosNetos * PROVISION_OPERATIVA_POR_KG,
-    );
-    c.total = redondear2(c.deduccionFija + c.provision);
+    c.deduccion = redondear2(c.deduccion + mv.kilosNetos * mv.tasaKg);
     porProductor.set(mv.productorId, c);
   }
-  return [...porProductor.values()].sort((a, b) => b.total - a.total);
+  return [...porProductor.values()].sort((a, b) => b.deduccion - a.deduccion);
 }

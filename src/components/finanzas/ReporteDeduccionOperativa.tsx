@@ -12,23 +12,24 @@ import {
   exportarCsv,
   generarHtmlReporteDeduccion,
 } from "../../lib/finanzas/documentos";
+import type { FilaDetalleTicket } from "../../lib/finanzas/mapeo";
 
 export interface FilaReporteExport {
   display: string;
   nBoletas: number;
   kilosNetos: number;
-  deduccionFija: number;
-  provision: number;
-  total: number;
+  deduccion: number;
 }
 
 interface ReporteDeduccionOperativaProps {
   /** Una fila por boleta procesada (productor + kilos + fecha). */
   movimientos: (MovimientoDeduccion & { folioBascula: string })[];
   nombres: Record<string, string>; // productorId -> display
+  /** Detalle ticket por ticket (se filtra por el periodo activo). */
+  detalle?: FilaDetalleTicket[];
   /** Overrides de exportación (por defecto: CSV + ventana de impresión). */
-  onExportarExcel?: (periodo: string, filas: FilaReporteExport[]) => void | Promise<void>;
-  onExportarPdf?: (periodo: string, filas: FilaReporteExport[], total: number, kilos: number) => void | Promise<void>;
+  onExportarExcel?: (periodo: string, filas: FilaReporteExport[], detallePeriodo: FilaDetalleTicket[]) => void | Promise<void>;
+  onExportarPdf?: (periodo: string, filas: FilaReporteExport[], total: number, kilos: number, detallePeriodo: FilaDetalleTicket[]) => void | Promise<void>;
 }
 
 const MODOS: { id: ModoPeriodo; etiqueta: string }[] = [
@@ -45,6 +46,7 @@ const MODOS: { id: ModoPeriodo; etiqueta: string }[] = [
 export function ReporteDeduccionOperativa({
   movimientos,
   nombres,
+  detalle = [],
   onExportarExcel,
   onExportarPdf,
 }: ReporteDeduccionOperativaProps) {
@@ -66,22 +68,38 @@ export function ReporteDeduccionOperativa({
     display: nombres[c.productorId] ?? c.productorId,
   })), [filtrados, nombres]);
   const totalKilos = filas.reduce((s, f) => s + f.kilosNetos, 0);
-  const total = filas.reduce((s, f) => s + f.total, 0);
+  const total = filas.reduce((s, f) => s + f.deduccion, 0);
+
+  const detalleFiltrado = useMemo(
+    () =>
+      detalle.filter(
+        (f) => f.fecha !== "" && clavePeriodo(f.fecha, modo) === periodoActivo,
+      ),
+    [detalle, modo, periodoActivo],
+  );
+  const totalesDetalle = useMemo(
+    () => ({
+      kilos: detalleFiltrado.reduce((s, f) => s + f.kilosNetos, 0),
+      subtotal: detalleFiltrado.reduce((s, f) => s + f.subtotal, 0),
+      deduccion: detalleFiltrado.reduce((s, f) => s + f.deduccion, 0),
+      bascula: detalleFiltrado.reduce((s, f) => s + f.bascula, 0),
+      neto: detalleFiltrado.reduce((s, f) => s + f.neto, 0),
+    }),
+    [detalleFiltrado],
+  );
 
   const exportarExcel = () => {
-    if (onExportarExcel) return onExportarExcel(periodoActivo, filas);
+    if (onExportarExcel) return onExportarExcel(periodoActivo, filas, detalleFiltrado);
     return exportarCsv(`deduccion_operativa_${periodoActivo}`, [
       "Productor",
       "Boletas",
       "Kilos netos",
-      "Deducción fija ($30/boleta)",
-      "Provisión ($0.04/kg)",
-      "Total",
-    ], filas.map((f) => [f.display, f.nBoletas, f.kilosNetos, f.deduccionFija, f.provision, f.total]));
+      "Deducción operativa",
+    ], filas.map((f) => [f.display, f.nBoletas, f.kilosNetos, f.deduccion]));
   };
 
   const exportarPdf = () => {
-    if (onExportarPdf) return onExportarPdf(periodoActivo, filas, total, totalKilos);
+    if (onExportarPdf) return onExportarPdf(periodoActivo, filas, total, totalKilos, detalleFiltrado);
     return abrirVentanaImpresion(
       `Deducción operativa ${periodoActivo}`,
       generarHtmlReporteDeduccion(
@@ -90,12 +108,21 @@ export function ReporteDeduccionOperativa({
           productorDisplay: f.display,
           nBoletas: f.nBoletas,
           kilosNetos: f.kilosNetos,
-          deduccionFija: f.deduccionFija,
-          provision: f.provision,
-          total: f.total,
+          deduccion: f.deduccion,
         })),
         total,
         totalKilos,
+        detalleFiltrado.map((f) => ({
+          fecha: f.fecha.slice(0, 10),
+          ticket: f.ticket,
+          productorDisplay: f.productorDisplay,
+          kilosNetos: f.kilosNetos,
+          precioKg: f.precioKg,
+          subtotal: f.subtotal,
+          deduccion: f.deduccion,
+          bascula: f.bascula,
+          neto: f.neto,
+        })),
       ),
     );
   };
@@ -166,15 +193,13 @@ export function ReporteDeduccionOperativa({
       </div>
 
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[480px] text-sm">
           <thead>
             <tr className="bg-slate-100 text-left text-xs tracking-wide text-slate-600 uppercase">
               <th className="px-3 py-2">Productor</th>
               <th className="px-3 py-2 text-right">Boletas</th>
               <th className="px-3 py-2 text-right">Kilos</th>
-              <th className="px-3 py-2 text-right">Ded. fija</th>
-              <th className="px-3 py-2 text-right">Provisión</th>
-              <th className="px-3 py-2 text-right">Total</th>
+              <th className="px-3 py-2 text-right">Deducción</th>
             </tr>
           </thead>
           <tbody>
@@ -183,16 +208,14 @@ export function ReporteDeduccionOperativa({
                 <td className="px-3 py-2 font-medium">{f.display}</td>
                 <td className="px-3 py-2 text-right font-mono">{f.nBoletas}</td>
                 <td className="px-3 py-2 text-right font-mono">{formatoKilos(f.kilosNetos)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatoPesos(f.deduccionFija)}</td>
-                <td className="px-3 py-2 text-right font-mono">{formatoPesos(f.provision)}</td>
                 <td className="px-3 py-2 text-right font-mono font-black">
-                  {formatoPesos(f.total)}
+                  {formatoPesos(f.deduccion)}
                 </td>
               </tr>
             ))}
             {filas.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
+                <td colSpan={4} className="px-3 py-6 text-center text-slate-500">
                   Sin movimientos en este periodo.
                 </td>
               </tr>
@@ -206,9 +229,72 @@ export function ReporteDeduccionOperativa({
                   {filas.reduce((s, f) => s + f.nBoletas, 0)}
                 </td>
                 <td className="px-3 py-2 text-right font-mono">{formatoKilos(totalKilos)}</td>
-                <td className="px-3 py-2" />
-                <td className="px-3 py-2" />
                 <td className="px-3 py-2 text-right font-mono">{formatoPesos(total)}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+
+      <h3 className="mt-6 text-sm font-black text-slate-900">
+        Detalle por ticket
+      </h3>
+      <p className="text-xs text-slate-500">
+        Auditoría: cada fila es un ticket con sus valores congelados.
+      </p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead>
+            <tr className="bg-slate-100 text-left text-xs tracking-wide text-slate-600 uppercase">
+              <th className="px-3 py-2">Fecha</th>
+              <th className="px-3 py-2">Ticket</th>
+              <th className="px-3 py-2">Productor</th>
+              <th className="px-3 py-2 text-right">Kilos</th>
+              <th className="px-3 py-2 text-right">Precio</th>
+              <th className="px-3 py-2 text-right">Subtotal</th>
+              <th className="px-3 py-2 text-right">Deducción</th>
+              <th className="px-3 py-2 text-right">Báscula</th>
+              <th className="px-3 py-2 text-right">Neto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {detalleFiltrado.map((f) => (
+              <tr key={f.id} className="border-t border-slate-100">
+                <td className="px-3 py-2 whitespace-nowrap">{f.fecha.slice(0, 10)}</td>
+                <td className="px-3 py-2 font-mono font-bold">{f.ticket}</td>
+                <td className="px-3 py-2 font-medium">{f.productorDisplay}</td>
+                <td className="px-3 py-2 text-right font-mono">{formatoKilos(f.kilosNetos)}</td>
+                <td className="px-3 py-2 text-right font-mono">{formatoPesos(f.precioKg)}</td>
+                <td className="px-3 py-2 text-right font-mono">{formatoPesos(f.subtotal)}</td>
+                <td className="px-3 py-2 text-right font-mono text-rose-600">
+                  {f.deduccion > 0 ? `-${formatoPesos(f.deduccion)}` : "—"}
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-rose-600">
+                  {f.bascula > 0 ? `-${formatoPesos(f.bascula)}` : "—"}
+                </td>
+                <td className="px-3 py-2 text-right font-mono font-black">
+                  {formatoPesos(f.neto)}
+                </td>
+              </tr>
+            ))}
+            {detalleFiltrado.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
+                  Sin tickets en este periodo.
+                </td>
+              </tr>
+            )}
+          </tbody>
+          {detalleFiltrado.length > 0 && (
+            <tfoot>
+              <tr className="border-t-2 border-slate-300 bg-amber-50 font-black">
+                <td className="px-3 py-2" colSpan={3}>Total periodo</td>
+                <td className="px-3 py-2 text-right font-mono">{formatoKilos(totalesDetalle.kilos)}</td>
+                <td className="px-3 py-2" />
+                <td className="px-3 py-2 text-right font-mono">{formatoPesos(totalesDetalle.subtotal)}</td>
+                <td className="px-3 py-2 text-right font-mono">{formatoPesos(totalesDetalle.deduccion)}</td>
+                <td className="px-3 py-2 text-right font-mono">{formatoPesos(totalesDetalle.bascula)}</td>
+                <td className="px-3 py-2 text-right font-mono">{formatoPesos(totalesDetalle.neto)}</td>
               </tr>
             </tfoot>
           )}
