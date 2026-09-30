@@ -39,6 +39,13 @@ Definir de forma explícita qué módulos puede usar cada rol implementado en el
 | Gestión de Usuarios `/admin/usuarios` | Si | No | No | No | No |
 | Ayuda `/ayuda` | Si | Si | Si | Si | Si |
 
+## Rol `campo` (Campo / Capataz)
+
+- Sin rutas asignadas en el front: ninguna `allowedRoles` ni `hasRole("campo")` lo usa; existe como valor del enum `app_role` con etiqueta en `access-control.ts`.
+- En prod SÍ tiene accesos RLS vía helper `es_personal_campo()` (= admin/campo/produccion/almacen): `huertos` (SELECT vía `puede_ver_huerto`, INSERT, UPDATE) y tablas del módulo campo (`campo_eventos`, `campo_monitoreos`, `campo_estimaciones_cosecha`, `huerto_clima_diario`, `huerto_lotes`, `riego_eventos`).
+- Portados al repo en `20260929200200_p2_port_deriva_campo.sql` (9 tablas incl. `productor_usuarios`, `huerto_balance_hidrico`, `riego_recomendaciones`; 4 helpers; triggers, índices y 29 políticas).
+- Corrige la afirmación P2 de "reservado sin accesos": aplica a rutas, no a RLS.
+
 ## Notas de implementación
 
 - La restricción por ruta se aplica en `ProtectedRoute` con `allowedRoles`.

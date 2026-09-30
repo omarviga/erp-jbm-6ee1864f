@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 type ClienteMaquilaRow = Database["public"]["Tables"]["clientes_maquila"]["Row"];
 type ClienteMaquilaInsert = Database["public"]["Tables"]["clientes_maquila"]["Insert"];
@@ -35,6 +36,7 @@ type ClienteMaquilaInicial = Pick<ClienteMaquilaInsert, "contacto" | "telefono" 
 
 export function useMaquila() {
   const queryClient = useQueryClient();
+  const { hasRole } = useAuth();
 
   // Fetch clientes maquila
   const {
@@ -59,6 +61,8 @@ export function useMaquila() {
     isLoading: loadingClientesGenerales,
   } = useQuery({
     queryKey: ["clientes_maquila_fallback"],
+    // Solo roles con SELECT en clientes (RLS); evita error 42501 en produccion.
+    enabled: hasRole("ventas") || hasRole("finanzas"),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clientes")

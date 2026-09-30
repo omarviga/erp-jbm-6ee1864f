@@ -86,7 +86,12 @@ const decimalMx = (valor: number, decimales = 2): string =>
 const fechaCorta = (iso: string | null | undefined): string => {
   if (!iso) return "";
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("es-MX");
+  if (Number.isNaN(d.getTime())) return "";
+  // Formato dd/mm/aaaa explícito: toLocaleDateString depende de ICU
+  // y varía entre entornos ("10/3/2026" vs "10/03/2026").
+  const dia = String(d.getDate()).padStart(2, "0");
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dia}/${mes}/${d.getFullYear()}`;
 };
 
 /** CSV contable: una fila por guía con columnas estables. */

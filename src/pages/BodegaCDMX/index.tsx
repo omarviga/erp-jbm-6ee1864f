@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { AppRole } from "@/lib/access-control";
 import {
   ShoppingCart, Truck, Package, Calculator, Receipt, BarChart3,
   ChevronLeft, ChevronRight, User, LogOut, ArrowLeft
@@ -24,7 +25,7 @@ interface TabConfig {
   id: TabId;
   label: string;
   icon: React.ElementType;
-  canAccess: (params: { isAdmin: boolean; hasRole: (role: "admin" | "produccion" | "finanzas" | "ventas" | "almacen") => boolean; }) => boolean;
+  canAccess: (params: { isAdmin: boolean; hasRole: (role: AppRole) => boolean; }) => boolean;
 }
 
 const TABS: TabConfig[] = [

@@ -41,7 +41,7 @@ const categoriaBadgeColor: Record<string, string> = {
 
 export default function Gastos() {
   const { gastos, isLoading, createGasto, deleteGasto, uploadTicketImage, processOCR } = useGastos();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -291,18 +291,20 @@ export default function Gastos() {
                         ) : "—"}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={deleteGasto.isPending}
-                          onClick={() => {
-                            if (window.confirm(`¿Eliminar el gasto "${gasto.concepto}"?`)) {
-                              deleteGasto.mutate(gasto.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={deleteGasto.isPending}
+                            onClick={() => {
+                              if (window.confirm(`¿Eliminar el gasto "${gasto.concepto}"?`)) {
+                                deleteGasto.mutate(gasto.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

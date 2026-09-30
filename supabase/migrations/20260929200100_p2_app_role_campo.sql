@@ -1,0 +1,22 @@
+-- P2: registrar el valor 'campo' en el enum app_role.
+--
+-- Los tipos TS generados desde prod (src/integrations/supabase/types.ts)
+-- incluyen 'campo' ("Campo / Capataz") y el front lo contempla en
+-- access-control.ts, pero ninguna migracion del repo lo agrega al enum:
+-- una BD creada solo desde supabase/migrations queda distinta a prod.
+-- Esta migracion cierra esa deriva.
+--
+-- Decision vigente (docs/ROLE_ACCESS_MATRIX.md): 'campo' existe como valor
+-- reservado SIN accesos asignados (ninguna ruta ni politica lo usa).
+--
+-- Nota operativa: ALTER TYPE ... ADD VALUE no corre dentro de un bloque de
+-- transaccion. Si `supabase db push` falla con ese error:
+--   1. correr esta unica sentencia en el SQL Editor de Supabase, y
+--   2. marcarla aplicada: supabase migration repair --status applied 20260929200100
+-- En prod el valor ya existe, asi que IF NOT EXISTS la vuelve no-op ahi.
+--
+-- Verificacion (SQL Editor):
+--   select enumlabel from pg_enum e join pg_type t on t.oid = e.enumtypid
+--   where t.typname = 'app_role' order by e.enumsortorder;
+
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'campo';

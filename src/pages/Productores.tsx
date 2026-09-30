@@ -42,6 +42,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProductores, type Productor } from "@/hooks/useProductores";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Search, Loader2, UserPlus, Phone, FileText, Edit2, Trash2 } from "lucide-react";
 import { z } from "zod";
@@ -73,6 +74,7 @@ export default function Productores() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
+  const { hasRole, isAdmin } = useAuth();
 
   const form = useForm<ProductorInput>({
     resolver: zodResolver(productorSchema),
@@ -364,21 +366,25 @@ export default function Productores() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(productor)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteId(productor.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {hasRole("finanzas") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(productor)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteId(productor.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
