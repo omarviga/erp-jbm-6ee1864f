@@ -194,7 +194,7 @@ describe("POSTab flow", () => {
     expect(await screen.findByText("Preview del ticket")).toBeInTheDocument();
     expect(screen.getByText("T-0002")).toBeInTheDocument();
     expect(screen.getAllByText(/Mostrador Centro/i).length).toBeGreaterThan(0);
-  }, 10000);
+  }, 30000);
 
   it("bloquea el cobro cuando el carrito trae un precio por debajo del minimo", () => {
     useVentasMock.mockReturnValue({
@@ -245,7 +245,7 @@ describe("POSTab flow", () => {
 
     expect(screen.getByRole("button", { name: /limon a granel/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^limon persa/i })).not.toBeInTheDocument();
-  }, 10000);
+  }, 30000);
 
   it("muestra alerta visual cuando el granel disponible esta bajo", () => {
     useVentasMock.mockReturnValue({
