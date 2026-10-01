@@ -1,5 +1,8 @@
 import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react-swc";
+// plugin-react (babel) en vez de plugin-react-swc: el binding nativo de SWC
+// no carga en todos los entornos (ERR_SWC_NATIVE_CACHE) y dejaba la suite
+// completa sin ejecutar. Solo afecta al transform de tests.
+import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
@@ -18,6 +21,11 @@ export default defineConfig({
     hookTimeout: 15000,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html"],
+      include: ["src/**/*.{ts,tsx}"],
+    },
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },

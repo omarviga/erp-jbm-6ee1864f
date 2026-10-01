@@ -25,6 +25,7 @@ dist-ssr
 
 # Build artifacts (se regeneran)
 *.tsbuildinfo
+coverage/
 
 # Drizzle (el proyecto usa migraciones de Supabase)
 drizzle/
