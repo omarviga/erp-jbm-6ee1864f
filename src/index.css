@@ -368,6 +368,17 @@
     color: white !important;
   }
 
+  .ticket-print-root .bg-black {
+    background-color: #000 !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .ticket-print-root .bg-black * {
+    color: white !important;
+  }
+
   .no-print {
     display: none !important;
   }

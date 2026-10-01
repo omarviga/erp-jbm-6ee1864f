@@ -1,7 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { TicketBascula, type TicketRecepcion } from "./TicketBascula";
-import { formatearResumenWhatsApp } from "@/lib/recepcion/textoTicket";
+import { PapelTicket, TicketBascula, type TicketRecepcion } from "./TicketBascula";
+import {
+  formatearResumenCompartirBoleta,
+  formatearResumenWhatsApp,
+  urlConsultaPago,
+} from "@/lib/recepcion/textoTicket";
 import { COMPANY_INFO } from "@/lib/company";
 
 const ticketBase: TicketRecepcion = {
@@ -125,5 +129,78 @@ describe("TicketBascula", () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
     expect(writeText.mock.calls[0][0]).toContain("REC-2026-008");
     expect(writeText.mock.calls[0][0]).toContain("$186,380.00");
+  });
+});
+
+describe("urlConsultaPago", () => {
+  it("genera la liga del portal con el folio en minúsculas", () => {
+    expect(urlConsultaPago("REC-2026-008", "https://x")).toBe(
+      "https://portal.jbmcitricos.com/status/rec-2026-008"
+    );
+  });
+
+  it("usa el respaldo cuando no hay folio oficial", () => {
+    expect(urlConsultaPago("", "https://x/lotes/1")).toBe("https://x/lotes/1");
+    expect(urlConsultaPago("  ")).toBe("");
+  });
+});
+
+describe("formatearResumenCompartirBoleta", () => {
+  it("estructura el resumen con emojis y liga de pago", () => {
+    const texto = formatearResumenCompartirBoleta(ticketBase);
+
+    expect(texto).toContain("🧾");
+    expect(texto).toContain("B-10293");
+    expect(texto).toContain("Folio ERP: REC-2026-008");
+    expect(texto).toContain("👤 Productor: Citrícola del Valle");
+    expect(texto).toContain("🌱 Variedad: Limón Mexicano");
+    expect(texto).toContain("10,300.00 kg");
+    expect(texto).toContain("🏷️ Cuota báscula (DESCUENTO): -$50.00");
+    expect(texto).toContain("🚚 Cargos op. ($0.40/kg): -$4,120.00");
+    expect(texto).toContain("💰 *TOTAL A LIQUIDAR: $186,380.00*");
+    expect(texto).toContain(
+      "🔗 Consulta tu pago: https://portal.jbmcitricos.com/status/rec-2026-008"
+    );
+    expect(texto).toContain("👷 Operador: Carlos Barragan");
+  });
+
+  it("marca la báscula pagada en efectivo en $0.00", () => {
+    const texto = formatearResumenCompartirBoleta({
+      ...ticketBase,
+      basculaFormaPago: "efectivo",
+    });
+
+    expect(texto).toContain("🏷️ Báscula (PAGADO EF.): $0.00");
+    expect(texto).not.toContain("DESCUENTO");
+  });
+});
+
+describe("PapelTicket", () => {
+  it("muestra folios duales, neto destacado y total en barra negra", () => {
+    render(<PapelTicket ticket={ticketBase} imprimible={false} />);
+
+    expect(screen.getByText(/ticket de báscula/i)).toBeInTheDocument();
+    expect(screen.getByText("B-10293")).toBeInTheDocument();
+    expect(screen.getByText(/FOLIO ERP:/)).toBeInTheDocument();
+    expect(screen.getAllByText(/REC-2026-008/).length).toBeGreaterThan(0);
+    expect(screen.getByText("NETO")).toBeInTheDocument();
+    expect(screen.getByText("TOTAL A LIQUIDAR")).toBeInTheDocument();
+    expect(screen.getByText("$186,380.00")).toBeInTheDocument();
+    expect(screen.getByText(/CUOTA BÁSCULA \(DESCUENTO\)/)).toBeInTheDocument();
+    expect(screen.getByText("FIRMA OPERADOR")).toBeInTheDocument();
+    expect(screen.getByText("FIRMA PRODUCTOR")).toBeInTheDocument();
+    expect(screen.getByText(/consulta tu pago/i)).toBeInTheDocument();
+    expect(
+      screen.getByText("https://portal.jbmcitricos.com/status/rec-2026-008")
+    ).toBeInTheDocument();
+  });
+
+  it("renderiza el ancho compacto de 58 mm", () => {
+    const { container } = render(
+      <PapelTicket ticket={ticketBase} ancho="58mm" imprimible={false} />
+    );
+
+    const papel = container.firstElementChild as HTMLElement;
+    expect(papel.style.width).toBe("219px");
   });
 });

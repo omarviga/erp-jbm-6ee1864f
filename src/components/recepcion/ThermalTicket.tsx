@@ -1,5 +1,7 @@
-import { VARIEDAD_UNICA, formatoKilos, formatoPesos } from "../../lib/recepcion/calculos";
+import { VARIEDAD_UNICA } from "../../lib/recepcion/calculos";
 import type { ResumenRecepcion, TipoPagoRecepcion } from "../../lib/recepcion/calculos";
+import { PapelTicket, type TicketRecepcion } from "./TicketBascula";
+import type { AnchoTicket } from "../../lib/recepcion/textoTicket";
 
 export interface DatosTicketRecepcion {
   folioOficial: string;
@@ -25,22 +27,15 @@ interface ThermalTicketProps {
   datos: DatosTicketRecepcion;
   /** true = vista previa en vivo dentro del modal; false = impresión. */
   isLivePreview?: boolean;
-}
-
-function Fila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <div className="flex justify-between gap-2">
-      <span>{etiqueta}</span>
-      <span className="font-bold">{valor}</span>
-    </div>
-  );
+  ancho?: AnchoTicket;
 }
 
 /**
- * Réplica del ticket térmico de 80 mm. En el modal se usa con
- * isLivePreview para actualización reactiva mientras el operador captura.
+ * Vista en vivo del ticket térmico de 80/58 mm dentro del modal de
+ * captura. Reutiliza el mismo papel que la vista guardada para que la
+ * previsualización sea idéntica al comprobante impreso.
  */
-export function ThermalTicket({ datos, isLivePreview = false }: ThermalTicketProps) {
+export function ThermalTicket({ datos, isLivePreview = false, ancho = "80mm" }: ThermalTicketProps) {
   const { resumen } = datos;
   const anticipos = datos.anticipos ?? 0;
   const etiquetaPago =
@@ -49,89 +44,68 @@ export function ThermalTicket({ datos, isLivePreview = false }: ThermalTicketPro
       : datos.tipoPago === "anticipo"
         ? "Anticipo en recepción"
         : null;
+
+  const ticket: TicketRecepcion = {
+    folioOficial: datos.folioOficial,
+    folioFisico: datos.folioBascula,
+    numeroLote: "",
+    productor: datos.productorNombre || "—",
+    origen: "",
+    huerto: "—",
+    localidad: datos.productorLocalidad ?? "",
+    variedad: VARIEDAD_UNICA,
+    operador: datos.operadorBascula,
+    pesoBruto: datos.pesoBruto,
+    tara: datos.pesoTara,
+    pesoNeto: Math.max(0, resumen.pesoNeto),
+    kilosMerma: 0,
+    defectosPct: 0,
+    precioKg: datos.precioKg,
+    subtotal: resumen.subtotalFruta,
+    costoBascula: datos.cuotaBascula,
+    basculaFormaPago: datos.formaPagoBascula,
+    cuotaManiobraKg: datos.tarifaManiobraKg,
+    cuotaManiobraConcepto: datos.conceptoManiobra,
+    cuotaManiobra: resumen.cargoManiobraTotal,
+    totalDeducciones: resumen.descuentoBascula + resumen.cargoManiobraTotal,
+    total: resumen.totalLiquidar,
+    precioNetoEfectivo: resumen.precioNetoEfectivo,
+    fecha: datos.fecha.toLocaleString("es-MX", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }),
+    statusUrl: "",
+    borrador: true,
+  };
+
   return (
     <div
-      className="mx-auto bg-white font-mono text-[11px] leading-snug text-slate-900 shadow-lg"
-      style={{ width: "80mm", maxWidth: "100%" }}
       role={isLivePreview ? "img" : undefined}
       aria-label={isLivePreview ? "Vista previa del ticket térmico" : undefined}
     >
       {isLivePreview && (
-        <div className="bg-amber-400 px-2 py-1 text-center text-[10px] font-black tracking-widest text-slate-900 uppercase">
+        <div className="mx-auto mb-2 max-w-[302px] rounded-t-xl bg-amber-400 px-2 py-1 text-center text-[10px] font-black tracking-widest text-slate-900 uppercase">
           Vista previa en vivo
         </div>
       )}
-      <div className="px-3 py-3">
-        <div className="text-center">
-          <p className="text-sm font-black tracking-wide">JBM CÍTRICOS BARRAGÁN</p>
-          <p className="text-[10px]">Boleta de Recepción &amp; Pesaje</p>
-        </div>
-        <div className="my-2 border-t border-dashed border-slate-400" />
-        <Fila etiqueta="Folio:" valor={datos.folioOficial || "—"} />
-        <Fila etiqueta="Ticket báscula:" valor={datos.folioBascula || "—"} />
-        <Fila
-          etiqueta="Fecha:"
-          valor={datos.fecha.toLocaleString("es-MX", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        />
-        <Fila etiqueta="Variedad:" valor={VARIEDAD_UNICA} />
-        <div className="my-2 border-t border-dashed border-slate-400" />
-        <p className="font-bold">Productor:</p>
-        <p>{datos.productorNombre || "—"}</p>
-        {datos.productorLocalidad && (
-          <p className="text-[10px] text-slate-600">{datos.productorLocalidad}</p>
-        )}
-        <div className="my-2 border-t border-dashed border-slate-400" />
-        <Fila etiqueta="Bruto:" valor={formatoKilos(datos.pesoBruto)} />
-        <Fila etiqueta="Tara:" valor={formatoKilos(datos.pesoTara)} />
-        <Fila etiqueta="NETO:" valor={formatoKilos(resumen.pesoNeto)} />
-        <div className="my-2 border-t border-dashed border-slate-400" />
-        <Fila etiqueta={`Fruta (${formatoKilos(resumen.pesoNeto)} × ${formatoPesos(datos.precioKg)}/kg):`} valor={`+${formatoPesos(resumen.subtotalFruta)}`} />
-        <Fila
-          etiqueta={`Báscula (${datos.formaPagoBascula === "liquidacion" ? "descuento" : "efectivo"}):`}
-          valor={resumen.descuentoBascula > 0 ? `-${formatoPesos(resumen.descuentoBascula)}` : formatoPesos(0)}
-        />
-        <Fila
-          etiqueta={`${datos.conceptoManiobra || "Maniobra"} (${formatoPesos(datos.tarifaManiobraKg)}/kg):`}
-          valor={resumen.cargoManiobraTotal > 0 ? `-${formatoPesos(resumen.cargoManiobraTotal)}` : formatoPesos(0)}
-        />
-        <div className="my-2 border-t border-dashed border-slate-400" />
-        <div className="text-center">
-          <p className="text-[10px]">TOTAL NETO A LIQUIDAR</p>
-          <p className="text-xl font-black">{formatoPesos(resumen.totalLiquidar)}</p>
-          <p className="text-[10px]">
-            Precio neto efectivo: {formatoPesos(resumen.precioNetoEfectivo)}/kg
-          </p>
-        </div>
-        {etiquetaPago && anticipos > 0 && (
-          <>
-            <div className="my-2 border-t border-dashed border-slate-400" />
-            <Fila etiqueta={`${etiquetaPago}:`} valor={`-${formatoPesos(anticipos)}`} />
-            <Fila
-              etiqueta="Remanente estimado:"
-              valor={formatoPesos(datos.remanenteEstimado ?? 0)}
-            />
-          </>
-        )}
-        <div className="my-2 border-t border-dashed border-slate-400" />
-        <Fila etiqueta="Operador:" valor={datos.operadorBascula || "—"} />
-        <div className="mt-2 border border-slate-300 px-2 py-1 text-center text-[10px]">
-          QR trazabilidad: {datos.folioOficial || "—"}
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-4 text-center text-[10px]">
-          <div>
-            <div className="border-t border-slate-500 pt-1">Operador báscula</div>
-          </div>
-          <div>
-            <div className="border-t border-slate-500 pt-1">Productor / Chofer</div>
-          </div>
-        </div>
-      </div>
+      <PapelTicket
+        ticket={ticket}
+        ancho={ancho}
+        imprimible={false}
+        pagoExtra={
+          etiquetaPago && anticipos > 0
+            ? {
+                etiqueta: etiquetaPago,
+                anticipos,
+                remanenteEstimado: datos.remanenteEstimado ?? 0,
+              }
+            : null
+        }
+      />
     </div>
   );
 }
