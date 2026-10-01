@@ -41,6 +41,7 @@ import { LiquidacionesTab } from "@/components/finanzas/LiquidacionesTab";
 import { CancelarTicketModal } from "@/components/finanzas/CancelarTicketModal";
 import { useCancelarTicket } from "@/hooks/useCancelarTicket";
 import { esNotaCancelacionSinPagos } from "@/lib/tickets/cancelacion";
+import { validarAbono } from "@/lib/finanzas/calculos";
 
 // Tipos basados en el esquema Supabase
 type Productor = Database['public']['Tables']['productores']['Row'];
@@ -297,6 +298,12 @@ export default function Finanzas() {
     ? productorCxpDetalle.detalleTickets.filter((ticket) => ticketsCxpSeleccionados.includes(ticket.id))
     : [];
   const saldoSeleccionadoCxp = ticketsAplicablesCxp.reduce((sum, ticket) => sum + ticket.saldoPendiente, 0);
+  const erroresAbonoCxp = validarAbono({
+    importe: montoAdelantoCxpNum,
+    saldoPendiente: saldoSeleccionadoCxp,
+    metodo: metodoPagoCxp,
+    referencia: referenciaPagoCxp,
+  });
   const saldoProyectadoCxp = productorCxpDetalle
     ? Math.max(0, productorCxpDetalle.saldoVivo - Math.min(montoAdelantoCxpNum, saldoSeleccionadoCxp))
     : 0;
@@ -520,8 +527,9 @@ export default function Finanzas() {
       return;
     }
 
-    const monto = parseFloat(montoAdelantoCxp) || 0;
-    if (monto <= 0) {
+    const monto = montoAdelantoCxpNum;
+    const codigosAbonoCxp = new Set(erroresAbonoCxp.map((error) => error.codigo));
+    if (codigosAbonoCxp.has("IMPORTE_INVALIDO")) {
       toast({
         title: "⚠️ Monto inválido",
         description: "Ingresa un monto mayor a cero para registrar el adelanto.",
@@ -539,7 +547,7 @@ export default function Finanzas() {
       return;
     }
 
-    if (monto > saldoSeleccionadoCxp) {
+    if (codigosAbonoCxp.has("IMPORTE_EXCEDE_SALDO")) {
       toast({
         title: "⚠️ Monto excedido",
         description: "El monto del pago parcial supera el saldo seleccionado de las notas.",
@@ -548,7 +556,7 @@ export default function Finanzas() {
       return;
     }
 
-    if ((metodoPagoCxp === 'cheque' || metodoPagoCxp === 'transferencia') && !referenciaPagoCxp.trim()) {
+    if (codigosAbonoCxp.has("REFERENCIA_REQUERIDA")) {
       toast({
         title: "⚠️ Falta referencia",
         description: metodoPagoCxp === "cheque"
@@ -847,10 +855,8 @@ export default function Finanzas() {
                             onClick={() => handleRegistrarAdelantoCxp(productorCxpDetalle.productorId)}
                             disabled={
                               registrandoAdelanto ||
-                              montoAdelantoCxpNum <= 0 ||
                               ticketsCxpSeleccionados.length === 0 ||
-                              montoAdelantoCxpNum > saldoSeleccionadoCxp ||
-                              ((metodoPagoCxp === "cheque" || metodoPagoCxp === "transferencia") && !referenciaPagoCxp.trim())
+                              erroresAbonoCxp.length > 0
                             }
                           >
                             {registrandoAdelanto ? "Registrando..." : `Aplicar pago parcial a ${productorCxpDetalle.productor}`}

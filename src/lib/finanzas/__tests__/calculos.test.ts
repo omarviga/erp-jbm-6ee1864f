@@ -104,6 +104,36 @@ describe("validarAbono", () => {
       validarAbono({ importe: 500, saldoPendiente: 500, metodo: "spei", referencia: "SP-1" }),
     ).toEqual([]);
   });
+  it("exige referencia en transferencia igual que en cheque", () => {
+    expect(
+      validarAbono({ importe: 100, saldoPendiente: 500, metodo: "transferencia", referencia: "   " }).map(
+        (e) => e.codigo,
+      ),
+    ).toContain("REFERENCIA_REQUERIDA");
+    expect(
+      validarAbono({ importe: 500, saldoPendiente: 500, metodo: "transferencia", referencia: "TR-99" }),
+    ).toEqual([]);
+  });
+  it("acepta efectivo sin referencia y rechaza importe inválido o excedido", () => {
+    expect(
+      validarAbono({ importe: 250, saldoPendiente: 500, metodo: "efectivo", referencia: "" }),
+    ).toEqual([]);
+    expect(
+      validarAbono({ importe: 0, saldoPendiente: 500, metodo: "efectivo", referencia: "" }).map(
+        (e) => e.codigo,
+      ),
+    ).toContain("IMPORTE_INVALIDO");
+    expect(
+      validarAbono({ importe: Number.NaN, saldoPendiente: 500, metodo: "efectivo", referencia: "" }).map(
+        (e) => e.codigo,
+      ),
+    ).toContain("IMPORTE_INVALIDO");
+    expect(
+      validarAbono({ importe: 500.01, saldoPendiente: 500, metodo: "efectivo", referencia: "" }).map(
+        (e) => e.codigo,
+      ),
+    ).toContain("IMPORTE_EXCEDE_SALDO");
+  });
 });
 
 describe("alias", () => {

@@ -149,12 +149,14 @@ export interface ErrorAbono {
 
 /**
  * Valida un abono: importe > 0, sin exceder el saldo pendiente,
- * y folio/referencia obligatorio cuando el método es cheque.
+ * y folio/referencia obligatorio cuando el método es cheque o
+ * transferencia (trazabilidad del pago). Acepta "transferencia"
+ * además de MetodoAbono para el flujo CxP de Finanzas.
  */
 export function validarAbono(args: {
   importe: number;
   saldoPendiente: number;
-  metodo: MetodoAbono;
+  metodo: MetodoAbono | "transferencia";
   referencia: string;
 }): ErrorAbono[] {
   const errores: ErrorAbono[] = [];
@@ -169,10 +171,16 @@ export function validarAbono(args: {
       mensaje: "El importe no puede exceder el saldo pendiente.",
     });
   }
-  if (args.metodo === "cheque" && !args.referencia.trim()) {
+  if (
+    (args.metodo === "cheque" || args.metodo === "transferencia") &&
+    !args.referencia.trim()
+  ) {
     errores.push({
       codigo: "REFERENCIA_REQUERIDA",
-      mensaje: "El número de folio / referencia del cheque es obligatorio.",
+      mensaje:
+        args.metodo === "transferencia"
+          ? "La referencia de la transferencia es obligatoria."
+          : "El número de folio / referencia del cheque es obligatorio.",
     });
   }
   return errores;
