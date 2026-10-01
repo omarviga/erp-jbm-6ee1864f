@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
+const ALLOW_INVENTORY_FALLBACK = String(import.meta.env.VITE_ALLOW_INVENTORY_FALLBACK).toLowerCase() === "true";
+
 const buildRpcErrorMessage = (error: { message?: string; details?: string; hint?: string; code?: string } | null) => {
   if (!error) return "Error desconocido";
   const parts = [error.message, error.details, error.hint].filter(Boolean);
@@ -129,7 +131,15 @@ export const useCamaraFria = () => {
       });
 
       if (!error) return true;
-      if (!isMissingFunctionError(error)) throw new Error(buildRpcErrorMessage(error));
+      if (!isMissingFunctionError(error) || !ALLOW_INVENTORY_FALLBACK) {
+        throw new Error(
+          `${buildRpcErrorMessage(error)}${
+            !ALLOW_INVENTORY_FALLBACK && isMissingFunctionError(error)
+              ? " | El fallback está deshabilitado. Activa VITE_ALLOW_INVENTORY_FALLBACK=true para permitir operación de contingencia."
+              : ""
+          }`
+        );
+      }
 
       const { error: updateProdError } = await supabase.from("produccion").update({ destino: "camara_fria" }).eq("id", produccionId).eq("destino", "piso_empaque");
       if (updateProdError) throw new Error(buildRpcErrorMessage(updateProdError));
@@ -188,7 +198,15 @@ export const useCamaraFria = () => {
       });
 
       if (!error) return true;
-      if (!isMissingFunctionError(error)) throw new Error(buildRpcErrorMessage(error));
+      if (!isMissingFunctionError(error) || !ALLOW_INVENTORY_FALLBACK) {
+        throw new Error(
+          `${buildRpcErrorMessage(error)}${
+            !ALLOW_INVENTORY_FALLBACK && isMissingFunctionError(error)
+              ? " | El fallback está deshabilitado. Activa VITE_ALLOW_INVENTORY_FALLBACK=true para permitir operación de contingencia."
+              : ""
+          }`
+        );
+      }
 
       const { data: produccion, error: prodError } = await supabase.from("produccion").select("id, presentacion_id, cantidad_cajas").eq("id", produccionId).single();
       if (prodError || !produccion) throw new Error(buildRpcErrorMessage(prodError));
