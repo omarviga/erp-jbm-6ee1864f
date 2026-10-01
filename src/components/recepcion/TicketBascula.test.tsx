@@ -133,9 +133,9 @@ describe("TicketBascula", () => {
 });
 
 describe("urlConsultaPago", () => {
-  it("genera la liga del portal con el folio en minúsculas", () => {
+  it("genera la liga del ERP con el folio en minúsculas", () => {
     expect(urlConsultaPago("REC-2026-008", "https://x")).toBe(
-      "https://portal.jbmcitricos.com/status/rec-2026-008"
+      "https://erp.jbm.com.mx/status/rec-2026-008"
     );
   });
 
@@ -159,7 +159,7 @@ describe("formatearResumenCompartirBoleta", () => {
     expect(texto).toContain("🚚 Cargos op. ($0.40/kg): -$4,120.00");
     expect(texto).toContain("💰 *TOTAL A LIQUIDAR: $186,380.00*");
     expect(texto).toContain(
-      "🔗 Consulta tu pago: https://portal.jbmcitricos.com/status/rec-2026-008"
+      "🔗 Consulta tu pago: https://erp.jbm.com.mx/status/rec-2026-008"
     );
     expect(texto).toContain("👷 Operador: Carlos Barragan");
   });
@@ -191,7 +191,7 @@ describe("PapelTicket", () => {
     expect(screen.getByText("FIRMA PRODUCTOR")).toBeInTheDocument();
     expect(screen.getByText(/consulta tu pago/i)).toBeInTheDocument();
     expect(
-      screen.getByText("https://portal.jbmcitricos.com/status/rec-2026-008")
+      screen.getByText("https://erp.jbm.com.mx/status/rec-2026-008")
     ).toBeInTheDocument();
   });
 

@@ -46,6 +46,7 @@ import {
   copiarTextoTicket,
   formatearResumenCompartirBoleta,
 } from "@/lib/recepcion/textoTicket";
+import { urlLote } from "@/lib/urls";
 import {
   TicketBascula,
   type TicketRecepcion,
@@ -125,7 +126,7 @@ const ticketRecienteABoleta = (t: TicketReciente): TicketRecepcion => ({
   total: t.total,
   precioNetoEfectivo: t.precioNetoEfectivo,
   fecha: formatearFechaHora(new Date(t.fechaRecepcion)),
-  statusUrl: `${window.location.origin}/lotes/${t.id}`,
+  statusUrl: urlLote(t.id),
   borrador: false,
 });
 
@@ -257,7 +258,7 @@ export default function Recepcion() {
           total: res.total_liquidar,
           precioNetoEfectivo: payload.resumen.precioNetoEfectivo,
           fecha: formatearFechaHora(new Date()),
-          statusUrl: `${window.location.origin}/lotes/${res.id}`,
+          statusUrl: urlLote(res.id),
           borrador: false,
         };
 

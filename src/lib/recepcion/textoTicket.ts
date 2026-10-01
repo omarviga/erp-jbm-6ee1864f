@@ -1,3 +1,4 @@
+import { ERP_BASE_URL, urlEstatusRecepcion } from "../urls";
 import { moneda, type FormaPagoBascula } from "./calculos";
 
 /** Ancho de papel térmico del ticket. */
@@ -28,8 +29,8 @@ export async function copiarTextoTicket(texto: string): Promise<boolean> {
   }
 }
 
-/** Portal público del productor para consultar estatus de pago y PDF. */
-export const PORTAL_STATUS_BASE = "https://portal.jbmcitricos.com/status";
+/** Base del estatus de pago y PDF del productor, sobre el ERP público. */
+export const ERP_STATUS_BASE = `${ERP_BASE_URL}/status`;
 
 /** URL de validación en línea del ticket (QR + mensajes). */
 export function urlConsultaPago(
@@ -37,7 +38,7 @@ export function urlConsultaPago(
   respaldo?: string
 ): string {
   const folio = (folioOficial ?? "").trim();
-  if (folio) return `${PORTAL_STATUS_BASE}/${folio.toLowerCase()}`;
+  if (folio) return urlEstatusRecepcion(folio);
   return (respaldo ?? "").trim();
 }
 

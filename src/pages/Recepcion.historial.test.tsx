@@ -292,7 +292,7 @@ describe("Recepcion: historial de boletas", () => {
     const texto = String(writeText.mock.calls[0][0]);
     expect(texto).toContain("🧾");
     expect(texto).toContain("TOTAL A LIQUIDAR");
-    expect(texto).toContain("portal.jbmcitricos.com/status/rec-2026-008");
+    expect(texto).toContain("erp.jbm.com.mx/status/rec-2026-008");
   });
 
   it("elimina una boleta offline en dos pasos", async () => {

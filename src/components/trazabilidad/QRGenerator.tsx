@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download } from "lucide-react";
 import logoJBM from "@/assets/logo-jbm.png";
+import { urlLote } from "@/lib/urls";
 
 interface QRGeneratorProps {
   numeroLote: string;
@@ -13,8 +14,8 @@ interface QRGeneratorProps {
 export function QRGenerator({ numeroLote, size = 200 }: QRGeneratorProps) {
   const qrRef = useRef<HTMLDivElement>(null);
   
-  // URL de trazabilidad (puede ser la URL de tu app en producción)
-  const traceUrl = `${window.location.origin}/lotes/${numeroLote}`;
+  // URL de trazabilidad sobre el ERP público (base única de QR).
+  const traceUrl = urlLote(numeroLote);
 
   const handleDownload = () => {
     if (!qrRef.current) return;

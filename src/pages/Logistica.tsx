@@ -28,6 +28,7 @@ import {
   Users, CheckCircle, Clock, Filter, ArrowRight, DollarSign, UserPlus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { urlCartaPorte } from "@/lib/urls";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -628,7 +629,7 @@ export default function Logistica() {
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       const nuevoFolio = `CP-${format(new Date(), 'yyyy')}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      const cartaPorteQrUrl = `https://erp.jbm.com.mx/logistica/carta-porte/${encodeURIComponent(nuevoFolio)}`;
+      const cartaPorteQrUrl = urlCartaPorte(nuevoFolio);
 
       // Crear objeto de Carta Porte
       const nuevaCartaPorte: CartaPorte = {
@@ -809,7 +810,7 @@ export default function Logistica() {
         origen: guia.lugar_origen,
         destino: guia.lugar_destino,
         pesoTotalKg: Number(guia.peso_total || 0),
-        urlValidacion: `https://erp.jbm.com.mx/logistica/carta-porte/${encodeURIComponent(getGuiaFolio(guia))}`,
+        urlValidacion: urlCartaPorte(getGuiaFolio(guia)),
         totalCajas: guia.total_cajas,
         valorMercancia: guia.valor_total,
         temperaturaPrecarga: guia.temperatura_precarga,
@@ -856,7 +857,7 @@ export default function Logistica() {
       origen: guia.lugar_origen,
       destino: guia.lugar_destino,
       pesoTotalKg: Number(guia.peso_total || 0),
-      urlValidacion: `https://erp.jbm.com.mx/logistica/carta-porte/${encodeURIComponent(getGuiaFolio(guia))}`,
+      urlValidacion: urlCartaPorte(getGuiaFolio(guia)),
       totalCajas: guia.total_cajas,
       valorMercancia: guia.valor_total,
       temperaturaPrecarga: guia.temperatura_precarga,
@@ -1082,7 +1083,7 @@ export default function Logistica() {
                   </div>
                   <div className="rounded-xl border bg-white p-3">
                     <QRCodeSVG
-                      value={`https://erp.jbm.com.mx/logistica/carta-porte/${encodeURIComponent(getGuiaFolio(guiaDetalleSeleccionada))}`}
+                      value={urlCartaPorte(getGuiaFolio(guiaDetalleSeleccionada))}
                       size={120}
                       level="M"
                       includeMargin={false}
