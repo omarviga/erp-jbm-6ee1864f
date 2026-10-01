@@ -1,7 +1,7 @@
 {
   "titulo": "Guía de Usuario — Sistema JBM ERP",
   "subtitulo": "Manual operativo por rol · Limones Barragán",
-  "version": "v1.2 · Septiembre 2026",
+  "version": "v1.3 · Octubre 2026",
   "secciones": [
     {
       "id": "intro",
@@ -95,8 +95,15 @@
         {"tipo": "lista", "items": [
           "1. Localizar la celda en la cuadrícula y darle clic.",
           "2. En el panel derecho pulsar 'Dar de baja por merma'.",
-          "3. Capturar cantidad y motivo (golpe, hongo, deshidratación, etc.).",
+          "3. Capturar cantidad y motivo (golpe, hongo, deshidratación, etc.). El motivo es obligatorio y la cantidad debe ser mayor a 0 sin exceder el disponible.",
           "4. Confirmar. Queda registrado en el kardex del lote."
+        ]},
+        {"tipo": "h2", "texto": "Cómo trasladar de Piso a Cámara"},
+        {"tipo": "lista", "items": [
+          "1. Pestaña 'Piso Empaque': revisa la lista de registros pendientes.",
+          "2. Pulsar 'Traslado interno a Cámara Fría' (arriba a la derecha). Se mueven TODOS los pendientes con sus cajas completas.",
+          "3. Al terminar, los registros aparecen en la cuadrícula de Cámara Fría y el movimiento queda en el kardex de cada lote.",
+          "Si no hay pendientes, el sistema avisa 'No hay inventario pendiente en Piso Empaque'."
         ]},
         {"tipo": "h2", "texto": "Cómo enviar inventario a Bodega CDMX"},
         {"tipo": "lista", "items": [
@@ -176,7 +183,7 @@
         {"tipo": "lista", "items": [
           "Ver el resumen por productor: deuda total, pagado, saldo vivo, número de notas y antigüedad de la más antigua.",
           "Seleccionar un productor para desplegar sus notas pendientes (folio, fecha, kilos, precio, importe y saldo).",
-          "Aplicar un pago parcial: marca con checkbox las notas que quieres abonar, captura monto + forma de pago (cheque/transferencia/efectivo) + referencia y pulsa 'Aplicar pago parcial'.",
+          "Aplicar un pago parcial: marca con checkbox las notas que quieres abonar, captura monto + forma de pago (cheque/transferencia/efectivo) y pulsa 'Aplicar pago parcial'. La referencia es obligatoria en cheque y transferencia (opcional en efectivo).",
           "El monto se reparte automáticamente primero a la nota más antigua y actualiza el saldo de cada nota hasta liquidarla.",
           "Revisar la bitácora de aplicaciones de pago del productor.",
           "Descargar el Estado de Cuenta del productor (PDF) con sus notas, pagos y saldos."
@@ -186,10 +193,11 @@
           "1. Ir a Finanzas → pestaña CxP.",
           "2. Hacer clic en la fila del productor (aparece la lista de sus notas con checkbox).",
           "3. Seleccionar las notas a abonar marcando su casilla.",
-          "4. En 'Aplicar pago parcial' elegir forma de pago, capturar referencia (si aplica) y el monto del pago.",
+          "4. En 'Aplicar pago parcial' elegir forma de pago, capturar referencia (obligatoria en cheque/transferencia) y el monto del pago.",
           "5. Verificar el 'Saldo seleccionado' y el 'Saldo proyectado después del pago'.",
           "6. Pulsar 'Aplicar pago parcial a [Productor]'. Los saldos se actualizan al instante."
         ]},
+        {"tipo": "p", "texto": "El botón se habilita solo cuando el monto es mayor a cero, no supera el saldo seleccionado, hay notas marcadas y (en cheque/transferencia) la referencia está capturada."},
         {"tipo": "h2", "texto": "Cómo descargar el Estado de Cuenta"},
         {"tipo": "lista", "items": [
           "1. Seleccionar el productor en la pestaña CxP.",
@@ -260,7 +268,11 @@
           ["Corte no cuadra", "Venta o gasto sin registrar", "Revisar tickets y gastos del día"],
           ["Tara inválida en recepción", "Tara mayor o igual al bruto", "Verificar las pesadas de la báscula"],
           ["Anticipo excede el total", "Monto mayor al estimado", "Ajustar el monto o usar Pago total"],
-          ["Cheque sin folio", "Falta la referencia", "Capturar el folio del cheque"]
+          ["Cheque sin folio", "Falta la referencia", "Capturar el folio del cheque"],
+          ["Falta referencia al aplicar pago", "Cheque/transferencia exigen referencia", "Capturarla; en efectivo es opcional"],
+          ["Monto excedido al aplicar pago", "El monto supera el saldo de las notas marcadas", "Bajar el monto o marcar más notas con saldo"],
+          ["No se pudo completar el traslado interno", "Un registro cambió de estado durante el traslado", "Recargar Inventarios y reintentar; si persiste, avisar al admin"],
+          ["No autorizado", "Tu rol no tiene permiso para esa acción", "Pedir al admin el rol del módulo en /admin/usuarios"]
         ]}
       ]
     },
